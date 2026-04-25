@@ -1,6 +1,7 @@
 """Email service — async SMTP with 5 bilingual templates (PL/EN) and VEHIQ branding."""
 import os
 import asyncio
+import html as html_lib
 import logging
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
@@ -72,6 +73,7 @@ def _btn(text: str, href: str) -> str:
 
 # ---------- Templates ----------
 def tpl_welcome(name: str, lang: str = "pl"):
+    name = html_lib.escape(name or "")
     if lang == "en":
         subject = "Welcome to VEHIQ — Your garage is ready"
         body = f"""<h2 style="font-family:Georgia,serif;color:#0D0F1A;font-size:28px;margin:0 0 12px;">Welcome, {name}!</h2>
@@ -118,6 +120,9 @@ def tpl_service_reminder(vehicle_label: str, reminder_type: str, due_date: str, 
 
 
 def tpl_new_message(sender_name: str, listing_title: str, preview: str, listing_id: str, sender_id: str, lang: str = "pl"):
+    sender_name = html_lib.escape(sender_name or "")
+    listing_title = html_lib.escape(listing_title or "")
+    preview = html_lib.escape(preview or "")
     if lang == "en":
         subject = "You have a new message on VEHIQ"
         body = f"""<h2 style="font-family:Georgia,serif;color:#0D0F1A;font-size:26px;margin:0 0 12px;">New message from {sender_name}</h2>

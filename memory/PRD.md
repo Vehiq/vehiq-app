@@ -75,3 +75,26 @@ Build a full-stack web + mobile-responsive SaaS application called VEHIQ. A prem
 - 5 editable legal pages ✅
 - Visit tracking ✅
 - Cookie banner ✅
+
+## Iteration 2 — 2026-04-25
+**Polish & UX:**
+- Full Dashboard at `/garage` — reminders strip (color-coded days_until badges), stats cards, garage grid main + right rail with Recent Activity and Marketplace Highlights widgets
+- `Skeleton.js` — animated dark cards with shimmer keyframe (SkeletonGarageGrid, SkeletonList, SkeletonListingGrid, SkeletonChat) replacing all spinners
+- `EmptyState.js` — uniform branded empty state used in Garage, Service, Marketplace, Forum
+- `ErrorBoundary.js` + `ErrorPage.js` — graceful error fallback wrapping all routes
+
+**Email & Auth:**
+- `email_service.py` — async SMTP via `aiosmtplib`, 5 bilingual HTML templates (welcome / password-reset / service-reminder / new-message / forum-reply / test) with VEHIQ premium dark+gold header, html.escape on user-controlled strings
+- `/api/auth/password-reset/{request,confirm}` — 1h JWT token reset flow + `/password-reset` and `/password-reset/confirm` frontend pages, "Forgot password?" link added to Login
+- Welcome email queued on register, message email on marketplace POST, reply email on forum comment — all fire-and-forget, never blocking
+- `/api/admin/test-email` — Send-test-email button in `AdminApiKeys.js`
+
+**Activity & Dashboard:**
+- `activity.py` — `log_activity()` called from vehicles/service/marketplace/forum; `upcoming_reminders()` (60-day horizon, max 5), `recent_activity()` (last 5), `featured_listings()` (top 3 active, featured first)
+- `routers/dashboard.py` — `GET /api/dashboard` aggregator
+
+**PDF Export:**
+- `lib/pdfExport.js` — premium service-history PDF with VEHIQ gold-on-dark header, vehicle metadata strip, summary cards (year/lifetime/entries), tabular entries sorted DESC, optional P&L block; bilingual; filename `VEHIQ_Make_Model_Year_serwis.pdf` (PL) or `_service.pdf` (EN). Button on Service tab.
+
+**Test results:** Iteration 2 — 57/57 backend tests pass (100%), all frontend flows verified.
+
