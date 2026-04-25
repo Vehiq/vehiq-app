@@ -7,6 +7,8 @@ import uuid
 
 from db_helper import get_db
 from auth_utils import get_current_user, get_optional_user
+from email_service import send_email, fire_and_forget, tpl_forum_reply
+from activity import log_activity
 
 router = APIRouter(prefix="/forum", tags=["forum"])
 
@@ -75,10 +77,8 @@ async def create_thread(payload: ThreadIn, user=Depends(get_current_user)):
     })
     await db.forum_threads.insert_one(doc)
     doc.pop("_id", None)
+    await log_activity(user["id"], "thread.create", "thread", doc["id"], doc.get("title"))
     return doc
-
-
-@router.delete("/threads/{thread_id}")
 async def delete_thread(thread_id: str, user=Depends(get_current_user)):
     db = get_db()
     t = await db.forum_threads.find_one({"id": thread_id})
@@ -121,6 +121,14 @@ async def create_comment(payload: CommentIn, user=Depends(get_current_user)):
     await db.forum_comments.insert_one(doc)
     doc.pop("_id", None)
     doc["author"] = {"id": user["id"], "name": user.get("name"), "avatar": user.get("avatar")}
+    await log_activity(user["id"], "comment.add", "thread", t["id"], t.get("title"))
+    # Notify thread author if not self-reply
+    if t.get("user_id") and t["user_id"] != user["id"]:
+        author = await db.profiles.find_one({"id": t["user_id"]}, {"_id": 0, "email": 1, "language": 1})
+        if author and author.get("email"):
+            preview = (payload.content or "")[:120]
+            subject, html = tpl_forum_reply(t.get("title") or "—", user.get("name") or "Someone", preview, t["id"], author.get("language", "pl"))
+            fire_and_forget(send_email(author["email"], subject, html))
     return doc
 
 

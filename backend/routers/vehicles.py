@@ -68,6 +68,8 @@ async def create_vehicle(payload: VehicleIn, user=Depends(get_current_user)):
     await db.vehicles.insert_one(doc)
     doc.pop("_id", None)
     doc["cover_photo"] = photos[doc.get("cover_photo_index") or 0] if photos else None
+    from activity import log_activity
+    await log_activity(user["id"], "vehicle.create", "vehicle", v_id, f"{doc.get('make')} {doc.get('model')}")
     return doc
 
 

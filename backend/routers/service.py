@@ -47,6 +47,8 @@ async def create(payload: ServiceEntryIn, user=Depends(get_current_user)):
     })
     await db.service_entries.insert_one(doc)
     doc.pop("_id", None)
+    from activity import log_activity
+    await log_activity(user["id"], "service.add", "vehicle", payload.vehicle_id, f"{payload.type} — {payload.cost} PLN")
     return doc
 
 

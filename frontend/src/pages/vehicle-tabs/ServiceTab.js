@@ -1,15 +1,18 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, Line, CartesianGrid } from "recharts";
-import { Plus, Trash2 } from "lucide-react";
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
+import { Plus, Trash2, FileDown, Wrench } from "lucide-react";
 import api from "@/lib/api";
 import { toast } from "sonner";
+import EmptyState from "@/components/EmptyState";
+import { SkeletonList } from "@/components/Skeleton";
+import { exportServicePdf } from "@/lib/pdfExport";
 
 const TYPES = ["oil", "inspection", "repair", "tires", "insurance", "mot", "other"];
 
 export default function ServiceTab({ vehicle }) {
-  const { t } = useTranslation();
-  const [entries, setEntries] = useState([]);
+  const { t, i18n } = useTranslation();
+  const [entries, setEntries] = useState(null);
   const [stats, setStats] = useState(null);
   const [show, setShow] = useState(false);
   const [form, setForm] = useState({ date: new Date().toISOString().slice(0,10), type: "oil", workshop: "", cost: 0, notes: "" });
@@ -39,13 +42,28 @@ export default function ServiceTab({ vehicle }) {
     reload();
   };
 
+  const exportPdf = async () => {
+    const lang = i18n.language?.startsWith("en") ? "en" : "pl";
+    let plData = null;
+    try { plData = (await api.get(`/vehicles/${vehicle.id}/pl`)).data; } catch {}
+    exportServicePdf({ vehicle, entries: entries || [], pl: plData, lang });
+    toast.success("PDF");
+  };
+
   return (
     <div className="space-y-6" data-testid="service-tab">
-      <div className="flex justify-between items-center">
+      <div className="flex justify-between items-center flex-wrap gap-2">
         <h2 className="vehiq-display text-3xl text-vehiq-text">{t("service.title")}</h2>
-        <button onClick={() => setShow(s => !s)} className="vehiq-btn-primary inline-flex items-center gap-2" data-testid="service-add">
-          <Plus size={14} /> {t("service.addEntry")}
-        </button>
+        <div className="flex gap-2">
+          {entries && entries.length > 0 && (
+            <button onClick={exportPdf} className="vehiq-btn-secondary inline-flex items-center gap-2" data-testid="service-pdf">
+              <FileDown size={14} /> PDF
+            </button>
+          )}
+          <button onClick={() => setShow(s => !s)} className="vehiq-btn-primary inline-flex items-center gap-2" data-testid="service-add">
+            <Plus size={14} /> {t("service.addEntry")}
+          </button>
+        </div>
       </div>
 
       {show && (
@@ -100,8 +118,16 @@ export default function ServiceTab({ vehicle }) {
         </div>
       )}
 
-      {entries.length === 0 ? (
-        <div className="vehiq-card p-8 text-center text-vehiq-muted">{t("service.noEntries")}</div>
+      {entries === null ? (
+        <SkeletonList count={4} />
+      ) : entries.length === 0 ? (
+        <EmptyState
+          icon={Wrench}
+          title={t("service.noEntries")}
+          description={t("service.addEntry")}
+          action={<button onClick={() => setShow(true)} className="vehiq-btn-primary inline-flex items-center gap-2"><Plus size={14}/> {t("service.addEntry")}</button>}
+          dataTestId="service-empty"
+        />
       ) : (
         <div className="vehiq-card overflow-hidden">
           <table className="w-full text-sm">

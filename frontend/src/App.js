@@ -41,6 +41,8 @@ import AdminAnalytics from "@/pages/admin/AdminAnalytics";
 
 import api from "@/lib/api";
 import { useTranslation } from "react-i18next";
+import ErrorBoundary from "@/components/ErrorBoundary";
+import { PasswordResetRequest, PasswordResetConfirm } from "@/pages/PasswordReset";
 
 function PageTracker() {
   useEffect(() => {
@@ -88,10 +90,11 @@ function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
-        <LangSync />
-        <PageTracker />
-        <Toaster theme="dark" position="top-right" toastOptions={{ style: { background: "#161829", border: "1px solid rgba(201,168,76,0.2)", color: "#F4F1EC" } }} />
-        <CookieBanner />
+        <ErrorBoundary>
+          <LangSync />
+          <PageTracker />
+          <Toaster theme="dark" position="top-right" toastOptions={{ style: { background: "#161829", border: "1px solid rgba(201,168,76,0.2)", color: "#F4F1EC" } }} />
+          <CookieBanner />
 
         <Routes>
           {/* Public auth */}
@@ -99,6 +102,8 @@ function App() {
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
           <Route path="/auth/callback" element={<AuthCallback />} />
+          <Route path="/password-reset" element={<PasswordResetRequest />} />
+          <Route path="/password-reset/confirm" element={<PasswordResetConfirm />} />
           <Route path="/onboarding" element={<PrivateRoute><Onboarding /></PrivateRoute>} />
 
           {/* Legal pages (public) */}
@@ -137,6 +142,7 @@ function App() {
 
           <Route path="*" element={<NotFound />} />
         </Routes>
+        </ErrorBoundary>
       </AuthProvider>
     </BrowserRouter>
   );

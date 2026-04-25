@@ -2,13 +2,15 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import api from "@/lib/api";
-import { Plus, Pin, MessageCircle } from "lucide-react";
+import { Plus, Pin, MessageCircle, MessagesSquare } from "lucide-react";
+import EmptyState from "@/components/EmptyState";
+import { SkeletonList } from "@/components/Skeleton";
 
 const CATS = ["all", "mechanics", "electrics", "tuning", "tips", "general"];
 
 export default function Forum() {
   const { t } = useTranslation();
-  const [threads, setThreads] = useState([]);
+  const [threads, setThreads] = useState(null);
   const [cat, setCat] = useState("all");
 
   useEffect(() => {
@@ -35,8 +37,16 @@ export default function Forum() {
         ))}
       </div>
 
-      {threads.length === 0 ? (
-        <div className="vehiq-card p-12 text-center text-vehiq-muted">{t("forum.noThreads")}</div>
+      {threads === null ? (
+        <SkeletonList count={4} />
+      ) : threads.length === 0 ? (
+        <EmptyState
+          icon={MessagesSquare}
+          title={t("forum.noThreads")}
+          description={t("forum.newThread")}
+          action={<Link to="/forum/new" className="vehiq-btn-primary inline-flex items-center gap-2"><Plus size={14}/> {t("forum.newThread")}</Link>}
+          dataTestId="forum-empty"
+        />
       ) : (
         <div className="vehiq-card divide-y divide-vehiq-border" data-testid="forum-threads">
           {threads.map(thr => (

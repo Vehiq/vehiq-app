@@ -7,6 +7,8 @@ import uuid
 
 from db_helper import get_db
 from auth_utils import get_current_user, get_optional_user
+from email_service import send_email, fire_and_forget, tpl_new_message
+from activity import log_activity
 
 router = APIRouter(prefix="/marketplace", tags=["marketplace"])
 
@@ -99,6 +101,7 @@ async def create_listing(payload: ListingIn, user=Depends(get_current_user)):
     })
     await db.listings.insert_one(doc)
     doc.pop("_id", None)
+    await log_activity(user["id"], "listing.create", "listing", doc["id"], doc.get("title"))
     return doc
 
 
@@ -211,4 +214,10 @@ async def send_message(payload: MessageIn, user=Depends(get_current_user)):
     }
     await db.messages.insert_one(doc)
     doc.pop("_id", None)
+    # Notify recipient (best effort)
+    receiver = await db.profiles.find_one({"id": payload.receiver_id}, {"_id": 0, "email": 1, "language": 1, "marketing_consent": 1})
+    if receiver and receiver.get("email"):
+        preview = (payload.content or "")[:120]
+        subject, html = tpl_new_message(user.get("name") or "Someone", listing.get("title") or "—", preview, payload.listing_id, user["id"], receiver.get("language", "pl"))
+        fire_and_forget(send_email(receiver["email"], subject, html))
     return doc

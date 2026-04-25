@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import adminApi from "@/lib/adminApi";
 import { toast } from "sonner";
-import { Eye, EyeOff } from "lucide-react";
+import { Eye, EyeOff, Send } from "lucide-react";
 
 const FIELDS = [
   { key: "anthropic_api_key", label: "Anthropic API Key" },
@@ -21,6 +21,8 @@ export default function AdminApiKeys() {
   const [masked, setMasked] = useState({});
   const [edit, setEdit] = useState({});
   const [reveal, setReveal] = useState({});
+  const [testEmail, setTestEmail] = useState("");
+  const [testBusy, setTestBusy] = useState(false);
 
   useEffect(() => { adminApi.get("/admin/api-keys").then(r => setMasked(r.data)); }, []);
 
@@ -33,6 +35,17 @@ export default function AdminApiKeys() {
     setEdit({});
     const r = await adminApi.get("/admin/api-keys");
     setMasked(r.data);
+  };
+
+  const sendTest = async () => {
+    if (!testEmail) { toast.error("Enter email"); return; }
+    setTestBusy(true);
+    try {
+      await adminApi.post("/admin/test-email", { to: testEmail, language: "en" });
+      toast.success("✅ Email sent successfully");
+    } catch (e) {
+      toast.error("❌ " + (e?.response?.data?.detail || "SMTP failure"));
+    } finally { setTestBusy(false); }
   };
 
   return (
@@ -59,6 +72,29 @@ export default function AdminApiKeys() {
           </div>
         ))}
         <button onClick={save} className="bg-[#C9A84C] text-[#0D0F1A] px-4 py-2 rounded text-sm font-medium" data-testid="api-keys-save">Save Changes</button>
+      </div>
+
+      <div className="bg-[#161829] border border-[#222540] rounded p-5 space-y-3">
+        <div className="text-sm text-[#F4F1EC]">Send test email</div>
+        <p className="text-xs text-[#6B7090]">Verifies your SMTP configuration end-to-end. Make sure to save SMTP settings above first.</p>
+        <div className="flex gap-2">
+          <input
+            type="email"
+            value={testEmail}
+            onChange={(e) => setTestEmail(e.target.value)}
+            placeholder="recipient@example.com"
+            className="flex-1 bg-[#0a0b13] border border-[#222540] rounded px-3 py-2 text-sm"
+            data-testid="smtp-test-email"
+          />
+          <button
+            onClick={sendTest}
+            disabled={testBusy}
+            className="bg-[#C9A84C] text-[#0D0F1A] px-4 py-2 rounded text-sm font-medium inline-flex items-center gap-2"
+            data-testid="smtp-test-send"
+          >
+            <Send size={14} /> {testBusy ? "Sending..." : "Send test"}
+          </button>
+        </div>
       </div>
     </div>
   );

@@ -2,7 +2,9 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import api from "@/lib/api";
-import { Plus, MessageCircle } from "lucide-react";
+import { Plus, MessageCircle, Store } from "lucide-react";
+import EmptyState from "@/components/EmptyState";
+import { SkeletonListingGrid } from "@/components/Skeleton";
 
 export default function Marketplace() {
   const { t } = useTranslation();
@@ -45,11 +47,15 @@ export default function Marketplace() {
       </div>
 
       {listings === null ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {Array.from({length:6}).map((_,i) => <div key={i} className="vehiq-card h-72 animate-pulse" />)}
-        </div>
+        <SkeletonListingGrid count={6} />
       ) : listings.length === 0 ? (
-        <div className="vehiq-card p-12 text-center text-vehiq-muted" data-testid="mp-empty">{t("marketplace.noListings")}</div>
+        <EmptyState
+          icon={Store}
+          title={t("marketplace.noListings")}
+          description={t("marketplace.create")}
+          action={<Link to="/marketplace/new" className="vehiq-btn-primary inline-flex items-center gap-2"><Plus size={14}/> {t("marketplace.create")}</Link>}
+          dataTestId="mp-empty"
+        />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" data-testid="mp-grid">
           {listings.map(l => (

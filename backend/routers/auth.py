@@ -10,10 +10,15 @@ import httpx
 from db_helper import get_db
 from auth_utils import (
     hash_password, verify_password,
-    create_access_token, get_current_user
+    create_access_token, decode_token, get_current_user
+)
+from email_service import (
+    send_email, fire_and_forget,
+    tpl_welcome, tpl_password_reset
 )
 
 router = APIRouter(prefix="/auth", tags=["auth"])
+APP_URL = os.environ.get("APP_URL", "https://vehiq.pl")
 
 
 class RegisterIn(BaseModel):
@@ -84,8 +89,52 @@ async def register(payload: RegisterIn):
         "last_active": datetime.now(timezone.utc).isoformat(),
     }
     await db.profiles.insert_one(user)
+    # Welcome email (non-blocking)
+    subject, html = tpl_welcome(user["name"], user.get("language", "pl"))
+    fire_and_forget(send_email(user["email"], subject, html))
+
     token = create_access_token({"sub": user_id, "type": "user"})
     return {"token": token, "user": _public_user(user)}
+
+
+class PasswordResetRequestIn(BaseModel):
+    email: EmailStr
+    language: str = "pl"
+
+
+class PasswordResetConfirmIn(BaseModel):
+    token: str
+    new_password: str = Field(min_length=8, max_length=128)
+
+
+@router.post("/password-reset/request")
+async def password_reset_request(payload: PasswordResetRequestIn):
+    """Always returns 200 to avoid leaking which emails exist."""
+    db = get_db()
+    user = await db.profiles.find_one({"email": payload.email.lower()})
+    if user:
+        token = create_access_token({"sub": user["id"], "type": "password_reset"}, expires_hours=1)
+        reset_url = f"{APP_URL}/password-reset/confirm?token={token}"
+        lang = user.get("language", payload.language or "pl")
+        subject, html = tpl_password_reset(reset_url, lang)
+        fire_and_forget(send_email(user["email"], subject, html))
+    return {"ok": True}
+
+
+@router.post("/password-reset/confirm")
+async def password_reset_confirm(payload: PasswordResetConfirmIn):
+    db = get_db()
+    data = decode_token(payload.token)
+    if data.get("type") != "password_reset":
+        raise HTTPException(status_code=400, detail="Invalid token")
+    user_id = data.get("sub")
+    res = await db.profiles.update_one(
+        {"id": user_id},
+        {"$set": {"password_hash": hash_password(payload.new_password)}},
+    )
+    if res.matched_count == 0:
+        raise HTTPException(status_code=404, detail="User not found")
+    return {"ok": True}
 
 
 @router.post("/login")

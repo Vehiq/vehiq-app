@@ -360,3 +360,18 @@ async def update_api_keys(payload: ApiKeysIn, admin=Depends(get_admin)):
     update["updated_at"] = datetime.now(timezone.utc).isoformat()
     await db.api_keys.update_one({"id": "default"}, {"$set": {"id": "default", **update}}, upsert=True)
     return {"ok": True}
+
+
+class TestEmailIn(BaseModel):
+    to: str
+    language: str = "pl"
+
+
+@router.post("/test-email")
+async def admin_test_email(payload: TestEmailIn, admin=Depends(get_admin)):
+    from email_service import send_email, tpl_test
+    subject, html = tpl_test(payload.language)
+    ok, err = await send_email(payload.to, subject, html)
+    if not ok:
+        raise HTTPException(status_code=502, detail=err or "SMTP failure")
+    return {"ok": True}

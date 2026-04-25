@@ -46,6 +46,7 @@ module.exports = {
         'accordion-down': { from: { height: '0' }, to: { height: 'var(--radix-accordion-content-height)' } },
         'accordion-up': { from: { height: 'var(--radix-accordion-content-height)' }, to: { height: '0' } },
         'fade-in': { from: { opacity: '0', transform: 'translateY(8px)' }, to: { opacity: '1', transform: 'translateY(0)' } },
+        shimmer: { '100%': { transform: 'translateX(100%)' } },
       },
       animation: {
         'accordion-down': 'accordion-down 0.2s ease-out',

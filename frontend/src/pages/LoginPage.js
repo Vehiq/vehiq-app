@@ -80,9 +80,12 @@ export default function LoginPage() {
             </button>
           </form>
 
-          <div className="text-center mt-6 text-sm text-vehiq-muted">
-            {t("auth.noAccount")}{" "}
-            <Link to="/register" className="text-vehiq-gold hover:text-vehiq-gold-hover" data-testid="login-register-link">{t("auth.register")}</Link>
+          <div className="text-center mt-6 text-sm text-vehiq-muted space-y-2">
+            <Link to="/password-reset" className="block text-vehiq-muted hover:text-vehiq-gold" data-testid="login-forgot-link">{t("auth.forgotPassword")}</Link>
+            <div>
+              {t("auth.noAccount")}{" "}
+              <Link to="/register" className="text-vehiq-gold hover:text-vehiq-gold-hover" data-testid="login-register-link">{t("auth.register")}</Link>
+            </div>
           </div>
         </div>
       </div>
