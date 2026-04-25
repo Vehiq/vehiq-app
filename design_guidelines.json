@@ -1,0 +1,107 @@
+{
+  "project_name": "VEHIQ - Premium Virtual Garage SaaS",
+  "theme": "dark",
+  "archetype": "Archetype 5 (Jewel & Luxury) - Modified for Automotive",
+  "rationale": "The user explicitly requested a premium dark UI with gold accents, mimicking a luxury automotive feel. The application needs to convey trust, high performance, and exclusivity. The deep midnight blues and gold are tailored for luxury car owners and collectors.",
+  "colors": {
+    "background": {
+      "primary": "#0D0F1A",
+      "card_surface": "#161829",
+      "sidebar_nav": "#1E2035"
+    },
+    "accent": {
+      "gold_primary": "#C9A84C",
+      "gold_hover": "#E8C96A",
+      "gold_dim": "rgba(201,168,76,0.15)"
+    },
+    "text": {
+      "primary": "#F4F1EC",
+      "muted": "#6B7090"
+    },
+    "border": {
+      "default": "rgba(201,168,76,0.2)"
+    },
+    "tailwind_config_instructions": "Extend Tailwind's theme.colors with specific names: 'vehiq-bg': '#0D0F1A', 'vehiq-card': '#161829', 'vehiq-nav': '#1E2035', 'vehiq-gold': '#C9A84C', 'vehiq-gold-hover': '#E8C96A', 'vehiq-gold-dim': 'rgba(201,168,76,0.15)', 'vehiq-text': '#F4F1EC', 'vehiq-muted': '#6B7090', 'vehiq-border': 'rgba(201, 168, 76, 0.2)'. Disable default light mode entirely in tailwind config using darkMode: 'class' and enforcing dark classes."
+  },
+  "typography": {
+    "fonts": {
+      "body": "DM Sans, sans-serif",
+      "headings": "Cormorant Garamond, serif"
+    },
+    "usage": {
+      "h1": "font-serif text-4xl sm:text-5xl lg:text-6xl tracking-tight text-vehiq-text",
+      "h2": "font-serif text-2xl sm:text-3xl lg:text-4xl text-vehiq-text",
+      "h3": "font-serif text-xl sm:text-2xl text-vehiq-text",
+      "body": "font-sans text-base text-vehiq-text leading-relaxed",
+      "muted_text": "font-sans text-sm text-vehiq-muted",
+      "labels_overlines": "font-sans text-xs uppercase tracking-[0.2em] text-vehiq-gold"
+    },
+    "tailwind_config_instructions": "Add fontFamily.sans = ['DM Sans', 'sans-serif'], fontFamily.serif = ['Cormorant Garamond', 'serif']"
+  },
+  "layout_and_spacing": {
+    "philosophy": "Generous spacing. Utilize the 'Control Room' grid for dashboards, ensuring dense but readable data, paired with cinematic large imagery for the virtual garage.",
+    "dashboard_structure": "Left sidebar (fixed, vehiq-nav bg, collapses to icons on mobile). Top bar (sticky, vehiq-bg, contains language switcher, notifications, profile). Main content area (vehiq-bg bg).",
+    "garage_grid": "Autel diagnostic tablet style. Full-width photo per cell with a bottom-aligned label indicating Make, Model, Year. Hover state: gold border glow + scale(1.02). Use 'grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6'.",
+    "card_style": "Background 'vehiq-card', 1px border 'vehiq-border', no heavy box-shadows. Sharp edges or max 8px border radius (rounded-md/rounded-lg).",
+    "spacing_scale": "Use standard Tailwind scale but prioritize generous padding inside containers (p-6, p-8) to avoid text collision with the gold borders."
+  },
+  "components_strategy": {
+    "buttons": {
+      "primary": "bg-vehiq-gold text-vehiq-bg hover:bg-vehiq-gold-hover transition-colors font-medium rounded-md px-6 py-2",
+      "secondary": "bg-transparent border border-vehiq-gold text-vehiq-gold hover:bg-vehiq-gold-dim transition-colors rounded-md px-6 py-2"
+    },
+    "cards": {
+      "default": "bg-vehiq-card border border-vehiq-border rounded-lg p-6",
+      "add_vehicle": "border-2 border-dashed border-vehiq-gold text-vehiq-gold bg-vehiq-gold-dim/5 hover:bg-vehiq-gold-dim flex flex-col items-center justify-center rounded-lg min-h-[200px] transition-all cursor-pointer"
+    },
+    "navigation": {
+      "sidebar_item": "flex items-center gap-3 px-4 py-3 rounded-md text-vehiq-muted hover:text-vehiq-text hover:bg-vehiq-card transition-colors",
+      "sidebar_item_active": "flex items-center gap-3 px-4 py-3 rounded-md text-vehiq-gold bg-vehiq-gold-dim transition-colors"
+    },
+    "charts": {
+      "library": "Recharts",
+      "theme": "Dark background with vehiq-gold (#C9A84C) for bars/lines, vehiq-muted (#6B7090) for axes and grids."
+    },
+    "icons": "Lucide React (lucide-react)",
+    "forms": "Use customized Shadcn UI components. Inputs with bg-vehiq-bg border-vehiq-border text-vehiq-text focus:border-vehiq-gold focus:ring-1 focus:ring-vehiq-gold."
+  },
+  "motion_and_interaction": {
+    "hover_states": "All interactive elements must change state. Cards use a subtle -translate-y-1 and a glow (drop-shadow-[0_0_8px_rgba(201,168,76,0.3)]) on hover.",
+    "transitions": "Use 'transition-all duration-200 ease-in-out' for standard interactions.",
+    "garage_card_hover": "Hovering over a vehicle card scales the image by 1.02 and illuminates the gold border."
+  },
+  "accessibility_and_testing": {
+    "contrast": "Ensure text over cards and backgrounds meets minimum contrast requirements.",
+    "testing_attributes": "All buttons, inputs, links, and key informative components MUST have 'data-testid' attributes (e.g., data-testid='login-button', data-testid='garage-card-porsche')."
+  },
+  "media": {
+    "image_urls": {
+      "login_bg": {
+        "url": "https://images.pexels.com/photos/17092455/pexels-photo-17092455.png?auto=compress&cs=tinysrgb&dpr=2&h=1024&w=1536",
+        "description": "Black supercar in dark studio used for the login/registration screen background.",
+        "usage": "Use as a full-cover background image with a bg-black/60 overlay to ensure the login form is legible."
+      },
+      "garage_placeholder_1": {
+        "url": "https://images.pexels.com/photos/18320398/pexels-photo-18320398.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+        "description": "Elegant black sports car for virtual garage preview.",
+        "usage": "Use as a default vehicle image in the garage grid."
+      },
+      "ai_mechanic_bg": {
+        "url": "https://images.pexels.com/photos/17092455/pexels-photo-17092455.png?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+        "description": "Dark tech/engine aesthetic for AI mechanic tab.",
+        "usage": "Use in the background or avatar representation for the AI Mechanic chatbot."
+      }
+    }
+  },
+  "instructions_to_main_agent": [
+    "Install and setup dependencies: Tailwind CSS, React Router, Lucide React, Recharts, react-i18next.",
+    "Create strict theme configurations in tailwind.config.js mapping EXACTLY to the provided vehiq-* colors.",
+    "Initialize i18n for English (en) and Polish (pl).",
+    "Build the specialized 'Autel-style' Garage Grid. Image fills the card, label is an overlay or tight bottom bar containing only Make, Model, Year.",
+    "Ensure all dashboard views are responsive, with the sidebar collapsing on mobile devices.",
+    "Build out the 5 tabs in the Vehicle Profile: Overview, Service History, Mileage, P&L, AI Mechanic.",
+    "For the Admin Panel at /gv91-admin, use a minimal unbranded login screen, followed by a heavily data-dense layout using the vehiq colors.",
+    "Do NOT use TypeScript (.tsx), use JavaScript (.js) as specified in the stack constraints.",
+    "Add 'data-testid' attributes to all major interactive UI elements."
+  ]
+}
