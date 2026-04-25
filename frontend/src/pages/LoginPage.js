@@ -1,0 +1,91 @@
+import { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { useTranslation, Trans } from "react-i18next";
+import { useAuth } from "@/contexts/AuthContext";
+import LanguageSwitcher from "@/components/LanguageSwitcher";
+import { toast } from "sonner";
+
+export default function LoginPage() {
+  const { t } = useTranslation();
+  const { login } = useAuth();
+  const navigate = useNavigate();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  const submit = async (e) => {
+    e.preventDefault();
+    setBusy(true);
+    try {
+      await login(email, password);
+      toast.success(t("common.success"));
+      navigate("/garage");
+    } catch (err) {
+      toast.error(t("auth.loginFailed"));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const googleLogin = () => {
+    const redirect = `${window.location.origin}/auth/callback`;
+    window.location.href = `https://auth.emergentagent.com/?redirect=${encodeURIComponent(redirect)}`;
+  };
+
+  return (
+    <div className="min-h-screen flex flex-col bg-vehiq-bg" data-testid="login-page">
+      <div className="absolute inset-0 -z-10">
+        <img src="https://images.pexels.com/photos/17092455/pexels-photo-17092455.png?auto=compress&cs=tinysrgb&dpr=2&h=1024&w=1536"
+          alt="" className="w-full h-full object-cover opacity-30" />
+        <div className="absolute inset-0 bg-vehiq-bg/80" />
+      </div>
+
+      <div className="flex justify-end p-6">
+        <LanguageSwitcher />
+      </div>
+
+      <div className="flex-1 flex items-center justify-center px-4 py-8">
+        <div className="w-full max-w-md vehiq-card p-8 md:p-10 backdrop-blur-sm">
+          <div className="text-center mb-8">
+            <div className="inline-flex items-center gap-2 mb-4">
+              <div className="h-12 w-12 rounded-md bg-vehiq-gold flex items-center justify-center text-vehiq-bg font-bold text-2xl">V</div>
+              <div className="vehiq-display text-3xl tracking-wider text-vehiq-text">VEHIQ</div>
+            </div>
+            <h1 className="vehiq-display text-3xl text-vehiq-text">{t("auth.loginTitle")}</h1>
+            <p className="text-sm text-vehiq-muted mt-1">{t("auth.loginSubtitle")}</p>
+          </div>
+
+          <button onClick={googleLogin} className="w-full bg-white text-[#0D0F1A] font-medium py-2.5 px-4 rounded-md hover:bg-vehiq-gold-hover hover:text-vehiq-bg transition-colors flex items-center justify-center gap-2 mb-3" data-testid="login-google-button">
+            <svg width="18" height="18" viewBox="0 0 18 18"><path fill="#4285F4" d="M17.64 9.205c0-.639-.057-1.252-.164-1.841H9v3.481h4.844a4.14 4.14 0 0 1-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615z"/><path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.583-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z"/><path fill="#FBBC05" d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332z"/><path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z"/></svg>
+            {t("auth.continueGoogle")}
+          </button>
+
+          <div className="flex items-center gap-3 my-6">
+            <div className="h-px flex-1 bg-vehiq-border" />
+            <span className="text-xs uppercase tracking-widest text-vehiq-muted">{t("auth.or")}</span>
+            <div className="h-px flex-1 bg-vehiq-border" />
+          </div>
+
+          <form onSubmit={submit} className="space-y-4">
+            <div>
+              <label className="vehiq-overline mb-2 block">{t("auth.email")}</label>
+              <input data-testid="login-email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} className="vehiq-input" autoComplete="email" />
+            </div>
+            <div>
+              <label className="vehiq-overline mb-2 block">{t("auth.password")}</label>
+              <input data-testid="login-password" type="password" required value={password} onChange={(e) => setPassword(e.target.value)} className="vehiq-input" autoComplete="current-password" />
+            </div>
+            <button type="submit" disabled={busy} className="vehiq-btn-primary w-full" data-testid="login-submit">
+              {busy ? t("common.loading") : t("auth.loginButton")}
+            </button>
+          </form>
+
+          <div className="text-center mt-6 text-sm text-vehiq-muted">
+            {t("auth.noAccount")}{" "}
+            <Link to="/register" className="text-vehiq-gold hover:text-vehiq-gold-hover" data-testid="login-register-link">{t("auth.register")}</Link>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

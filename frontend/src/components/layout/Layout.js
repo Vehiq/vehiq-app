@@ -1,0 +1,33 @@
+import { useState } from "react";
+import { Outlet } from "react-router-dom";
+import Sidebar from "./Sidebar";
+import TopBar from "./TopBar";
+import Footer from "./Footer";
+
+export default function Layout() {
+  const [mobileOpen, setMobileOpen] = useState(false);
+
+  return (
+    <div className="min-h-screen flex bg-vehiq-bg text-vehiq-text">
+      <Sidebar onNavigate={() => setMobileOpen(false)} />
+
+      {/* Mobile drawer */}
+      {mobileOpen && (
+        <div className="fixed inset-0 z-40 md:hidden">
+          <div className="absolute inset-0 bg-black/60" onClick={() => setMobileOpen(false)} />
+          <div className="relative w-64 bg-vehiq-nav h-full">
+            <Sidebar onNavigate={() => setMobileOpen(false)} />
+          </div>
+        </div>
+      )}
+
+      <div className="flex-1 flex flex-col min-w-0">
+        <TopBar onMenu={() => setMobileOpen(true)} />
+        <main className="flex-1 px-4 md:px-8 py-6 md:py-10 max-w-[1400px] w-full mx-auto" data-testid="main-content">
+          <Outlet />
+        </main>
+        <Footer />
+      </div>
+    </div>
+  );
+}
