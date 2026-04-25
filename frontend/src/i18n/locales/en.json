@@ -238,14 +238,77 @@
     "save": "Save choice"
   },
   "onboarding": {
+    "welcomeTitle": "Welcome to your virtual garage",
+    "welcomeDesc": "VEHIQ is the home of your vehicles — service history, costs, AI Mechanic and marketplace in one place.",
+    "addFirstVehicle": "Add your first vehicle",
+    "skipAndExplore": "Skip, I'll explore on my own",
+    "step": "Step",
+    "step1": {
+      "title": "Tell us about your car",
+      "desc": "Make, model and year — in 30 seconds."
+    },
+    "step2": {
+      "title": "Add a photo (optional)",
+      "desc": "Show off your ride. You can skip and add it later.",
+      "uploadHint": "Click to choose a photo (max 5 MB)"
+    },
+    "step3": {
+      "title": "Mileage and purchase date",
+      "desc": "Last step — helps us compute your P&L. Everything optional."
+    },
+    "finish": "Finish",
+    "successTitle": "Your {{vehicle}} is now in the garage!",
+    "successDesc": "Add service history, track costs, or ask the AI Mechanic anything.",
+    "openVehicle": "Open vehicle",
+    "backToGarage": "Back to garage",
+    "makeModelRequired": "Make and model are required",
+    "features": {
+      "garage": { "title": "Garage", "desc": "Your vehicles in one place" },
+      "service": { "title": "Service", "desc": "Repair history and costs" },
+      "ai": { "title": "AI Mechanic", "desc": "Diagnose issues fast" },
+      "marketplace": { "title": "Marketplace", "desc": "Buy, sell, swap" }
+    },
     "step1Title": "Welcome to VEHIQ",
     "step1Desc": "Your premium virtual garage. Choose your language to begin.",
     "step2Title": "Add your first vehicle",
     "step2Desc": "Your garage awaits — start with your most important car.",
     "step3Title": "All set",
     "step3Desc": "Explore VEHIQ features.",
-    "skip": "Skip",
-    "finish": "Finish"
+    "skip": "Skip"
+  },
+  "tooltips": {
+    "garage": "This is your garage with all vehicles",
+    "ai": "Ask the AI Mechanic about any problem",
+    "marketplace": "Browse listings — buy or sell",
+    "gotIt": "Got it",
+    "next": "Next",
+    "skip": "Skip all"
+  },
+  "fab": {
+    "addVehicle": "Add vehicle",
+    "addService": "Add service entry",
+    "addListing": "Create listing",
+    "newThread": "New thread"
+  },
+  "share": {
+    "share": "Share",
+    "publicProfile": "Public profile",
+    "public": "Public",
+    "private": "Private",
+    "linkHint": "Copy and send the link to anyone:",
+    "notPublicHint": "Turn on to generate a public shareable link.",
+    "copied": "Copied!",
+    "copyLink": "Copy link",
+    "showServiceHistory": "Show service history publicly",
+    "sellThisCar": "Sell this car (create listing)",
+    "madePublic": "Vehicle profile is now public",
+    "madePrivate": "Vehicle profile is private",
+    "owner": "Owner",
+    "forSale": "For sale",
+    "openPrivate": "Open in garage",
+    "servicePublicNote": "Public view — costs hidden",
+    "notFoundTitle": "Vehicle not found",
+    "notFoundDesc": "This vehicle is private or doesn't exist."
   },
   "errors": {
     "notFound": "Not found",

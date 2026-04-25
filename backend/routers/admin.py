@@ -108,15 +108,39 @@ async def admin_login(payload: AdminLoginIn, request: Request):
         raise HTTPException(status_code=401, detail="Invalid credentials")
     _failed_attempts.pop(ip, None)
     token = create_access_token({"sub": ADMIN_EMAIL, "type": "admin"}, expires_hours=ADMIN_TOKEN_EXPIRE_HOURS)
+    now_iso = datetime.now(timezone.utc).isoformat()
     # log
     await db.admin_login_history.insert_one({
         "id": str(uuid.uuid4()),
         "ip": ip,
         "ua": request.headers.get("user-agent", ""),
         "status": "success",
-        "ts": datetime.now(timezone.utc).isoformat(),
+        "ts": now_iso,
     })
+    # Track last_login on the admin_account doc
+    await db.admin_account.update_one(
+        {"email": ADMIN_EMAIL},
+        {"$set": {"last_login_at": now_iso, "last_login_ip": ip}},
+    )
     return {"token": token, "expires_in": ADMIN_TOKEN_EXPIRE_HOURS * 3600, "first_login": bool(admin.get("first_login"))}
+
+
+@router.get("/profile")
+async def admin_profile(admin=Depends(get_admin)):
+    """Returns admin account details: email, registration date, last login, password change history."""
+    db = get_db()
+    rec = await db.admin_account.find_one({"email": ADMIN_EMAIL}, {"_id": 0, "password_hash": 0}) or {}
+    pwd_history = rec.get("password_changes") or []
+    # Most recent first
+    pwd_history = sorted(pwd_history, key=lambda x: x.get("ts", ""), reverse=True)[:10]
+    return {
+        "email": rec.get("email") or ADMIN_EMAIL,
+        "created_at": rec.get("created_at"),
+        "last_login_at": rec.get("last_login_at"),
+        "last_login_ip": rec.get("last_login_ip"),
+        "first_login": bool(rec.get("first_login")),
+        "password_changes": pwd_history,
+    }
 
 
 @router.get("/login-history")
@@ -127,7 +151,7 @@ async def login_history(admin=Depends(get_admin)):
 
 
 @router.post("/change-password")
-async def change_password(payload: ChangePasswordIn, admin=Depends(get_admin)):
+async def change_password(payload: ChangePasswordIn, request: Request, admin=Depends(get_admin)):
     db = get_db()
     rec = await db.admin_account.find_one({"email": ADMIN_EMAIL})
     if not verify_password(payload.current_password, rec.get("password_hash") or ""):
@@ -136,7 +160,14 @@ async def change_password(payload: ChangePasswordIn, admin=Depends(get_admin)):
         raise HTTPException(status_code=400, detail="New password must differ")
     if len(payload.new_password) < 12:
         raise HTTPException(status_code=400, detail="Password must be at least 12 characters")
-    await db.admin_account.update_one({"email": ADMIN_EMAIL}, {"$set": {"password_hash": hash_password(payload.new_password), "first_login": False}})
+    now_iso = datetime.now(timezone.utc).isoformat()
+    await db.admin_account.update_one(
+        {"email": ADMIN_EMAIL},
+        {
+            "$set": {"password_hash": hash_password(payload.new_password), "first_login": False},
+            "$push": {"password_changes": {"ts": now_iso, "ip": _get_ip(request)}},
+        },
+    )
     return {"ok": True}
 
 
@@ -378,4 +409,24 @@ async def admin_test_email(payload: TestEmailIn, admin=Depends(get_admin)):
     ok, err = await send_email(payload.to, subject, html)
     if not ok:
         raise HTTPException(status_code=502, detail=err or "SMTP failure")
+    return {"ok": True}
+
+
+class RetentionRunIn(BaseModel):
+    kind: Optional[str] = "all"  # all|d1|d7|monthly
+    period: Optional[str] = None  # forces monthly for a specific period e.g. 2026-04
+
+
+@router.post("/retention/run")
+async def admin_run_retention(payload: RetentionRunIn, admin=Depends(get_admin)):
+    """Manually trigger retention email checks (D+1 / D+7 / monthly). Useful for testing or backfills."""
+    import retention
+    if payload.kind == "d1":
+        await retention._run_d1()
+    elif payload.kind == "d7":
+        await retention._run_d7()
+    elif payload.kind == "monthly":
+        await retention._run_monthly(force_period=payload.period)
+    else:
+        await retention.run_once()
     return {"ok": True}

@@ -225,6 +225,7 @@ async def seed_database(db):
     await db.profiles.create_index("id", unique=True)
     await db.vehicles.create_index("id", unique=True)
     await db.vehicles.create_index("user_id")
+    await db.vehicles.create_index("slug")
     await db.legal_pages.create_index("slug", unique=True)
     await db.cms_content.create_index("key", unique=True)
     await db.app_settings.create_index("key", unique=True)

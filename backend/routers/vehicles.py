@@ -4,11 +4,32 @@ from pydantic import BaseModel, Field
 from typing import Optional, List
 from datetime import datetime, timezone
 import uuid
+import re
 
 from db_helper import get_db
-from auth_utils import get_current_user
+from auth_utils import get_current_user, get_optional_user
 
 router = APIRouter(prefix="/vehicles", tags=["vehicles"])
+
+
+def _slugify(s: str) -> str:
+    s = (s or "").lower()
+    s = re.sub(r"[^a-z0-9]+", "-", s).strip("-")
+    return s or "vehicle"
+
+
+async def _unique_slug(db, base: str, exclude_id: Optional[str] = None) -> str:
+    """Ensure slug uniqueness across the vehicles collection."""
+    slug = base
+    suffix = 1
+    while True:
+        q = {"slug": slug}
+        if exclude_id:
+            q["id"] = {"$ne": exclude_id}
+        if await db.vehicles.find_one(q, {"_id": 0, "id": 1}) is None:
+            return slug
+        suffix += 1
+        slug = f"{base}-{suffix}"
 
 
 class VehicleIn(BaseModel):
@@ -28,6 +49,8 @@ class VehicleIn(BaseModel):
     status: Optional[str] = "active"  # active | archived
     photos: Optional[List[str]] = []  # base64 data URLs
     cover_photo_index: Optional[int] = 0
+    public: Optional[bool] = None
+    public_show_service: Optional[bool] = None
 
 
 @router.get("")
@@ -59,9 +82,14 @@ async def create_vehicle(payload: VehicleIn, user=Depends(get_current_user)):
     v_id = str(uuid.uuid4())
     doc = payload.model_dump()
     doc["photos"] = photos
+    # generate unique slug
+    base_slug = _slugify(f"{doc.get('make','')}-{doc.get('model','')}-{doc.get('year') or ''}")
+    doc["slug"] = await _unique_slug(db, base_slug)
     doc.update({
         "id": v_id,
         "user_id": user["id"],
+        "public": bool(doc.get("public") or False),
+        "public_show_service": bool(doc.get("public_show_service") or False),
         "created_at": datetime.now(timezone.utc).isoformat(),
         "updated_at": datetime.now(timezone.utc).isoformat(),
     })
@@ -94,6 +122,10 @@ async def update_vehicle(vehicle_id: str, payload: VehicleIn, user=Depends(get_c
 
     update = payload.model_dump(exclude_unset=True)
     update["updated_at"] = datetime.now(timezone.utc).isoformat()
+    # If make/model/year changed and slug missing, regenerate
+    if not v.get("slug"):
+        base_slug = _slugify(f"{update.get('make') or v.get('make')}-{update.get('model') or v.get('model')}-{update.get('year') or v.get('year') or ''}")
+        update["slug"] = await _unique_slug(db, base_slug, exclude_id=vehicle_id)
     await db.vehicles.update_one({"id": vehicle_id}, {"$set": update})
     fresh = await db.vehicles.find_one({"id": vehicle_id}, {"_id": 0})
     photos = fresh.get("photos") or []
@@ -136,3 +168,80 @@ async def get_pl(vehicle_id: str, user=Depends(get_current_user)):
         "net_result": net,
         "is_sold": bool(sale and v.get("status") == "archived"),
     }
+
+
+
+@router.get("/public/by-slug/{slug}")
+async def get_public_vehicle(slug: str, user=Depends(get_optional_user)):
+    """Public read-only profile of a vehicle. Owner sees regardless of `public`. Others only when public=True."""
+    db = get_db()
+    v = await db.vehicles.find_one({"slug": slug}, {"_id": 0})
+    if not v:
+        raise HTTPException(status_code=404, detail="Vehicle not found")
+    is_owner = bool(user and user.get("id") == v.get("user_id"))
+    if not is_owner and not v.get("public"):
+        raise HTTPException(status_code=404, detail="Vehicle not found")
+
+    photos = v.get("photos") or []
+    idx = v.get("cover_photo_index") or 0
+    cover = photos[idx] if 0 <= idx < len(photos) else (photos[0] if photos else None)
+
+    owner = await db.profiles.find_one({"id": v.get("user_id")}, {"_id": 0, "id": 1, "name": 1, "avatar": 1, "location": 1, "created_at": 1}) or {}
+    # Active listing for this vehicle (if any)
+    listing = await db.listings.find_one(
+        {"vehicle_id": v.get("id"), "status": "active"},
+        {"_id": 0, "id": 1, "title": 1, "price": 1, "type": 1},
+    )
+
+    public = {
+        "id": v.get("id"),
+        "slug": v.get("slug"),
+        "make": v.get("make"),
+        "model": v.get("model"),
+        "year": v.get("year"),
+        "engine": v.get("engine"),
+        "fuel": v.get("fuel"),
+        "color": v.get("color"),
+        "mileage_current": v.get("mileage_current"),
+        "photos": photos,
+        "cover_photo": cover,
+        "status": v.get("status"),
+        "is_owner": is_owner,
+        "public": bool(v.get("public")),
+        "public_show_service": bool(v.get("public_show_service")),
+        "owner": owner,
+        "active_listing": listing,
+    }
+    if v.get("public_show_service") or is_owner:
+        services = await db.service_entries.find({"vehicle_id": v["id"]}, {"_id": 0}).sort("date", -1).to_list(500)
+        # Strip cost details for public unless owner
+        if not is_owner:
+            for s in services:
+                s.pop("cost", None)
+                s.pop("workshop", None)
+                s.pop("notes", None)
+        public["service_entries"] = services
+    return public
+
+
+class VisibilityIn(BaseModel):
+    public: Optional[bool] = None
+    public_show_service: Optional[bool] = None
+
+
+@router.post("/{vehicle_id}/visibility")
+async def set_visibility(vehicle_id: str, payload: VisibilityIn, user=Depends(get_current_user)):
+    """Owner-only — toggle public visibility and whether service history is shown publicly."""
+    db = get_db()
+    v = await db.vehicles.find_one({"id": vehicle_id, "user_id": user["id"]})
+    if not v:
+        raise HTTPException(status_code=404, detail="Vehicle not found")
+    update = {k: bool(v) for k, v in payload.model_dump(exclude_none=True).items()}
+    # Ensure slug exists when going public
+    if update.get("public") and not v.get("slug"):
+        base_slug = _slugify(f"{v.get('make','')}-{v.get('model','')}-{v.get('year') or ''}")
+        update["slug"] = await _unique_slug(db, base_slug, exclude_id=vehicle_id)
+    update["updated_at"] = datetime.now(timezone.utc).isoformat()
+    await db.vehicles.update_one({"id": vehicle_id}, {"$set": update})
+    fresh = await db.vehicles.find_one({"id": vehicle_id}, {"_id": 0})
+    return {"ok": True, "slug": fresh.get("slug"), "public": bool(fresh.get("public")), "public_show_service": bool(fresh.get("public_show_service"))}

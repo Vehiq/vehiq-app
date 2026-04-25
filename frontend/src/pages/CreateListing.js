@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import api from "@/lib/api";
 import { toast } from "sonner";
@@ -8,11 +8,32 @@ import { ArrowLeft, Upload, X } from "lucide-react";
 export default function CreateListing() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [vehicles, setVehicles] = useState([]);
   const [form, setForm] = useState({ type: "car", title: "", description: "", price: "", location: "", photos: [], vehicle_id: "", make: "", model: "" });
   const [busy, setBusy] = useState(false);
 
-  useEffect(() => { api.get("/vehicles").then(r => setVehicles(r.data)); }, []);
+  useEffect(() => {
+    api.get("/vehicles").then(r => {
+      setVehicles(r.data);
+      const prefillId = searchParams.get("vehicle");
+      if (prefillId) {
+        const v = (r.data || []).find((x) => x.id === prefillId);
+        if (v) {
+          setForm((f) => ({
+            ...f,
+            vehicle_id: v.id,
+            make: v.make || "",
+            model: v.model || "",
+            title: `${v.make} ${v.model} ${v.year || ""}`.trim(),
+            description: `${v.engine || ""} ${v.fuel || ""}\nPrzebieg: ${v.mileage_current || 0} km`.trim(),
+            photos: v.photos || [],
+          }));
+        }
+      }
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const prefill = (vid) => {
     const v = vehicles.find(x => x.id === vid);

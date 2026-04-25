@@ -87,6 +87,9 @@ async def create_thread(payload: ThreadIn, user=Depends(get_current_user)):
     doc.pop("_id", None)
     await log_activity(user["id"], "thread.create", "thread", doc["id"], doc.get("title"))
     return doc
+
+
+@router.delete("/threads/{thread_id}")
 async def delete_thread(thread_id: str, user=Depends(get_current_user)):
     db = get_db()
     t = await db.forum_threads.find_one({"id": thread_id})

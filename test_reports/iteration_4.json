@@ -1,0 +1,51 @@
+{
+  "summary": "VEHIQ Iteration 4 testing complete. Backend: 16/16 NEW iter4 tests PASS + 29 regression PASS (1 pre-existing skip) = 45 passed. Frontend desktop: register → /onboarding redirect, welcome (4 feature cards), wizard 3-step, confetti success, dashboard FAB visible, vehicle Share menu (toggle public + sell-this), public-by-slug page with og:title — ALL VERIFIED. Issues: FAB sub-action testids not visible after click, share-copy-btn data-testid missing on owner menu, first-use-tooltips overlay not rendering, mobile BottomNav not verified (mobile login flow stuck on login page after viewport switch).",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "FAB.js", "issue": "After clicking dashboard-fab-btn the sub-action buttons fab-add-vehicle / fab-add-service / fab-add-listing / fab-new-thread were not findable by data-testid. Either the testids are missing, the FAB collapses immediately after click, or sub-actions render in a portal/different DOM path. Needs verification.", "selector": "[data-testid='fab-add-vehicle']", "priority": "MEDIUM"},
+      {"component": "VehicleProfile ShareMenu", "issue": "share-copy-btn data-testid is missing on owner share menu. The copy icon button is visible next to the share URL input but lacks the data-testid='share-copy-btn' attribute. share-toggle-public and share-sell-this both verified present.", "selector": "[data-testid='share-copy-btn']", "priority": "MEDIUM"},
+      {"component": "FirstUseTooltips", "issue": "After completing onboarding (onboarded=true, tooltips_seen=false in DB), the data-testid='first-use-tooltips' overlay did not render on /garage. Either the gate condition is wrong (e.g. checks onboarded transition rather than tooltips_seen flag) or the component is not mounted in the dashboard layout.", "selector": "[data-testid='first-use-tooltips']", "priority": "HIGH"}
+    ],
+    "integration_issues": [
+      {"flow": "Mobile BottomNav", "issue": "After switching viewport to 390x844 and re-logging in, browser landed on /login (login submit appeared not to complete on mobile viewport during automated test). bottom-nav and bottomnav-* testids returned count=0. Could not confirm BottomNav presence on mobile. Manual verification recommended.", "affected_selectors": ["[data-testid='bottom-nav']"]}
+    ],
+    "design_issues": [
+      {"screen": "Onboarding success page", "issues": ["Success page shows 'Open vehicle' / 'Back to garage' buttons but does not auto-redirect; user must click. Confetti canvas renders briefly. Acceptable UX."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter4.py",
+    "/app/test_reports/pytest/iter4_results.xml"
+  ],
+  "action_items": [
+    "Verify FirstUseTooltips render condition — should mount on /garage when authenticated user has tooltips_seen=false. Currently not visible after fresh onboarding.",
+    "Add data-testid='share-copy-btn' to the copy-link icon button inside the ShareMenu component on VehicleProfile (owner view).",
+    "Verify FAB sub-action buttons render with correct data-testids (fab-add-vehicle/service/listing/new-thread) when fab-btn is clicked open. Possibly portal-rendered or testids missing.",
+    "Manual test on real mobile viewport (or fresh page load <768px) to confirm BottomNav renders and Sidebar is hidden via md:hidden classes."
+  ],
+  "critical_code_review_comments": [
+    "Backend slug dedup tested with 2 collisions (BMW M3 2019 x2) returned distinct slugs both starting with 'bmw-m3-2019' — works.",
+    "Public-by-slug endpoint correctly returns 404 when private and 200 when public; non-owner caller correctly receives is_owner=false and stripped sensitive fields (cost/workshop/notes) from service_entries — works as spec.",
+    "Admin password_changes audit history correctly appends entries with ts and ip — verified by rotating password A→B→A and seeing count grow by 2.",
+    "DELETE /api/forum/threads/{id} now returns 200 for owner and 403 for non-owner (iter3 P0 bug fixed).",
+    "Retention manual trigger /api/admin/retention/run accepts {kind:'all'} and {kind:'monthly', period:'2026-03'} returning 200 without crash even though SMTP is not configured.",
+    "Email is normalized to lowercase server-side on registration — frontend should reflect this in any UI showing the email back to the user (cosmetic).",
+    "Onboarding success page is a manual-confirm page (Open/Back buttons) rather than auto-redirect — that's a deliberate UX choice per visual.",
+    "FAB component's data-testid integration appears incomplete; sub-action testids could not be located after opening — please verify."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter4.py (NEW)",
+    "/app/test_reports/pytest/iter4_results.xml (NEW)"
+  ],
+  "success_rate": {"backend": "100% (16/16 iter4 + 29 regression pass, 1 pre-existing skip)", "frontend": "~75% (onboarding flow + share + public-vehicle confirmed; FAB submenu, FirstUseTooltips, mobile BottomNav need verification)"},
+  "test_credentials": "Admin: admin@vehiq.app / VehiqAdmin2026! (verified working). Test user created during run: iter4ui_a80e786b@example.com / TestPass1234! (BMW M3 2019 in garage, made public).",
+  "seed_data_creation": "Tests created TEST_iter4_<hex>@example.com users + TEST_iter4 forum threads + 2 BMW M3 2019 vehicles + 1 service entry for one user. All UUID-isolated — no cleanup required.",
+  "retest_needed": true,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Iter4 backend fully passes 16/16 (DELETE forum thread, admin profile + password_changes history, /auth/me onboarded+tooltips_seen, vehicle slug+dedup, public-by-slug owner gating with sensitive-field stripping, retention manual trigger). Frontend onboarding flow on desktop verified end-to-end with testids: onboarding-welcome → onboarding-feature-* (4 cards) → onboarding-add-first → onboarding-wizard-step-1 → onboarding-make/model/year + onboarding-next → onboarding-wizard-step-2 → onboarding-next → onboarding-wizard-step-3 → onboarding-finish → onboarding-success + confetti-canvas. Vehicle share menu testids verified: vehicle-share-btn, share-toggle-public, share-sell-this. MISSING/UNVERIFIED testids: share-copy-btn (on owner share menu), first-use-tooltips (overlay didn't render after fresh onboarding), fab-add-vehicle/service/listing/new-thread (FAB sub-actions), bottom-nav + bottomnav-* (mobile, not verified due to mobile login glitch). Public vehicle page /vehicles/bmw-m3-2019 renders with public-vehicle testid + og:title='BMW M3 2019 — VEHIQ' meta tag. Cookie banner intercepts clicks on first page load — automation must dismiss it via 'Reject optional' button before filling forms.",
+  "rca of the issue": "FirstUseTooltips not rendering: most likely the gate condition on the dashboard layout checks state.user.tooltips_seen reactively but the user object cached in client state right after onboarding may already have tooltips_seen flipped to true (or onboarded check is being used as the gate instead). Recommend inspecting where FirstUseTooltips is mounted in App.js / Garage.js — confirm the prop/state condition is `!user.tooltips_seen && user.onboarded`. share-copy-btn missing testid: VehicleProfile ShareMenu's copy button likely has a testid like 'share-copy-link' or 'copy-share-url' — needs renaming to 'share-copy-btn' per spec. FAB sub-actions: the Speed Dial / floating menu likely renders inside a portal or transitions in via Framer Motion — need explicit data-testids on each child action button."
+}

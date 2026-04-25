@@ -1,0 +1,199 @@
+import { useEffect, useState } from "react";
+import { useParams, useNavigate, Link } from "react-router-dom";
+import { useTranslation } from "react-i18next";
+import api from "@/lib/api";
+import { toast } from "sonner";
+import { Car as CarIcon, ArrowLeft, Share2, Copy, Check, Calendar, Gauge, Fuel, Palette, Wrench } from "lucide-react";
+
+export default function PublicVehicle() {
+  const { t, i18n } = useTranslation();
+  const { slug } = useParams();
+  const navigate = useNavigate();
+  const [v, setV] = useState(null);
+  const [error, setError] = useState(null);
+  const [activePhoto, setActivePhoto] = useState(0);
+  const [copied, setCopied] = useState(false);
+  const lang = i18n.language?.startsWith("en") ? "en" : "pl";
+
+  useEffect(() => {
+    api
+      .get(`/vehicles/public/by-slug/${slug}`)
+      .then((r) => setV(r.data))
+      .catch((err) => setError(err?.response?.status === 404 ? "not-found" : "error"));
+  }, [slug]);
+
+  // Set OG-style document meta dynamically
+  useEffect(() => {
+    if (!v) return;
+    const title = `${v.make} ${v.model}${v.year ? " " + v.year : ""} — VEHIQ`;
+    document.title = title;
+    const setMeta = (name, content) => {
+      let el = document.querySelector(`meta[property="${name}"]`) || document.querySelector(`meta[name="${name}"]`);
+      if (!el) {
+        el = document.createElement("meta");
+        el.setAttribute("property", name);
+        document.head.appendChild(el);
+      }
+      el.setAttribute("content", content);
+    };
+    const desc = (lang === "en"
+      ? `Check out this ${v.make} ${v.model} on VEHIQ — virtual garage with service history and listings.`
+      : `Zobacz ${v.make} ${v.model} na VEHIQ — wirtualny garaż z historią serwisową i ogłoszeniem.`);
+    setMeta("og:title", title);
+    setMeta("og:description", desc);
+    setMeta("og:type", "website");
+    if (v.cover_photo) setMeta("og:image", v.cover_photo);
+    setMeta("twitter:card", "summary_large_image");
+    setMeta("description", desc);
+  }, [v, lang]);
+
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(window.location.href);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+      toast.success(t("share.copied"));
+    } catch {}
+  };
+
+  if (error === "not-found") {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-vehiq-bg text-center px-4" data-testid="public-vehicle-404">
+        <div>
+          <CarIcon size={48} className="mx-auto text-vehiq-gold/40" />
+          <h1 className="vehiq-display text-3xl text-vehiq-text mt-4">{t("share.notFoundTitle")}</h1>
+          <p className="text-vehiq-muted mt-2">{t("share.notFoundDesc")}</p>
+          <Link to="/" className="vehiq-btn-primary inline-block mt-6">VEHIQ</Link>
+        </div>
+      </div>
+    );
+  }
+  if (!v) {
+    return <div className="min-h-screen flex items-center justify-center bg-vehiq-bg text-vehiq-muted">{t("common.loading")}</div>;
+  }
+
+  const photos = v.photos || [];
+  const cover = photos[activePhoto] || v.cover_photo;
+  const fmt = (n) => (typeof n === "number" ? n.toLocaleString(lang === "en" ? "en-US" : "pl-PL") : n);
+
+  return (
+    <div className="min-h-screen bg-vehiq-bg text-vehiq-text" data-testid="public-vehicle">
+      <header className="sticky top-0 z-20 bg-vehiq-bg/95 backdrop-blur border-b border-vehiq-border">
+        <div className="max-w-5xl mx-auto px-4 md:px-6 py-3 flex items-center justify-between gap-3">
+          <button onClick={() => (window.history.length > 1 ? navigate(-1) : navigate("/"))} className="text-sm text-vehiq-muted hover:text-vehiq-gold inline-flex items-center gap-1" data-testid="public-back">
+            <ArrowLeft size={14} /> {t("common.back")}
+          </button>
+          <Link to="/" className="flex items-center gap-2">
+            <div className="h-8 w-8 rounded-md bg-vehiq-gold flex items-center justify-center text-vehiq-bg font-bold">V</div>
+            <span className="vehiq-display tracking-wider">VEHIQ</span>
+          </Link>
+          <button onClick={copy} className="vehiq-btn-secondary inline-flex items-center gap-2 text-xs" data-testid="public-share-btn">
+            {copied ? <Check size={14} /> : <Share2 size={14} />} {t("share.share")}
+          </button>
+        </div>
+      </header>
+
+      <main className="max-w-5xl mx-auto px-4 md:px-6 py-8 space-y-8">
+        {/* Hero */}
+        <section className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
+          <div className="space-y-3">
+            <div className="aspect-[4/3] bg-vehiq-card rounded-md overflow-hidden border border-vehiq-border">
+              {cover ? (
+                <img src={cover} alt={`${v.make} ${v.model}`} className="w-full h-full object-cover" data-testid="public-cover" />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center text-vehiq-gold/40"><CarIcon size={64} /></div>
+              )}
+            </div>
+            {photos.length > 1 && (
+              <div className="grid grid-cols-5 gap-2">
+                {photos.slice(0, 10).map((p, i) => (
+                  <button
+                    key={i}
+                    onClick={() => setActivePhoto(i)}
+                    className={`aspect-square rounded overflow-hidden border ${i === activePhoto ? "border-vehiq-gold" : "border-vehiq-border"}`}
+                    data-testid={`public-thumb-${i}`}
+                  >
+                    <img src={p} alt="" className="w-full h-full object-cover" />
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div>
+            <div className="vehiq-overline">{v.year || "—"} • {v.fuel?.toUpperCase() || ""}</div>
+            <h1 className="vehiq-display text-4xl sm:text-5xl mt-1" data-testid="public-title">{v.make} {v.model}</h1>
+            {v.owner && (
+              <div className="text-xs text-vehiq-muted mt-3">
+                {t("share.owner")}: <span className="text-vehiq-text">{v.owner.name}</span>
+                {v.owner.location ? <span> · {v.owner.location}</span> : null}
+              </div>
+            )}
+
+            <ul className="grid grid-cols-2 gap-3 mt-6">
+              <Spec Icon={Calendar} label={t("vehicle.year")} value={v.year || "—"} />
+              <Spec Icon={Gauge} label={t("vehicle.mileage")} value={v.mileage_current ? `${fmt(v.mileage_current)} km` : "—"} />
+              <Spec Icon={Fuel} label={t("vehicle.fuel")} value={v.fuel || "—"} />
+              <Spec Icon={Palette} label={t("vehicle.color")} value={v.color || "—"} />
+            </ul>
+
+            {v.active_listing && (
+              <Link to={`/marketplace/${v.active_listing.id}`} className="vehiq-card flex items-center justify-between gap-3 p-4 mt-6 border-vehiq-gold/40 hover:border-vehiq-gold transition-colors" data-testid="public-active-listing">
+                <div>
+                  <div className="vehiq-overline">{t("share.forSale")}</div>
+                  <div className="text-vehiq-text font-medium">{v.active_listing.title}</div>
+                </div>
+                <div className="vehiq-display text-2xl text-vehiq-gold">{fmt(v.active_listing.price)} PLN</div>
+              </Link>
+            )}
+
+            <div className="flex gap-2 mt-6">
+              <button onClick={copy} className="vehiq-btn-primary inline-flex items-center gap-2" data-testid="public-share-cta">
+                {copied ? <Check size={14}/> : <Copy size={14}/>} {t("share.copyLink")}
+              </button>
+              {v.is_owner && (
+                <Link to={`/garage/${v.id}`} className="vehiq-btn-secondary" data-testid="public-back-to-private">{t("share.openPrivate")}</Link>
+              )}
+            </div>
+          </div>
+        </section>
+
+        {/* Service history (optional) */}
+        {Array.isArray(v.service_entries) && v.service_entries.length > 0 && (
+          <section className="vehiq-card p-5">
+            <div className="flex items-center gap-2 mb-3">
+              <Wrench size={16} className="text-vehiq-gold" />
+              <div className="vehiq-overline">{t("service.title")}</div>
+              {!v.is_owner && <span className="text-[10px] text-vehiq-muted ml-auto">{t("share.servicePublicNote")}</span>}
+            </div>
+            <ul className="divide-y divide-vehiq-border">
+              {v.service_entries.slice(0, 50).map((s, i) => (
+                <li key={i} className="py-2 flex items-center gap-3 text-sm" data-testid={`public-service-${i}`}>
+                  <span className="text-vehiq-muted text-xs min-w-[90px]">{s.date}</span>
+                  <span className="text-vehiq-text flex-1 truncate">{t(`service.types.${s.type}`, s.type)}</span>
+                  {v.is_owner && s.cost ? <span className="text-vehiq-gold text-xs">{fmt(s.cost)} PLN</span> : null}
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+
+        <footer className="text-center pt-6 pb-4 text-xs text-vehiq-muted">
+          <Link to="/" className="hover:text-vehiq-gold">{lang === "en" ? "Powered by VEHIQ — your virtual garage" : "Wspierane przez VEHIQ — Twój wirtualny garaż"}</Link>
+        </footer>
+      </main>
+    </div>
+  );
+}
+
+function Spec({ Icon, label, value }) {
+  return (
+    <li className="vehiq-card p-3 flex items-center gap-3">
+      <Icon size={16} className="text-vehiq-gold flex-shrink-0" />
+      <div className="min-w-0">
+        <div className="text-[10px] uppercase tracking-widest text-vehiq-muted">{label}</div>
+        <div className="text-sm text-vehiq-text truncate">{value}</div>
+      </div>
+    </li>
+  );
+}

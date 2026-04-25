@@ -23,6 +23,7 @@ import NewThread from "@/pages/NewThread";
 import ThreadDetail from "@/pages/ThreadDetail";
 import Profile from "@/pages/Profile";
 import LegalPage from "@/pages/LegalPage";
+import PublicVehicle from "@/pages/PublicVehicle";
 import NotFound from "@/pages/NotFound";
 
 import AdminLogin from "@/pages/admin/AdminLogin";
@@ -67,6 +68,10 @@ function PrivateRoute({ children }) {
   const { user, loading } = useAuth();
   if (loading) return <div className="min-h-screen flex items-center justify-center bg-vehiq-bg text-vehiq-muted">Loading…</div>;
   if (!user) return <Navigate to="/login" replace />;
+  // Force first-time onboarding for new users (skip already on /onboarding)
+  if (user.onboarded === false && window.location.pathname !== "/onboarding") {
+    return <Navigate to="/onboarding" replace />;
+  }
   return children;
 }
 
@@ -109,6 +114,9 @@ function App() {
 
           {/* Legal pages (public) */}
           <Route path="/legal/:slug" element={<LegalPage />} />
+
+          {/* Public vehicle profile (shareable) */}
+          <Route path="/vehicles/:slug" element={<PublicVehicle />} />
 
           {/* Admin (separate, no Layout) */}
           <Route path="/gv91-admin" element={<AdminLogin />} />

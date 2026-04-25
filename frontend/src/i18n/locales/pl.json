@@ -238,14 +238,77 @@
     "save": "Zapisz wybór"
   },
   "onboarding": {
+    "welcomeTitle": "Witaj w swoim wirtualnym garażu",
+    "welcomeDesc": "VEHIQ to centrum Twoich pojazdów — historia serwisowa, koszty, AI Mechanik i marketplace w jednym miejscu.",
+    "addFirstVehicle": "Dodaj pierwszy pojazd",
+    "skipAndExplore": "Pomiń, eksploruj sam",
+    "step": "Krok",
+    "step1": {
+      "title": "Powiedz nam o swoim aucie",
+      "desc": "Marka, model i rocznik — w 30 sekund."
+    },
+    "step2": {
+      "title": "Dodaj zdjęcie (opcjonalne)",
+      "desc": "Pokaż swoje auto. Możesz pominąć i dodać później.",
+      "uploadHint": "Kliknij, aby wybrać zdjęcie (max 5 MB)"
+    },
+    "step3": {
+      "title": "Przebieg i data zakupu",
+      "desc": "Ostatni krok — pomoże nam liczyć Twój P&L. Wszystko opcjonalne."
+    },
+    "finish": "Gotowe",
+    "successTitle": "Twój {{vehicle}} jest już w garażu!",
+    "successDesc": "Możesz teraz dodać historię serwisową, śledzić koszty lub zapytać AI Mechanika.",
+    "openVehicle": "Otwórz pojazd",
+    "backToGarage": "Wróć do garażu",
+    "makeModelRequired": "Wpisz markę i model",
+    "features": {
+      "garage": { "title": "Garaż", "desc": "Twoje pojazdy w jednym miejscu" },
+      "service": { "title": "Serwis", "desc": "Historia napraw i koszty" },
+      "ai": { "title": "AI Mechanik", "desc": "Diagnoza problemów" },
+      "marketplace": { "title": "Marketplace", "desc": "Kup, sprzedaj, zamień" }
+    },
     "step1Title": "Witaj w VEHIQ",
     "step1Desc": "Twój wirtualny garaż premium. Wybierz język, by rozpocząć.",
     "step2Title": "Dodaj pierwszy pojazd",
     "step2Desc": "Twój garaż czeka — zacznij od swojego najważniejszego auta.",
     "step3Title": "Wszystko gotowe",
     "step3Desc": "Eksploruj funkcje VEHIQ.",
-    "skip": "Pomiń",
-    "finish": "Zakończ"
+    "skip": "Pomiń"
+  },
+  "tooltips": {
+    "garage": "Tu znajdziesz swój garaż i wszystkie pojazdy",
+    "ai": "Zapytaj AI Mechanika o każdy problem",
+    "marketplace": "Przeglądaj ogłoszenia i kupuj/sprzedawaj",
+    "gotIt": "Rozumiem",
+    "next": "Dalej",
+    "skip": "Pomiń wszystkie"
+  },
+  "fab": {
+    "addVehicle": "Dodaj pojazd",
+    "addService": "Dodaj wpis serwisowy",
+    "addListing": "Wystaw ogłoszenie",
+    "newThread": "Nowy wątek"
+  },
+  "share": {
+    "share": "Udostępnij",
+    "publicProfile": "Profil publiczny",
+    "public": "Publiczny",
+    "private": "Prywatny",
+    "linkHint": "Skopiuj link i wyślij komu chcesz:",
+    "notPublicHint": "Włącz, aby wygenerować publiczny link do udostępnienia.",
+    "copied": "Skopiowano!",
+    "copyLink": "Kopiuj link",
+    "showServiceHistory": "Pokaż publicznie historię serwisową",
+    "sellThisCar": "Sprzedaj to auto (utwórz ogłoszenie)",
+    "madePublic": "Profil pojazdu jest teraz publiczny",
+    "madePrivate": "Profil pojazdu jest prywatny",
+    "owner": "Właściciel",
+    "forSale": "Na sprzedaż",
+    "openPrivate": "Edytuj w garażu",
+    "servicePublicNote": "Widok publiczny — ukryte koszty",
+    "notFoundTitle": "Pojazd nie znaleziony",
+    "notFoundDesc": "Ten pojazd jest prywatny lub nie istnieje."
   },
   "errors": {
     "notFound": "Nie znaleziono",

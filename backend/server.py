@@ -130,6 +130,12 @@ logger = logging.getLogger(__name__)
 @app.on_event("startup")
 async def on_startup():
     await seed_database(db)
+    # Background retention scheduler (D+1, D+7, monthly)
+    try:
+        from retention import scheduler_loop
+        asyncio.create_task(scheduler_loop())
+    except Exception as e:
+        logger.warning(f"retention scheduler failed to start: {e}")
     logger.info("VEHIQ backend ready.")
 
 

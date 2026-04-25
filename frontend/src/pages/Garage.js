@@ -6,6 +6,7 @@ import api from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { SkeletonGarageGrid } from "@/components/Skeleton";
 import EmptyState from "@/components/EmptyState";
+import LazyImage from "@/components/LazyImage";
 
 export default function Dashboard() {
   const { t, i18n } = useTranslation();
@@ -67,7 +68,7 @@ export default function Dashboard() {
             />
           ) : (
             <div className="grid grid-cols-2 md:grid-cols-3 gap-6" data-testid="garage-grid">
-              {vehicles.map((v) => <VehicleCard key={v.id} v={v} t={t} />)}
+              {vehicles.map((v, idx) => <VehicleCard key={v.id} v={v} t={t} eager={idx < 8} />)}
               <Link to="/garage/new" data-testid="garage-add-card" className="border-2 border-dashed border-vehiq-gold rounded-lg flex flex-col items-center justify-center min-h-[200px] hover:bg-vehiq-gold-dim transition-colors aspect-[4/3]">
                 <div className="h-12 w-12 rounded-full bg-vehiq-gold-dim flex items-center justify-center mb-2"><Plus size={24} className="text-vehiq-gold" /></div>
                 <div className="text-sm uppercase tracking-widest text-vehiq-gold">{t("garage.addVehicle")}</div>
@@ -86,12 +87,12 @@ export default function Dashboard() {
   );
 }
 
-function VehicleCard({ v, t }) {
+function VehicleCard({ v, t, eager = false }) {
   return (
     <Link to={`/garage/${v.id}`} className="group vehiq-card overflow-hidden hover:border-vehiq-gold transition-all duration-200 hover:-translate-y-1" data-testid={`vehicle-card-${v.id}`}>
       <div className="aspect-[4/3] bg-vehiq-bg relative overflow-hidden">
         {v.cover_photo ? (
-          <img src={v.cover_photo} alt={`${v.make} ${v.model}`} className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-[1.04]" />
+          <LazyImage src={v.cover_photo} alt={`${v.make} ${v.model}`} className="absolute inset-0" eager={eager} />
         ) : (
           <div className="w-full h-full flex items-center justify-center text-vehiq-gold/40">
             <CarIcon size={64} />

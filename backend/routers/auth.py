@@ -41,6 +41,8 @@ class UpdateProfileIn(BaseModel):
     location: Optional[str] = None
     language: Optional[str] = None
     avatar: Optional[str] = None
+    onboarded: Optional[bool] = None
+    tooltips_seen: Optional[bool] = None
 
 
 def _public_user(u: dict) -> dict:
@@ -54,6 +56,9 @@ def _public_user(u: dict) -> dict:
         "role": u.get("role", "user"),
         "created_at": u.get("created_at"),
         "marketing_consent": u.get("marketing_consent", False),
+        "onboarded": bool(u.get("onboarded", False)),
+        "tooltips_seen": bool(u.get("tooltips_seen", False)),
+        "last_active": u.get("last_active"),
     }
 
 
@@ -85,6 +90,8 @@ async def register(payload: RegisterIn):
         "suspend_reason": None,
         "marketing_consent": payload.accept_marketing,
         "auth_provider": "email",
+        "onboarded": False,
+        "tooltips_seen": False,
         "created_at": datetime.now(timezone.utc).isoformat(),
         "last_active": datetime.now(timezone.utc).isoformat(),
     }
@@ -200,6 +207,8 @@ async def google_session(x_session_id: Optional[str] = Header(None)):
             "suspend_reason": None,
             "marketing_consent": False,
             "auth_provider": "google",
+            "onboarded": False,
+            "tooltips_seen": False,
             "created_at": datetime.now(timezone.utc).isoformat(),
             "last_active": datetime.now(timezone.utc).isoformat(),
         }
