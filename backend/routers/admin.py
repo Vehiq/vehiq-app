@@ -63,10 +63,14 @@ def _get_ip(request: Request) -> str:
 
 @router.get("/setup-status")
 async def setup_status():
-    """Returns whether the admin account requires initial password setup."""
+    """Returns whether the admin account requires initial password setup or change-password (first login)."""
     db = get_db()
     admin = await db.admin_account.find_one({"email": ADMIN_EMAIL})
-    return {"needs_setup": not admin or not admin.get("password_hash"), "email": ADMIN_EMAIL}
+    return {
+        "needs_setup": not admin or not admin.get("password_hash"),
+        "first_login": bool(admin and admin.get("first_login")),
+        "email": ADMIN_EMAIL,
+    }
 
 
 @router.post("/setup")
@@ -112,7 +116,7 @@ async def admin_login(payload: AdminLoginIn, request: Request):
         "status": "success",
         "ts": datetime.now(timezone.utc).isoformat(),
     })
-    return {"token": token}
+    return {"token": token, "expires_in": ADMIN_TOKEN_EXPIRE_HOURS * 3600, "first_login": bool(admin.get("first_login"))}
 
 
 @router.get("/login-history")
@@ -130,9 +134,9 @@ async def change_password(payload: ChangePasswordIn, admin=Depends(get_admin)):
         raise HTTPException(status_code=400, detail="Current password is incorrect")
     if payload.new_password == payload.current_password:
         raise HTTPException(status_code=400, detail="New password must differ")
-    if len(payload.new_password) < 16:
-        raise HTTPException(status_code=400, detail="Password must be at least 16 characters")
-    await db.admin_account.update_one({"email": ADMIN_EMAIL}, {"$set": {"password_hash": hash_password(payload.new_password)}})
+    if len(payload.new_password) < 12:
+        raise HTTPException(status_code=400, detail="Password must be at least 12 characters")
+    await db.admin_account.update_one({"email": ADMIN_EMAIL}, {"$set": {"password_hash": hash_password(payload.new_password), "first_login": False}})
     return {"ok": True}
 
 

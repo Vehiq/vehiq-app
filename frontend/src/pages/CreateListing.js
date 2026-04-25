@@ -9,7 +9,7 @@ export default function CreateListing() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [vehicles, setVehicles] = useState([]);
-  const [form, setForm] = useState({ type: "car", title: "", description: "", price: "", location: "", photos: [], vehicle_id: "" });
+  const [form, setForm] = useState({ type: "car", title: "", description: "", price: "", location: "", photos: [], vehicle_id: "", make: "", model: "" });
   const [busy, setBusy] = useState(false);
 
   useEffect(() => { api.get("/vehicles").then(r => setVehicles(r.data)); }, []);
@@ -20,6 +20,8 @@ export default function CreateListing() {
     setForm({
       ...form,
       vehicle_id: vid,
+      make: v.make || "",
+      model: v.model || "",
       title: `${v.make} ${v.model} ${v.year || ""}`.trim(),
       description: `${v.engine || ""} ${v.fuel || ""}\nPrzebieg: ${v.mileage_current || 0} km`.trim(),
       photos: v.photos || [],
@@ -83,6 +85,19 @@ export default function CreateListing() {
         <div>
           <label className="vehiq-overline mb-2 block">{t("marketplace.title_field")}</label>
           <input required value={form.title} onChange={(e) => setForm({...form, title: e.target.value})} className="vehiq-input" data-testid="listing-title" />
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="vehiq-overline mb-2 block">{t("vehicle.make")}</label>
+            <input list="cl-makes" value={form.make} onChange={(e) => setForm({...form, make: e.target.value})} className="vehiq-input" data-testid="listing-make" />
+            <datalist id="cl-makes">
+              {["Audi","BMW","Citroën","Dacia","Fiat","Ford","Honda","Hyundai","Kia","Mazda","Mercedes-Benz","Mitsubishi","Nissan","Opel","Peugeot","Renault","Seat","Skoda","Suzuki","Toyota","Volkswagen","Volvo"].map(m => <option key={m} value={m} />)}
+            </datalist>
+          </div>
+          <div>
+            <label className="vehiq-overline mb-2 block">{t("vehicle.model")}</label>
+            <input value={form.model} onChange={(e) => setForm({...form, model: e.target.value})} className="vehiq-input" data-testid="listing-model" />
+          </div>
         </div>
         <div>
           <label className="vehiq-overline mb-2 block">{t("marketplace.description")}</label>

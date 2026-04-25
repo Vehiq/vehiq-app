@@ -14,6 +14,7 @@ class LegalUpdate(BaseModel):
     title_en: str | None = None
     content_pl: str | None = None
     content_en: str | None = None
+    last_updated: str | None = None  # ISO date or datetime; admin-overridable
 
 
 @router.get("")
@@ -36,7 +37,9 @@ async def get_page(slug: str):
 async def update_page(slug: str, payload: LegalUpdate, admin=Depends(get_admin)):
     db = get_db()
     update = {k: v for k, v in payload.model_dump().items() if v is not None}
-    update["last_updated"] = datetime.now(timezone.utc).isoformat()
+    # If admin didn't pass last_updated explicitly, refresh to "now"
+    if "last_updated" not in update:
+        update["last_updated"] = datetime.now(timezone.utc).isoformat()
     update["updated_by"] = admin["email"]
     res = await db.legal_pages.update_one({"slug": slug}, {"$set": update})
     if res.matched_count == 0:

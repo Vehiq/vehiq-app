@@ -40,10 +40,21 @@ export default function AdminLegal() {
           <input value={tab === "pl" ? page.title_pl : page.title_en} onChange={(e) => setPage({...page, [`title_${tab}`]: e.target.value})} className="w-full bg-[#0a0b13] border border-[#222540] rounded px-3 py-2 text-sm mt-1" />
         </div>
         <div>
+          <label className="text-xs uppercase tracking-widest text-[#6B7090]">Last updated date</label>
+          <input
+            type="date"
+            value={(page.last_updated || "").slice(0, 10)}
+            onChange={(e) => setPage({ ...page, last_updated: e.target.value ? new Date(e.target.value).toISOString() : "" })}
+            className="w-full max-w-[200px] bg-[#0a0b13] border border-[#222540] rounded px-3 py-2 text-sm mt-1 text-[#F4F1EC]"
+            data-testid="legal-last-updated-date"
+          />
+          <p className="text-xs text-[#6B7090] mt-1">Set the date shown to users on this legal page.</p>
+        </div>
+        <div>
           <label className="text-xs uppercase tracking-widest text-[#6B7090]">Content ({tab.toUpperCase()}) — HTML</label>
           <textarea value={tab === "pl" ? page.content_pl : page.content_en} onChange={(e) => setPage({...page, [`content_${tab}`]: e.target.value})} rows={20} className="w-full bg-[#0a0b13] border border-[#222540] rounded px-3 py-2 text-sm mt-1 font-mono" data-testid="legal-content-textarea" />
         </div>
-        <div className="text-xs text-[#6B7090]">Last updated: {page.last_updated?.slice(0,16)} {page.updated_by ? `by ${page.updated_by}` : ""}</div>
+        <div className="text-xs text-[#6B7090]">Last edited: {page.last_updated?.slice(0,16)} {page.updated_by ? `by ${page.updated_by}` : ""}</div>
         <button onClick={save} className="bg-[#C9A84C] text-[#0D0F1A] px-4 py-2 rounded text-sm font-medium" data-testid="legal-save">Save</button>
       </div>
     </div>

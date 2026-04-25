@@ -1,0 +1,61 @@
+{
+  "summary": "VEHIQ Iteration 3 testing complete. Backend: 12/12 NEW iter3 tests PASS + 50 regression PASS = 62 passed (7 skipped, pre-existing). Frontend: marketplace filters/URL persistence, admin first-login flow, forum new-thread vehicle/tags toggle, legal date 'Ostatnia aktualizacja: 26 stycznia 2025', sidebar Messages link — all verified.",
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "DELETE /api/forum/threads/{thread_id}", "issue": "delete_thread function in /app/backend/routers/forum.py line 90 is MISSING its @router.delete decorator. The function follows immediately after create_thread's `return doc` without a route decorator, so it is unreachable. Owners cannot delete their own forum threads via API. Admin delete works via /api/admin/forum-threads/{id} only.", "priority": "HIGH"}
+    ],
+    "minor": [
+      {"endpoint": "PUT /api/legal/{slug}", "issue": "Auto-overwrites last_updated to now() if admin omits the field — admin must always pass last_updated in PUT body to preserve a previously-set date. Slightly counterintuitive."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter3.py",
+    "/app/test_reports/pytest/iter3_results.xml"
+  ],
+  "action_items": [
+    "FIX CRITICAL: Add `@router.delete(\"/threads/{thread_id}\")` decorator above the `async def delete_thread(...)` line in /app/backend/routers/forum.py (currently around line 90, between create_thread's `return doc` and the bare `async def delete_thread` declaration). Without it, owner-side thread deletion via the public API is broken."
+  ],
+  "critical_code_review_comments": [
+    "BUG: /app/backend/routers/forum.py — `delete_thread` function defined without @router.delete decorator, making the endpoint unreachable. This was likely a copy-paste regression when adding tags/vehicle_label fields.",
+    "PUT /api/legal/{slug} silently overwrites last_updated to current timestamp when admin doesn't pass it. Worth documenting or making it explicit (require admin to pass last_updated to change it).",
+    "_failed_attempts/_lockouts in admin.py are in-memory dicts — reset on backend restart (already flagged in iter1, still applies).",
+    "Marketplace listings POST happily accepts make/model with no validation (free-form strings). Could allow inconsistent casing affecting filter UX. Consider canonicalizing on insert.",
+    "Forum thread creation caps tags at 5 client+server side (good); however no de-duplication or trim of whitespace on tag entries — duplicates with trailing spaces would slip through."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter3.py (NEW)",
+    "/app/test_reports/pytest/iter3_results.xml (NEW)"
+  ],
+  "success_rate": {"backend": "100% (12/12 iter3 + 50 regression)", "frontend": "100% (all verified flows passing)"},
+  "test_credentials": "Admin: admin@vehiq.app / VehiqAdmin2026! (auto-seeded, first_login=true on fresh seed). Test user created during tests: iter3ui_<hex>@example.com / DemoPass1234!.",
+  "seed_data_creation": "Tests create temp users/listings/threads/vehicles prefixed with TEST_iter3 — isolated under unique UUIDs, no cleanup needed.",
+  "retest_needed": true,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Iteration 3 added: marketplace pagination shape {items,total,page,limit}, ListingIn.make/model, ThreadIn.vehicle_label+tags(max5), legal last_updated admin-overridable, admin first_login flow with 12-char min, /gv91-admin/change-password page. Frontend Marketplace has full filter bar with data-testids: mp-filters, mp-filter-type, mp-filter-make, mp-filter-model, mp-filter-price-min, mp-filter-price-max, mp-filter-location, mp-search-btn, mp-clear, mp-grid. Forum NewThread testids: thread-link-vehicle (toggle), thread-manual-make, thread-manual-model, thread-tag-input, thread-submit. Admin login testids: admin-login-email, admin-login-password, admin-login-submit. Sidebar testids: sidebar-garage, sidebar-marketplace, sidebar-messages, sidebar-forum, sidebar-settings, sidebar-logout (5 nav items + logout). KNOWN BUG: DELETE /api/forum/threads/{thread_id} unreachable (missing decorator).",
+  "verified_iter3_features": [
+    "GET /api/admin/setup-status returns {needs_setup:false, first_login:bool, email}",
+    "POST /api/admin/login returns {token, expires_in:7200, first_login} for admin@vehiq.app",
+    "GET /api/marketplace/listings returns paginated {items,total,page,limit}",
+    "POST /api/marketplace/listings accepts make/model fields, returned in listing",
+    "Filter ?make=BMW&model=M3 returns matching listings (case-insensitive exact make, regex model)",
+    "Price range filter min_price/max_price works",
+    "POST /api/forum/threads accepts vehicle_label (manual) + tags array; tags capped at 5",
+    "POST /api/forum/threads with vehicle_id auto-derives vehicle_label from owner's garage",
+    "GET /api/marketplace/messages/threads returns enriched array with listing+other_user; unread counts correct",
+    "GET /api/marketplace/messages/{listing_id}/{other_id} marks other party's messages as read=true",
+    "POST /api/marketplace/messages still rejects self-message with 400",
+    "All 5 legal slugs (privacy-policy, terms-of-service, cookie-policy, marketplace-terms, contact) return 2025-01-26 last_updated",
+    "PUT /api/legal/{slug} with admin token accepts custom last_updated date",
+    "Frontend /gv91-admin login form → redirects to /gv91-admin/change-password on first_login=true; 'First-time setup' page shown with min-12 hint",
+    "Frontend /marketplace filter bar with type select, make/model inputs, price min/max, location, Search (gold) + Clear (ghost). URL persists ?make=BMW&model=M3 after Search. 'Znaleziono X ogłoszeń' counter visible",
+    "Frontend Sidebar has 5 nav items including 'Wiadomości' (Messages) link with sidebar-messages testid",
+    "Frontend /forum/new has thread-link-vehicle toggle + thread-manual-make/model + thread-tag-input testids",
+    "Frontend /legal/privacy-policy in PL: 'Ostatnia aktualizacja: 26 stycznia 2025' (long PL date format)"
+  ],
+  "rca of the issue": "DELETE /api/forum/threads/{id} bug RCA: When iter3 added the ThreadIn fields (vehicle_label + tags) and the auto-derive vehicle_label logic in create_thread, the @router.delete decorator that previously sat above `async def delete_thread` got removed/lost. Reproduction: send DELETE /api/forum/threads/{any_id} with valid user token → returns 405 Method Not Allowed (because the FastAPI route doesn't exist). Mitigation: insert `@router.delete(\"/threads/{thread_id}\")` on a new line just above `async def delete_thread(thread_id: str, user=Depends(get_current_user)):` in routers/forum.py."
+}

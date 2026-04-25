@@ -51,6 +51,19 @@ export default function ThreadDetail() {
       <div className="vehiq-card p-6">
         <div className="vehiq-overline">{t(`forum.categories.${thread.category}`)}</div>
         <h1 className="vehiq-display text-3xl text-vehiq-text mt-1">{thread.title}</h1>
+        {thread.vehicle_label && (
+          <div className="inline-flex items-center gap-2 mt-3 px-3 py-1.5 rounded-md bg-vehiq-gold-dim border border-vehiq-gold/30 text-sm" data-testid="thread-vehicle-badge">
+            <span className="text-vehiq-gold">🚗</span>
+            <span className="text-vehiq-text">{thread.vehicle_label}</span>
+          </div>
+        )}
+        {thread.tags?.length > 0 && (
+          <div className="flex flex-wrap gap-2 mt-3">
+            {thread.tags.map(tag => (
+              <span key={tag} className="text-xs px-2 py-0.5 rounded bg-vehiq-nav text-vehiq-muted uppercase tracking-wider">#{tag}</span>
+            ))}
+          </div>
+        )}
         <div className="flex items-center gap-2 mt-3 text-xs text-vehiq-muted">
           <span>{thread.author?.name}</span> • <span>{thread.created_at?.slice(0,10)}</span>
         </div>

@@ -20,6 +20,8 @@ class ThreadIn(BaseModel):
     title: str
     content: str
     vehicle_id: Optional[str] = None
+    vehicle_label: Optional[str] = None  # manual when vehicle_id None
+    tags: Optional[List[str]] = []
 
 
 class CommentIn(BaseModel):
@@ -69,6 +71,12 @@ async def create_thread(payload: ThreadIn, user=Depends(get_current_user)):
     if payload.category not in CATEGORIES:
         raise HTTPException(status_code=400, detail="Invalid category")
     doc = payload.model_dump()
+    doc["tags"] = (doc.get("tags") or [])[:5]
+    # If vehicle_id present, derive label from owner's garage (only that user's vehicle)
+    if doc.get("vehicle_id"):
+        v = await db.vehicles.find_one({"id": doc["vehicle_id"], "user_id": user["id"]}, {"_id": 0, "make": 1, "model": 1, "year": 1})
+        if v:
+            doc["vehicle_label"] = f"{v.get('make') or ''} {v.get('model') or ''} {v.get('year') or ''}".strip()
     doc.update({
         "id": str(uuid.uuid4()),
         "user_id": user["id"],

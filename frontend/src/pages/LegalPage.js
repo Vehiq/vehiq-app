@@ -5,6 +5,18 @@ import api from "@/lib/api";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import Footer from "@/components/layout/Footer";
 
+const PL_MONTHS = ["stycznia","lutego","marca","kwietnia","maja","czerwca","lipca","sierpnia","września","października","listopada","grudnia"];
+
+function formatLastUpdated(iso, lang) {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (isNaN(d)) return iso.slice(0, 10);
+  if (lang === "en") {
+    return `Last updated: ${d.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}`;
+  }
+  return `Ostatnia aktualizacja: ${d.getDate()} ${PL_MONTHS[d.getMonth()]} ${d.getFullYear()}`;
+}
+
 export default function LegalPage() {
   const { t, i18n } = useTranslation();
   const { slug } = useParams();
@@ -37,8 +49,8 @@ export default function LegalPage() {
             <h1 className="vehiq-display text-4xl sm:text-5xl text-vehiq-text mb-2">
               {lang === "en" ? page.title_en : page.title_pl}
             </h1>
-            <div className="text-xs text-vehiq-muted mb-6">
-              Last updated: {page.last_updated?.slice(0,10)}
+            <div className="text-xs text-vehiq-muted mb-6" data-testid="legal-last-updated">
+              {formatLastUpdated(page.last_updated, lang)}
             </div>
             <div className="prose prose-invert max-w-none text-vehiq-text legal-content" dangerouslySetInnerHTML={{ __html: lang === "en" ? page.content_en : page.content_pl }} />
           </article>

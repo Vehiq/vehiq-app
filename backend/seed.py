@@ -229,14 +229,21 @@ async def seed_database(db):
     await db.cms_content.create_index("key", unique=True)
     await db.app_settings.create_index("key", unique=True)
     await db.page_views.create_index("visited_at")
+    await db.listings.create_index([("type", 1), ("status", 1)])
+    await db.listings.create_index([("make", 1), ("model", 1)])
 
-    # Seed legal pages
+    # Seed legal pages with January 26, 2025 as default last_updated
+    default_date = "2025-01-26T00:00:00+00:00"
     for page in LEGAL_SEED:
         existing = await db.legal_pages.find_one({"slug": page["slug"]})
         if not existing:
-            page["last_updated"] = datetime.now(timezone.utc).isoformat()
+            page["last_updated"] = default_date
             page["updated_by"] = None
             await db.legal_pages.insert_one(page)
+        else:
+            # Update only the last_updated if it's still the seeded ISO datetime from before (best-effort: only set if missing)
+            if not existing.get("last_updated"):
+                await db.legal_pages.update_one({"slug": page["slug"]}, {"$set": {"last_updated": default_date}})
 
     # Seed app settings
     for key, value in DEFAULT_SETTINGS.items():
@@ -257,3 +264,18 @@ async def seed_database(db):
                 "value_en": vals["value_en"],
                 "updated_at": datetime.now(timezone.utc).isoformat()
             })
+
+    # Auto-seed admin from ADMIN_PASSWORD env (if set and admin doesn't exist yet)
+    import os
+    import bcrypt as _bcrypt
+    admin_email = os.environ.get("ADMIN_EMAIL", "admin@vehiq.app").lower()
+    admin_password = os.environ.get("ADMIN_PASSWORD", "")
+    existing_admin = await db.admin_account.find_one({"email": admin_email})
+    if not existing_admin and admin_password:
+        pw_hash = _bcrypt.hashpw(admin_password.encode("utf-8"), _bcrypt.gensalt()).decode("utf-8")
+        await db.admin_account.insert_one({
+            "email": admin_email,
+            "password_hash": pw_hash,
+            "first_login": True,
+            "created_at": datetime.now(timezone.utc).isoformat(),
+        })

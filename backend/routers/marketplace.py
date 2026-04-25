@@ -21,6 +21,8 @@ class ListingIn(BaseModel):
     location: Optional[str] = None
     photos: Optional[List[str]] = []
     vehicle_id: Optional[str] = None
+    make: Optional[str] = None
+    model: Optional[str] = None
 
 
 class MessageIn(BaseModel):
@@ -37,16 +39,24 @@ def _strip_owner(l: dict) -> dict:
 async def list_listings(
     type: Optional[str] = None,
     q: Optional[str] = None,
+    make: Optional[str] = None,
+    model: Optional[str] = None,
     min_price: Optional[float] = None,
     max_price: Optional[float] = None,
     location: Optional[str] = None,
     status: str = "active",
+    page: int = 1,
+    limit: int = 60,
     user=Depends(get_optional_user),
 ):
     db = get_db()
     f = {"status": status}
     if type:
         f["type"] = type
+    if make:
+        f["make"] = {"$regex": f"^{make}$", "$options": "i"}
+    if model:
+        f["model"] = {"$regex": model, "$options": "i"}
     if location:
         f["location"] = {"$regex": location, "$options": "i"}
     if q:
@@ -58,8 +68,11 @@ async def list_listings(
         f.setdefault("price", {})["$gte"] = min_price
     if max_price is not None:
         f.setdefault("price", {})["$lte"] = max_price
-    items = await db.listings.find(f, {"_id": 0}).sort([("featured", -1), ("created_at", -1)]).to_list(500)
-    # attach seller info
+
+    total = await db.listings.count_documents(f)
+    skip = max(0, (page - 1) * limit)
+    items = await db.listings.find(f, {"_id": 0}).sort([("featured", -1), ("created_at", -1)]).skip(skip).limit(limit).to_list(limit)
+
     user_ids = list({i["user_id"] for i in items})
     sellers = {}
     if user_ids:
@@ -67,7 +80,7 @@ async def list_listings(
             sellers[u["id"]] = u
     for i in items:
         i["seller"] = sellers.get(i["user_id"])
-    return items
+    return {"items": items, "total": total, "page": page, "limit": limit}
 
 
 @router.get("/listings/{listing_id}")
