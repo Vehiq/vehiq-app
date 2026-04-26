@@ -3,7 +3,8 @@ import { useParams, useNavigate, Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import api from "@/lib/api";
 import { toast } from "sonner";
-import { Car as CarIcon, ArrowLeft, Share2, Copy, Check, Calendar, Gauge, Fuel, Palette, Wrench } from "lucide-react";
+import { Car as CarIcon, ArrowLeft, Share2, Check, Calendar, Gauge, Fuel, Palette, Wrench } from "lucide-react";
+import SocialShare from "@/components/SocialShare";
 
 export default function PublicVehicle() {
   const { t, i18n } = useTranslation();
@@ -42,8 +43,12 @@ export default function PublicVehicle() {
     setMeta("og:title", title);
     setMeta("og:description", desc);
     setMeta("og:type", "website");
+    setMeta("og:url", window.location.href);
     if (v.cover_photo) setMeta("og:image", v.cover_photo);
     setMeta("twitter:card", "summary_large_image");
+    setMeta("twitter:title", title);
+    setMeta("twitter:description", desc);
+    if (v.cover_photo) setMeta("twitter:image", v.cover_photo);
     setMeta("description", desc);
   }, [v, lang]);
 
@@ -148,12 +153,13 @@ export default function PublicVehicle() {
             )}
 
             <div className="flex gap-2 mt-6">
-              <button onClick={copy} className="vehiq-btn-primary inline-flex items-center gap-2" data-testid="public-share-cta">
-                {copied ? <Check size={14}/> : <Copy size={14}/>} {t("share.copyLink")}
-              </button>
               {v.is_owner && (
                 <Link to={`/garage/${v.id}`} className="vehiq-btn-secondary" data-testid="public-back-to-private">{t("share.openPrivate")}</Link>
               )}
+            </div>
+
+            <div className="mt-6 pt-6 border-t border-vehiq-border">
+              <SocialShare vehicle={v} url={window.location.href} />
             </div>
           </div>
         </section>

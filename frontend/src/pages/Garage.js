@@ -15,6 +15,7 @@ export default function Dashboard() {
   const [vehicles, setVehicles] = useState(null);
   const [stats, setStats] = useState(null);
   const [dash, setDash] = useState(null);
+  const [tab, setTab] = useState("active");
   const lang = i18n.language?.startsWith("en") ? "en" : "pl";
 
   useEffect(() => {
@@ -22,6 +23,10 @@ export default function Dashboard() {
     api.get("/analytics/me").then((r) => setStats(r.data)).catch(() => {});
     api.get("/dashboard").then((r) => setDash(r.data)).catch(() => setDash({ reminders: [], activity: [], featured_listings: [] }));
   }, []);
+
+  const filtered = vehicles ? vehicles.filter((v) => (tab === "archive" ? v.status === "archived" : v.status !== "archived")) : null;
+  const activeCount = vehicles ? vehicles.filter((v) => v.status !== "archived").length : 0;
+  const archivedCount = vehicles ? vehicles.filter((v) => v.status === "archived").length : 0;
 
   return (
     <div className="space-y-8 animate-fade-in" data-testid="dashboard-page">
@@ -55,24 +60,44 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 xl:grid-cols-[1fr_320px] gap-8">
         {/* Garage grid */}
         <section>
-          <div className="vehiq-overline mb-3">{t("garage.title")}</div>
-          {vehicles === null ? (
+          <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+            <div className="vehiq-overline">{t("garage.title")}</div>
+            <div className="inline-flex bg-vehiq-card border border-vehiq-border rounded-md p-0.5" data-testid="garage-tabs">
+              <button
+                onClick={() => setTab("active")}
+                className={`px-3 py-1.5 text-xs uppercase tracking-widest rounded ${tab === "active" ? "bg-vehiq-gold text-vehiq-bg" : "text-vehiq-muted hover:text-vehiq-text"}`}
+                data-testid="garage-tab-active"
+              >
+                {t("garage.tabActive")} {activeCount > 0 && <span className="ml-1 opacity-70">({activeCount})</span>}
+              </button>
+              <button
+                onClick={() => setTab("archive")}
+                className={`px-3 py-1.5 text-xs uppercase tracking-widest rounded ${tab === "archive" ? "bg-vehiq-gold text-vehiq-bg" : "text-vehiq-muted hover:text-vehiq-text"}`}
+                data-testid="garage-tab-archive"
+              >
+                {t("garage.tabArchive")} {archivedCount > 0 && <span className="ml-1 opacity-70">({archivedCount})</span>}
+              </button>
+            </div>
+          </div>
+          {filtered === null ? (
             <SkeletonGarageGrid count={6} />
-          ) : vehicles.length === 0 ? (
+          ) : filtered.length === 0 ? (
             <EmptyState
               icon={CarIcon}
-              title={t("garage.empty")}
-              description={t("garage.emptyAction")}
-              action={<button onClick={() => navigate("/garage/new")} className="vehiq-btn-primary inline-flex items-center gap-2" data-testid="garage-empty-add"><Plus size={14} /> {t("garage.addVehicle")}</button>}
+              title={tab === "archive" ? t("garage.archiveEmpty") : t("garage.empty")}
+              description={tab === "archive" ? t("garage.archiveEmptyDesc") : t("garage.emptyAction")}
+              action={tab === "active" ? <button onClick={() => navigate("/garage/new")} className="vehiq-btn-primary inline-flex items-center gap-2" data-testid="garage-empty-add"><Plus size={14} /> {t("garage.addVehicle")}</button> : null}
               dataTestId="garage-empty"
             />
           ) : (
             <div className="grid grid-cols-2 md:grid-cols-3 gap-6" data-testid="garage-grid">
-              {vehicles.map((v, idx) => <VehicleCard key={v.id} v={v} t={t} eager={idx < 8} />)}
-              <Link to="/garage/new" data-testid="garage-add-card" className="border-2 border-dashed border-vehiq-gold rounded-lg flex flex-col items-center justify-center min-h-[200px] hover:bg-vehiq-gold-dim transition-colors aspect-[4/3]">
-                <div className="h-12 w-12 rounded-full bg-vehiq-gold-dim flex items-center justify-center mb-2"><Plus size={24} className="text-vehiq-gold" /></div>
-                <div className="text-sm uppercase tracking-widest text-vehiq-gold">{t("garage.addVehicle")}</div>
-              </Link>
+              {filtered.map((v, idx) => <VehicleCard key={v.id} v={v} t={t} eager={idx < 8} lang={lang} />)}
+              {tab === "active" && (
+                <Link to="/garage/new" data-testid="garage-add-card" className="border-2 border-dashed border-vehiq-gold rounded-lg flex flex-col items-center justify-center min-h-[200px] hover:bg-vehiq-gold-dim transition-colors aspect-[4/3]">
+                  <div className="h-12 w-12 rounded-full bg-vehiq-gold-dim flex items-center justify-center mb-2"><Plus size={24} className="text-vehiq-gold" /></div>
+                  <div className="text-sm uppercase tracking-widest text-vehiq-gold">{t("garage.addVehicle")}</div>
+                </Link>
+              )}
             </div>
           )}
         </section>
@@ -87,7 +112,19 @@ export default function Dashboard() {
   );
 }
 
-function VehicleCard({ v, t, eager = false }) {
+function VehicleCard({ v, t, eager = false, lang = "pl" }) {
+  const fmt = (n) => Number(n || 0).toLocaleString(lang === "en" ? "en-US" : "pl-PL", { maximumFractionDigits: 0 });
+  // Compute net P&L for archived (sold) vehicles
+  let plNode = null;
+  if (v.status === "archived" && v.sale_price && v.purchase_price) {
+    const net = (v.sale_price || 0) - (v.purchase_price || 0);
+    const profit = net >= 0;
+    plNode = (
+      <div className={`text-xs font-medium mt-1 ${profit ? "text-vehiq-gold" : "text-red-400"}`} data-testid={`vehicle-pl-${v.id}`}>
+        {profit ? "+" : ""}{fmt(net)} PLN {profit ? "✅" : "❌"}
+      </div>
+    );
+  }
   return (
     <Link to={`/garage/${v.id}`} className="group vehiq-card overflow-hidden hover:border-vehiq-gold transition-all duration-200 hover:-translate-y-1" data-testid={`vehicle-card-${v.id}`}>
       <div className="aspect-[4/3] bg-vehiq-bg relative overflow-hidden">
@@ -103,10 +140,16 @@ function VehicleCard({ v, t, eager = false }) {
             {t("vehicle.archived")}
           </span>
         )}
+        {v.status !== "archived" && v.active_listing && (
+          <span className="absolute top-3 right-3 text-[10px] uppercase tracking-widest px-2 py-1 rounded bg-vehiq-gold text-vehiq-bg font-medium" data-testid={`for-sale-badge-${v.id}`}>
+            {t("sell.forSale")}
+          </span>
+        )}
       </div>
       <div className="p-4">
         <div className="vehiq-display text-xl text-vehiq-text leading-tight">{v.make} {v.model}</div>
         {v.year && <div className="text-xs uppercase tracking-widest text-vehiq-gold mt-1">{v.year}</div>}
+        {plNode}
       </div>
     </Link>
   );

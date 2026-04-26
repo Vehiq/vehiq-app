@@ -36,7 +36,7 @@ export default function AdminLayout() {
         </div>
         <nav className="flex-1 p-3 space-y-1">
           {SECTIONS.map(({ to, icon: Icon, label }) => (
-            <NavLink key={to} to={to} data-testid={`admin-nav-${to}`}
+            <NavLink key={to} to={`/gv91-admin/${to}`} data-testid={`admin-nav-${to}`}
               className={({ isActive }) =>
                 `flex items-center gap-2 px-3 py-2 rounded text-sm transition ${
                   isActive ? "bg-[#C9A84C] text-[#0D0F1A]" : "text-[#9CA1C2] hover:bg-[#161829] hover:text-[#F4F1EC]"

@@ -57,11 +57,17 @@ class VehicleIn(BaseModel):
 async def list_vehicles(user=Depends(get_current_user)):
     db = get_db()
     items = await db.vehicles.find({"user_id": user["id"]}, {"_id": 0}).sort("created_at", -1).to_list(500)
-    # Add cover_photo for grid rendering
-    for v in items:
-        photos = v.get("photos") or []
-        idx = v.get("cover_photo_index") or 0
-        v["cover_photo"] = photos[idx] if 0 <= idx < len(photos) else (photos[0] if photos else None)
+    # Attach cover_photo + active_listing for grid rendering
+    if items:
+        ids = [v["id"] for v in items]
+        active_map = {}
+        async for l in db.listings.find({"vehicle_id": {"$in": ids}, "status": "active"}, {"_id": 0, "id": 1, "vehicle_id": 1, "price": 1, "title": 1}):
+            active_map[l["vehicle_id"]] = {"id": l["id"], "price": l.get("price"), "title": l.get("title")}
+        for v in items:
+            photos = v.get("photos") or []
+            idx = v.get("cover_photo_index") or 0
+            v["cover_photo"] = photos[idx] if 0 <= idx < len(photos) else (photos[0] if photos else None)
+            v["active_listing"] = active_map.get(v["id"])
     return items
 
 
@@ -110,6 +116,12 @@ async def get_vehicle(vehicle_id: str, user=Depends(get_current_user)):
     photos = v.get("photos") or []
     idx = v.get("cover_photo_index") or 0
     v["cover_photo"] = photos[idx] if 0 <= idx < len(photos) else (photos[0] if photos else None)
+    # Attach active listing (if any) for "Sell this car" / "Mark as sold" UI
+    listing = await db.listings.find_one(
+        {"vehicle_id": vehicle_id, "status": "active"},
+        {"_id": 0, "id": 1, "title": 1, "price": 1, "type": 1, "status": 1, "created_at": 1},
+    )
+    v["active_listing"] = listing
     return v
 
 
@@ -245,3 +257,73 @@ async def set_visibility(vehicle_id: str, payload: VisibilityIn, user=Depends(ge
     await db.vehicles.update_one({"id": vehicle_id}, {"$set": update})
     fresh = await db.vehicles.find_one({"id": vehicle_id}, {"_id": 0})
     return {"ok": True, "slug": fresh.get("slug"), "public": bool(fresh.get("public")), "public_show_service": bool(fresh.get("public_show_service"))}
+
+
+class ShareIn(BaseModel):
+    platform: str  # facebook | twitter | whatsapp | copy
+
+
+@router.post("/{vehicle_id}/share")
+async def track_share(vehicle_id: str, payload: ShareIn, user=Depends(get_optional_user)):
+    """Records a share event for analytics. Anonymous-safe."""
+    db = get_db()
+    if payload.platform not in ("facebook", "twitter", "whatsapp", "copy"):
+        raise HTTPException(status_code=400, detail="Invalid platform")
+    v = await db.vehicles.find_one({"id": vehicle_id}, {"_id": 0, "id": 1, "public": 1})
+    if not v:
+        raise HTTPException(status_code=404, detail="Not found")
+    await db.vehicle_shares.insert_one({
+        "id": str(uuid.uuid4()),
+        "vehicle_id": vehicle_id,
+        "platform": payload.platform,
+        "user_id": user["id"] if user else None,
+        "shared_at": datetime.now(timezone.utc).isoformat(),
+    })
+    return {"ok": True}
+
+
+class MarkSoldIn(BaseModel):
+    sale_price: float
+    sale_date: Optional[str] = None  # ISO YYYY-MM-DD
+
+
+@router.post("/{vehicle_id}/mark-sold")
+async def mark_sold(vehicle_id: str, payload: MarkSoldIn, user=Depends(get_current_user)):
+    """Owner marks vehicle as sold: sets sale_price, sale_date, status=archived, closes active listing.
+    Returns the updated P&L summary for confetti display."""
+    db = get_db()
+    v = await db.vehicles.find_one({"id": vehicle_id, "user_id": user["id"]})
+    if not v:
+        raise HTTPException(status_code=404, detail="Vehicle not found")
+    sale_date = payload.sale_date or datetime.now(timezone.utc).date().isoformat()
+    await db.vehicles.update_one(
+        {"id": vehicle_id},
+        {"$set": {
+            "sale_price": float(payload.sale_price),
+            "sale_date": sale_date,
+            "status": "archived",
+            "updated_at": datetime.now(timezone.utc).isoformat(),
+        }},
+    )
+    # Close any active listing for this vehicle
+    await db.listings.update_many(
+        {"vehicle_id": vehicle_id, "status": "active"},
+        {"$set": {"status": "sold", "sold_at": datetime.now(timezone.utc).isoformat()}},
+    )
+    # Compute P&L
+    services = await db.service_entries.find({"vehicle_id": vehicle_id}, {"_id": 0, "cost": 1}).to_list(2000)
+    total_service_cost = sum(float(s.get("cost") or 0) for s in services)
+    purchase = float(v.get("purchase_price") or 0)
+    sale = float(payload.sale_price)
+    net = sale - purchase - total_service_cost
+    from activity import log_activity
+    await log_activity(user["id"], "vehicle.sold", "vehicle", vehicle_id, f"{v.get('make')} {v.get('model')}")
+    return {
+        "ok": True,
+        "vehicle_id": vehicle_id,
+        "sale_price": sale,
+        "sale_date": sale_date,
+        "purchase_price": purchase,
+        "total_service_cost": total_service_cost,
+        "net_result": net,
+    }

@@ -69,6 +69,10 @@
     "title": "My Garage",
     "subtitle": "Your vehicles, one screen",
     "empty": "Your garage is empty",
+    "tabActive": "Active",
+    "tabArchive": "Archive",
+    "archiveEmpty": "No vehicles in archive",
+    "archiveEmptyDesc": "Sold vehicles will appear here.",
     "emptyAction": "Add your first vehicle",
     "addVehicle": "Add vehicle",
     "totalVehicles": "Vehicles",
@@ -292,6 +296,7 @@
   },
   "share": {
     "share": "Share",
+    "shareVehicle": "Share this vehicle:",
     "publicProfile": "Public profile",
     "public": "Public",
     "private": "Private",
@@ -309,6 +314,22 @@
     "servicePublicNote": "Public view — costs hidden",
     "notFoundTitle": "Vehicle not found",
     "notFoundDesc": "This vehicle is private or doesn't exist."
+  },
+  "sell": {
+    "sellVehicle": "Sell vehicle",
+    "forSale": "For sale",
+    "createListing": "Create listing",
+    "confirmTitle": "List {{vehicle}} for sale?",
+    "confirmDesc": "We'll open a listing form pre-filled with your vehicle data. You can edit anything before publishing.",
+    "markSold": "Mark as sold",
+    "salePrice": "Sale price",
+    "saleDate": "Sale date",
+    "purchasePrice": "Purchase price",
+    "serviceCost": "Service costs",
+    "confirmSold": "Confirm sale",
+    "priceRequired": "Enter sale price",
+    "congratsTitle": "Congrats! You sold the {{vehicle}}",
+    "yourResult": "Your result"
   },
   "errors": {
     "notFound": "Not found",

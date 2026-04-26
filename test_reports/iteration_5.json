@@ -1,0 +1,42 @@
+{
+  "summary": "VEHIQ Iteration 4 round 2 testing complete. Backend: 14/14 NEW iter5 tests PASS (active_listing attachment, share endpoint with all 4 platforms + invalid + anonymous, mark-sold owner/non-owner/unauth/default-date, P&L profit + loss). Frontend: admin routing fix verified for all 10 sections (dashboard, users, vehicles, marketplace, forum, legal, content, settings, analytics, api-keys, security) — every URL is /gv91-admin/{section} and shows correct content. End-to-end Sell→Mark-sold flow on VehicleProfile works: vehicle-sell-btn (no listing), sell-confirm-modal with sell-cancel/sell-create-listing, navigation to /marketplace/new?vehicle={id} with prefilled make/model/year, vehicle-mark-sold-btn (with listing), vehicle-for-sale-badge next to title, mark-sold-modal with mark-sold-price/date/confirm and today-default date, sold-banner + confetti-canvas + sold-net-result showing '+60,000 PLN ✅' (profit) and matching P&L on archived garage card vehicle-pl-{id}. Garage tabs garage-tabs/garage-tab-active/garage-tab-archive all render. Public vehicle page social-share-copy/facebook/twitter/whatsapp all present.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "Garage tabs counter", "issue": "garage-tab-archive shows 'Archive ' (trailing space, no count) when archive count is 0. Spec says 'counts in parens'. Active tab also shows 'Active ' with no parens when count is 0 after the only vehicle was archived. Cosmetic — count is shown when >0 ('Active (1)', 'Archive (1)') but missing when 0.", "selector": "[data-testid='garage-tab-archive']", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "PublicVehicle social share row", "issues": ["WhatsApp button correctly hidden on desktop via md:hidden — visible only <768px viewport. Verified by screenshot. Copy/Facebook/X all visible."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter5.py",
+    "/app/test_reports/pytest/iter5_results.xml"
+  ],
+  "action_items": [
+    "Optional polish: show '(0)' for empty Active/Archive tabs to match spec phrasing 'counts in parens' (currently only renders count when >0)."
+  ],
+  "critical_code_review_comments": [
+    "POST /api/vehicles/{id}/mark-sold for non-owner correctly returns 404 (filtered by user_id) which is the safest behavior — same shape as 'vehicle not found' so it doesn't leak ownership info.",
+    "Mark-sold is idempotent in effect: calling it on an already archived vehicle would still update sale_price/sale_date and return new net_result. Consider guarding to prevent accidental overwrite of an existing sale_price (e.g. if status==archived and sale_price set, return 400). Not critical.",
+    "active_listing on /api/vehicles list query uses a proper index-friendly $in lookup against db.listings — efficient.",
+    "ShareIn validates platform server-side AND has client-side filtering — defense-in-depth is good. Anonymous shares (user=None) are accepted — intentional per docstring.",
+    "VehicleProfile route is /garage/:id NOT /vehicles/:id — testing agent in iter4 was unaware. Document this in test_credentials.md or routing notes for future iterations to avoid confusion: /vehicles/:slug = PublicVehicle (read-only), /garage/:id = VehicleProfile (owner edit/manage)."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter5.py (NEW — 14 tests)",
+    "/app/test_reports/pytest/iter5_results.xml (NEW)",
+    "/app/test_reports/iteration_5.json (NEW)"
+  ],
+  "success_rate": {"backend": "100% (14/14 iter5)", "frontend": "~95% (all critical flows verified end-to-end; only minor cosmetic tab-counter issue)"},
+  "test_credentials": "Admin: admin@vehiq.app / VehiqAdmin2026! (working). Test user: iter5ui_cda9f8be@example.com / TestPass1234! (BMW M3 2019 archived sold for 260000 PLN +60000 PLN profit; VW Golf 2018 active with listing).",
+  "seed_data_creation": "Created TEST_iter5_<hex>@example.com users + Audi RS6 2020, VW Golf 2018, Fiat Punto 2010 vehicles + 1 listing for Audi RS6. UUID-isolated.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "VEHIQ iter4 r2 fully verified. Key route mapping: /vehicles/:slug = public read-only page (PublicVehicle.js), /garage/:id = owner VehicleProfile.js with sell/mark-sold actions. Admin sidebar NavLink uses absolute /gv91-admin/{path} (FIXED, all 10 sections work). Backend POST /api/vehicles/{id}/share validates 'facebook'|'twitter'|'whatsapp'|'copy' (400 otherwise) and accepts anonymous calls. POST /api/vehicles/{id}/mark-sold returns net_result = sale_price - purchase_price - sum(service_costs). Marketplace endpoint is /api/marketplace/listings (not /api/listings). Frontend testids verified: vehicle-sell-btn, sell-confirm-modal, sell-cancel, sell-create-listing (navigates to /marketplace/new?vehicle={id} with prefilled title/make/model/description=Przebieg km), vehicle-mark-sold-btn, vehicle-for-sale-badge, mark-sold-modal, mark-sold-price, mark-sold-date (defaults to today), mark-sold-confirm, sold-banner, confetti-canvas, sold-net-result ('+60,000 PLN ✅'), garage-tabs, garage-tab-active, garage-tab-archive, vehicle-pl-{id} (on archived cards), for-sale-badge-{id} (on active garage cards with listing), social-share-copy/facebook/twitter/whatsapp, og:url meta tag.",
+  "rca of the issue": "No regressions or critical bugs. Iter4 r1 issues from prev iteration (FAB sub-actions, FirstUseTooltips, mobile BottomNav, share-copy-btn missing) were NOT in scope of iter4 r2 spec — focus was admin routing fix + sell/mark-sold flow + social share + garage tabs, and all of those work end-to-end. Minor cosmetic: tab counter doesn't render '(0)' when count is 0."
+}

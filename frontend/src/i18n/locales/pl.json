@@ -69,6 +69,10 @@
     "title": "Mój Garaż",
     "subtitle": "Twoje pojazdy, jeden ekran",
     "empty": "Twój garaż jest pusty",
+    "tabActive": "Aktywne",
+    "tabArchive": "Archiwum",
+    "archiveEmpty": "Brak pojazdów w archiwum",
+    "archiveEmptyDesc": "Tu pojawią się pojazdy oznaczone jako sprzedane.",
     "emptyAction": "Dodaj swój pierwszy pojazd",
     "addVehicle": "Dodaj pojazd",
     "totalVehicles": "Pojazdy",
@@ -292,6 +296,7 @@
   },
   "share": {
     "share": "Udostępnij",
+    "shareVehicle": "Udostępnij pojazd:",
     "publicProfile": "Profil publiczny",
     "public": "Publiczny",
     "private": "Prywatny",
@@ -309,6 +314,22 @@
     "servicePublicNote": "Widok publiczny — ukryte koszty",
     "notFoundTitle": "Pojazd nie znaleziony",
     "notFoundDesc": "Ten pojazd jest prywatny lub nie istnieje."
+  },
+  "sell": {
+    "sellVehicle": "Sprzedaj pojazd",
+    "forSale": "Na sprzedaż",
+    "createListing": "Utwórz ogłoszenie",
+    "confirmTitle": "Wystawić {{vehicle}} na sprzedaż?",
+    "confirmDesc": "Otworzymy formularz ogłoszenia z auto-wypełnionymi danymi. Możesz je dowolnie edytować przed publikacją.",
+    "markSold": "Oznacz jako sprzedany",
+    "salePrice": "Cena sprzedaży",
+    "saleDate": "Data sprzedaży",
+    "purchasePrice": "Cena zakupu",
+    "serviceCost": "Koszty serwisu",
+    "confirmSold": "Potwierdź sprzedaż",
+    "priceRequired": "Podaj cenę sprzedaży",
+    "congratsTitle": "Gratulacje! Sprzedałeś {{vehicle}}",
+    "yourResult": "Twój wynik"
   },
   "errors": {
     "notFound": "Nie znaleziono",

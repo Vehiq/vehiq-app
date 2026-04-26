@@ -3,13 +3,14 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import api from "@/lib/api";
 import { toast } from "sonner";
-import { ArrowLeft, Trash2, Edit2, Share2, Eye, EyeOff, Check, Copy } from "lucide-react";
+import { ArrowLeft, Trash2, Edit2, Share2, Eye, EyeOff, Check, Copy, Tag, CheckCircle2 } from "lucide-react";
 import VehicleForm from "@/components/VehicleForm";
 import OverviewTab from "./vehicle-tabs/OverviewTab";
 import ServiceTab from "./vehicle-tabs/ServiceTab";
 import MileageTab from "./vehicle-tabs/MileageTab";
 import PLTab from "./vehicle-tabs/PLTab";
 import AITab from "./vehicle-tabs/AITab";
+import Confetti from "@/components/Confetti";
 
 const TABS = [
   { id: "overview", key: "vehicle.tabs.overview" },
@@ -26,6 +27,9 @@ export default function VehicleProfile() {
   const [vehicle, setVehicle] = useState(null);
   const [tab, setTab] = useState("overview");
   const [editing, setEditing] = useState(false);
+  const [showSell, setShowSell] = useState(false);
+  const [showMarkSold, setShowMarkSold] = useState(false);
+  const [soldResult, setSoldResult] = useState(null);
 
   const reload = () => api.get(`/vehicles/${id}`).then(r => setVehicle(r.data));
 
@@ -50,6 +54,9 @@ export default function VehicleProfile() {
     );
   }
 
+  const isActive = vehicle.status !== "archived";
+  const hasActiveListing = !!vehicle.active_listing;
+
   return (
     <div className="space-y-6 animate-fade-in" data-testid="vehicle-profile">
       <button onClick={() => navigate("/garage")} className="text-sm text-vehiq-muted hover:text-vehiq-gold inline-flex items-center gap-1">
@@ -58,17 +65,50 @@ export default function VehicleProfile() {
 
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <div className="vehiq-overline">{vehicle.year || "—"} • {vehicle.fuel?.toUpperCase() || ""}</div>
+          <div className="vehiq-overline flex items-center gap-2">
+            <span>{vehicle.year || "—"} • {vehicle.fuel?.toUpperCase() || ""}</span>
+            {hasActiveListing && (
+              <span className="text-[10px] uppercase tracking-widest px-2 py-0.5 rounded bg-vehiq-gold text-vehiq-bg" data-testid="vehicle-for-sale-badge">{t("sell.forSale")}</span>
+            )}
+          </div>
           <h1 className="vehiq-display text-4xl sm:text-5xl text-vehiq-text mt-1" data-testid="vehicle-title">
             {vehicle.make} {vehicle.model}
           </h1>
         </div>
         <div className="flex gap-2 flex-wrap">
+          {isActive && !hasActiveListing && (
+            <button onClick={() => setShowSell(true)} className="vehiq-btn-primary inline-flex items-center gap-2" data-testid="vehicle-sell-btn">
+              <Tag size={14} /> {t("sell.sellVehicle")}
+            </button>
+          )}
+          {isActive && hasActiveListing && (
+            <button onClick={() => setShowMarkSold(true)} className="vehiq-btn-primary inline-flex items-center gap-2" data-testid="vehicle-mark-sold-btn">
+              <CheckCircle2 size={14} /> {t("sell.markSold")}
+            </button>
+          )}
           <ShareMenu vehicle={vehicle} reload={reload} />
           <button onClick={() => setEditing(true)} className="vehiq-btn-secondary inline-flex items-center gap-2" data-testid="vehicle-edit-btn"><Edit2 size={14} /> {t("common.edit")}</button>
           <button onClick={remove} className="vehiq-btn-secondary inline-flex items-center gap-2 !border-red-500/40 !text-red-400 hover:!bg-red-500/10" data-testid="vehicle-delete-btn"><Trash2 size={14} /> {t("common.delete")}</button>
         </div>
       </div>
+
+      {showSell && (
+        <SellConfirmModal
+          vehicle={vehicle}
+          onClose={() => setShowSell(false)}
+          onConfirm={() => navigate(`/marketplace/new?vehicle=${vehicle.id}`)}
+        />
+      )}
+
+      {showMarkSold && (
+        <MarkSoldModal
+          vehicle={vehicle}
+          onClose={() => setShowMarkSold(false)}
+          onSold={(result) => { setShowMarkSold(false); setSoldResult(result); reload(); }}
+        />
+      )}
+
+      {soldResult && <SoldResultBanner result={soldResult} vehicle={vehicle} onClose={() => setSoldResult(null)} />}
 
       <div className="border-b border-vehiq-border flex gap-1 overflow-x-auto">
         {TABS.map(({ id: tid, key }) => (
@@ -183,5 +223,109 @@ function ShareMenu({ vehicle, reload }) {
         </div>
       )}
     </div>
+  );
+}
+
+
+
+/* ---------- Sell confirmation modal ---------- */
+function SellConfirmModal({ vehicle, onClose, onConfirm }) {
+  const { t } = useTranslation();
+  const label = `${vehicle.make} ${vehicle.model}${vehicle.year ? " " + vehicle.year : ""}`;
+  return (
+    <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center px-4" data-testid="sell-confirm-modal" onClick={onClose}>
+      <div className="vehiq-card max-w-md w-full p-6" onClick={(e) => e.stopPropagation()}>
+        <div className="vehiq-display text-2xl text-vehiq-text">{t("sell.confirmTitle", { vehicle: label })}</div>
+        <p className="text-sm text-vehiq-muted mt-2">{t("sell.confirmDesc")}</p>
+        <div className="flex justify-end gap-2 mt-6">
+          <button onClick={onClose} className="vehiq-btn-secondary" data-testid="sell-cancel">{t("common.cancel")}</button>
+          <button onClick={onConfirm} className="vehiq-btn-primary" data-testid="sell-create-listing">{t("sell.createListing")}</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ---------- Mark as sold modal ---------- */
+function MarkSoldModal({ vehicle, onClose, onSold }) {
+  const { t } = useTranslation();
+  const today = new Date().toISOString().slice(0, 10);
+  const [salePrice, setSalePrice] = useState(vehicle.active_listing?.price || "");
+  const [saleDate, setSaleDate] = useState(today);
+  const [busy, setBusy] = useState(false);
+
+  const submit = async () => {
+    if (!salePrice || Number(salePrice) <= 0) { toast.error(t("sell.priceRequired")); return; }
+    setBusy(true);
+    try {
+      const { data } = await api.post(`/vehicles/${vehicle.id}/mark-sold`, {
+        sale_price: Number(salePrice),
+        sale_date: saleDate,
+      });
+      onSold(data);
+    } catch (e) {
+      toast.error(t("common.error"));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center px-4" data-testid="mark-sold-modal" onClick={onClose}>
+      <div className="vehiq-card max-w-md w-full p-6" onClick={(e) => e.stopPropagation()}>
+        <div className="vehiq-display text-2xl text-vehiq-text">{t("sell.markSold")}</div>
+        <div className="space-y-3 mt-4">
+          <div>
+            <label className="vehiq-overline mb-1 block">{t("sell.salePrice")} (PLN)</label>
+            <input type="number" min="0" autoFocus value={salePrice} onChange={(e) => setSalePrice(e.target.value)} className="vehiq-input text-lg py-2.5" data-testid="mark-sold-price" />
+          </div>
+          <div>
+            <label className="vehiq-overline mb-1 block">{t("sell.saleDate")}</label>
+            <input type="date" value={saleDate} onChange={(e) => setSaleDate(e.target.value)} className="vehiq-input py-2.5" data-testid="mark-sold-date" />
+          </div>
+        </div>
+        <div className="flex justify-end gap-2 mt-6">
+          <button onClick={onClose} className="vehiq-btn-secondary" data-testid="mark-sold-cancel">{t("common.cancel")}</button>
+          <button onClick={submit} disabled={busy} className="vehiq-btn-primary" data-testid="mark-sold-confirm">
+            {busy ? t("common.loading") : t("sell.confirmSold")}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ---------- Sold result banner with confetti ---------- */
+function SoldResultBanner({ result, vehicle, onClose }) {
+  const { t, i18n } = useTranslation();
+  const lang = i18n.language?.startsWith("en") ? "en" : "pl";
+  const fmt = (n) => Number(n || 0).toLocaleString(lang === "en" ? "en-US" : "pl-PL", { maximumFractionDigits: 0 });
+  const profit = result.net_result >= 0;
+  const label = `${vehicle.make} ${vehicle.model}`;
+  return (
+    <>
+      <Confetti active duration={2400} />
+      <div className="fixed inset-x-4 top-24 z-40 flex justify-center pointer-events-none" data-testid="sold-banner">
+        <div className={`pointer-events-auto vehiq-card max-w-lg w-full p-5 border-2 ${profit ? "border-vehiq-gold" : "border-red-500/50"}`}>
+          <div className="flex items-start gap-3">
+            <div className={`h-10 w-10 rounded-full flex items-center justify-center ${profit ? "bg-vehiq-gold-dim text-vehiq-gold" : "bg-red-500/15 text-red-400"}`}>
+              <CheckCircle2 size={20} />
+            </div>
+            <div className="flex-1">
+              <div className="vehiq-display text-2xl text-vehiq-text leading-tight">
+                {t("sell.congratsTitle", { vehicle: label })}
+              </div>
+              <div className={`text-lg font-medium mt-1 ${profit ? "text-vehiq-gold" : "text-red-400"}`} data-testid="sold-net-result">
+                {profit ? "+" : ""}{fmt(result.net_result)} PLN {profit ? "✅" : "❌"}
+              </div>
+              <div className="text-xs text-vehiq-muted mt-2">
+                {t("sell.salePrice")}: {fmt(result.sale_price)} PLN · {t("sell.purchasePrice")}: {fmt(result.purchase_price)} PLN · {t("sell.serviceCost")}: {fmt(result.total_service_cost)} PLN
+              </div>
+            </div>
+            <button onClick={onClose} className="text-vehiq-muted hover:text-vehiq-text" data-testid="sold-close" aria-label="close">×</button>
+          </div>
+        </div>
+      </div>
+    </>
   );
 }
