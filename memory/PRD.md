@@ -15,7 +15,39 @@ Build a full-stack web + mobile-responsive SaaS application called VEHIQ. A prem
 - Text `#F4F1EC`, Muted `#6B7090`
 - Body font: DM Sans, Display: Cormorant Garamond
 
-## What's Implemented (2026-04-25)
+## What's Implemented (2026-04-26)
+
+### Iteration 4 Round 2 — Admin routing fix + Sell flow + Social sharing (DONE)
+**P0 Bug fix — Admin panel sections were "empty"**
+- Root cause: `AdminLayout.js` used relative `NavLink to="users"` which appended to current URL → `/gv91-admin/dashboard/users` (404).
+- Fix: changed to absolute `to={`/gv91-admin/${to}`}`. All 10 sections now render correctly: dashboard, users, vehicles, marketplace, forum, legal, content, settings, analytics, api-keys, security.
+- All sections were already functional (forms, tables, search, paginations, toggles, history). The router fix was a one-line change that unlocked everything.
+
+**Sell flow — "Sprzedaj pojazd" / "Oznacz jako sprzedany"**
+- Backend: `POST /api/vehicles/{id}/mark-sold` — sets `sale_price`, `sale_date`, `status='archived'`, closes any active listings (`status='sold'`), returns P&L breakdown `{purchase_price, total_service_cost, sale_price, net_result}`.
+- Backend: `GET /api/vehicles` and `GET /api/vehicles/{id}` now attach `active_listing` (id, title, price) for badge rendering.
+- Frontend `VehicleProfile.js`:
+  - "Sprzedaj pojazd" button (active vehicles without listing) → confirm modal → `/marketplace/new?vehicle={id}` (prefilled make/model/year/photos/description).
+  - "Oznacz jako sprzedany" button (active vehicles with listing) + "Na sprzedaż" badge next to title.
+  - Mark-sold modal: sale price (defaults to listing price), sale date (defaults to today).
+  - On confirm: confetti banner + net result display "+60,000 PLN ✅" (profit) or red "−2,100 PLN ❌" (loss).
+- Garage grid:
+  - **Active / Archive** tabs (`garage-tab-active`, `garage-tab-archive`) with counts always shown.
+  - "Na sprzedaż" badge on active vehicle cards with listing.
+  - P&L badge on archived cards (shows profit/loss when sale_price + purchase_price are present).
+
+**Social sharing on /vehicles/{slug}**
+- New `SocialShare.js` component — Copy link / Facebook / X (Twitter) / WhatsApp (mobile-only via `md:hidden`).
+- Each click POSTs to `/api/vehicles/{id}/share` with `{platform}` for analytics; anonymous-safe.
+- OG tags now include `og:url`, `twitter:title`, `twitter:image`, `twitter:description` in addition to existing `og:title/description/image/type`.
+- New `vehicle_shares` MongoDB collection: `{vehicle_id, platform, user_id?, shared_at}`.
+
+### Iteration 4 — Round 1 (PREVIOUS, also DONE 2026-04-25)
+- Bug fixes: forum DELETE decorator + admin profile endpoint with password change history
+- Onboarding: welcome screen + 3-step wizard + confetti + first-use tooltips
+- Retention emails: D+1, D+7, monthly summary scheduler
+- Mobile UX: BottomNav, FAB, LazyImage
+- Public vehicle profile: slug, public flag, `/vehicles/{slug}` page with hero/gallery/specs/optional service history
 
 ### Iteration 1 — MVP (DONE)
 - Auth (email/password + Emergent Google), 5-tab vehicle profiles, garage grid, marketplace, forum, AI Mechanic, hidden admin panel `/gv91-admin`, 5 legal CMS pages, visit tracking, cookie banner.

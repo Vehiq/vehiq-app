@@ -68,14 +68,14 @@ export default function Dashboard() {
                 className={`px-3 py-1.5 text-xs uppercase tracking-widest rounded ${tab === "active" ? "bg-vehiq-gold text-vehiq-bg" : "text-vehiq-muted hover:text-vehiq-text"}`}
                 data-testid="garage-tab-active"
               >
-                {t("garage.tabActive")} {activeCount > 0 && <span className="ml-1 opacity-70">({activeCount})</span>}
+                {t("garage.tabActive")} <span className="ml-1 opacity-70">({activeCount})</span>
               </button>
               <button
                 onClick={() => setTab("archive")}
                 className={`px-3 py-1.5 text-xs uppercase tracking-widest rounded ${tab === "archive" ? "bg-vehiq-gold text-vehiq-bg" : "text-vehiq-muted hover:text-vehiq-text"}`}
                 data-testid="garage-tab-archive"
               >
-                {t("garage.tabArchive")} {archivedCount > 0 && <span className="ml-1 opacity-70">({archivedCount})</span>}
+                {t("garage.tabArchive")} <span className="ml-1 opacity-70">({archivedCount})</span>
               </button>
             </div>
           </div>
