@@ -51,6 +51,32 @@ class VehicleIn(BaseModel):
     cover_photo_index: Optional[int] = 0
     public: Optional[bool] = None
     public_show_service: Optional[bool] = None
+    is_project: Optional[bool] = None
+    privacy: Optional[dict] = None  # {profile_visible, show_service, show_costs, show_mileage}
+
+
+class VehicleUpdateIn(BaseModel):
+    """Partial update — every field optional. Used by PUT /vehicles/{id}."""
+    make: Optional[str] = None
+    model: Optional[str] = None
+    year: Optional[int] = None
+    vin: Optional[str] = None
+    engine: Optional[str] = None
+    fuel: Optional[str] = None
+    color: Optional[str] = None
+    plate: Optional[str] = None
+    mileage_current: Optional[int] = None
+    purchase_price: Optional[float] = None
+    purchase_date: Optional[str] = None
+    sale_price: Optional[float] = None
+    sale_date: Optional[str] = None
+    status: Optional[str] = None
+    photos: Optional[List[str]] = None
+    cover_photo_index: Optional[int] = None
+    public: Optional[bool] = None
+    public_show_service: Optional[bool] = None
+    is_project: Optional[bool] = None
+    privacy: Optional[dict] = None
 
 
 @router.get("")
@@ -126,7 +152,7 @@ async def get_vehicle(vehicle_id: str, user=Depends(get_current_user)):
 
 
 @router.put("/{vehicle_id}")
-async def update_vehicle(vehicle_id: str, payload: VehicleIn, user=Depends(get_current_user)):
+async def update_vehicle(vehicle_id: str, payload: VehicleUpdateIn, user=Depends(get_current_user)):
     db = get_db()
     v = await db.vehicles.find_one({"id": vehicle_id, "user_id": user["id"]})
     if not v:
@@ -194,6 +220,12 @@ async def get_public_vehicle(slug: str, user=Depends(get_optional_user)):
     if not is_owner and not v.get("public"):
         raise HTTPException(status_code=404, detail="Vehicle not found")
 
+    # Vehicle-level privacy controls (independent of `public` flag).
+    # Defaults to all-visible when privacy dict is missing.
+    privacy = v.get("privacy") or {}
+    if not is_owner and privacy.get("profile_visible") is False:
+        raise HTTPException(status_code=404, detail="Vehicle not found")
+
     photos = v.get("photos") or []
     idx = v.get("cover_photo_index") or 0
     cover = photos[idx] if 0 <= idx < len(photos) else (photos[0] if photos else None)
@@ -214,20 +246,23 @@ async def get_public_vehicle(slug: str, user=Depends(get_optional_user)):
         "engine": v.get("engine"),
         "fuel": v.get("fuel"),
         "color": v.get("color"),
-        "mileage_current": v.get("mileage_current"),
+        "mileage_current": v.get("mileage_current") if (is_owner or privacy.get("show_mileage", True)) else None,
         "photos": photos,
         "cover_photo": cover,
         "status": v.get("status"),
         "is_owner": is_owner,
         "public": bool(v.get("public")),
         "public_show_service": bool(v.get("public_show_service")),
+        "is_project": bool(v.get("is_project")),
+        "privacy": privacy if is_owner else None,
         "owner": owner,
         "active_listing": listing,
     }
-    if v.get("public_show_service") or is_owner:
+    show_service = is_owner or (v.get("public_show_service") and privacy.get("show_service", True))
+    show_costs = is_owner or privacy.get("show_costs", False)
+    if show_service:
         services = await db.service_entries.find({"vehicle_id": v["id"]}, {"_id": 0}).sort("date", -1).to_list(500)
-        # Strip cost details for public unless owner
-        if not is_owner:
+        if not show_costs:
             for s in services:
                 s.pop("cost", None)
                 s.pop("workshop", None)

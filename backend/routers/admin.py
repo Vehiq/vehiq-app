@@ -35,6 +35,15 @@ class ChangePasswordIn(BaseModel):
     new_password: str
 
 
+class ForgotPasswordIn(BaseModel):
+    email: EmailStr
+
+
+class ResetPasswordIn(BaseModel):
+    token: str
+    new_password: str
+
+
 class ChangeEmailIn(BaseModel):
     new_email: EmailStr
     current_password: str
@@ -168,6 +177,79 @@ async def change_password(payload: ChangePasswordIn, request: Request, admin=Dep
             "$push": {"password_changes": {"ts": now_iso, "ip": _get_ip(request)}},
         },
     )
+    return {"ok": True}
+
+
+
+@router.post("/forgot-password")
+async def admin_forgot_password(payload: ForgotPasswordIn, request: Request):
+    """Generate a one-time password reset token for admin (15 minutes TTL).
+    Always returns ok to avoid email enumeration. Sends email if SMTP configured."""
+    db = get_db()
+    if payload.email.lower() != ADMIN_EMAIL:
+        return {"ok": True}  # don't leak existence
+    rec = await db.admin_account.find_one({"email": ADMIN_EMAIL})
+    if not rec:
+        return {"ok": True}
+    token = uuid.uuid4().hex + uuid.uuid4().hex
+    expires = (datetime.now(timezone.utc) + timedelta(minutes=15)).isoformat()
+    await db.admin_password_resets.insert_one({
+        "id": str(uuid.uuid4()),
+        "token": token,
+        "email": ADMIN_EMAIL,
+        "expires_at": expires,
+        "used": False,
+        "ip": _get_ip(request),
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    })
+    # Best-effort email
+    try:
+        from email_service import send_email, _wrap_html, _btn
+        app_url = os.environ.get("APP_URL", "https://vehiq.pl")
+        link = f"{app_url}/gv91-admin/reset-password?token={token}"
+        body = (
+            f'<h2 style="font-family:Georgia,serif;color:#0D0F1A;font-size:24px;margin:0 0 12px;">VEHIQ Admin — reset hasła</h2>'
+            f'<p>Otrzymaliśmy prośbę o zresetowanie hasła do panelu administracyjnego VEHIQ.</p>'
+            f'<p><strong>Link wygasa za 15 minut.</strong> Jeśli to nie Ty — zignoruj tę wiadomość.</p>'
+            f'{_btn("Ustaw nowe hasło", link)}'
+            f'<p style="color:#666;font-size:12px;word-break:break-all;">Link: {link}</p>'
+        )
+        subject = "VEHIQ Admin — reset hasła"
+        html = _wrap_html(subject, body, "pl")
+        await send_email(ADMIN_EMAIL, subject, html)
+    except Exception:
+        pass
+    return {"ok": True}
+
+
+@router.post("/reset-password")
+async def admin_reset_password(payload: ResetPasswordIn, request: Request):
+    """Consume reset token and set a new admin password. Invalidates ALL existing admin sessions
+    by rotating the password (existing JWT tokens still valid until expiry — for true global revoke
+    we would need a token version field; out of scope for this iteration)."""
+    db = get_db()
+    rec = await db.admin_password_resets.find_one({"token": payload.token, "used": False})
+    if not rec:
+        raise HTTPException(status_code=400, detail="Invalid or used token")
+    if rec.get("expires_at", "") < datetime.now(timezone.utc).isoformat():
+        raise HTTPException(status_code=400, detail="Token expired")
+    # Strong password validation
+    pw = payload.new_password or ""
+    if len(pw) < 12 or not any(c.isupper() for c in pw) or not any(c.islower() for c in pw) \
+       or not any(c.isdigit() for c in pw) or not any(not c.isalnum() for c in pw):
+        raise HTTPException(status_code=400, detail="Password must be 12+ chars with upper, lower, digit and symbol")
+    now_iso = datetime.now(timezone.utc).isoformat()
+    await db.admin_account.update_one(
+        {"email": ADMIN_EMAIL},
+        {
+            "$set": {"password_hash": hash_password(pw), "first_login": False},
+            "$push": {"password_changes": {"ts": now_iso, "ip": _get_ip(request), "via": "reset"}},
+        },
+    )
+    await db.admin_password_resets.update_one({"token": payload.token}, {"$set": {"used": True, "used_at": now_iso}})
+    # Reset failed-login lockouts so admin can log in immediately
+    _failed_attempts.clear()
+    _lockouts.clear()
     return {"ok": True}
 
 

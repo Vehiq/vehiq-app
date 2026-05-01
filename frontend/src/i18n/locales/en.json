@@ -1,4 +1,14 @@
 {
+  "parts": {
+    "engine": { "title": "Engine & accessories", "full": "Complete engine", "head": "Cylinder head", "alternator": "Alternator", "timing": "Timing belt/chain", "other": "Other engine parts" },
+    "transmission": { "title": "Transmission", "manual": "Manual gearbox", "auto": "Automatic gearbox", "clutch": "Clutch" },
+    "suspension": { "title": "Suspension & chassis", "shocks": "Shock absorbers", "springs": "Springs", "arms": "Control arms", "wheels": "Wheels & tyres" },
+    "body": { "title": "Body & exterior", "bumpers": "Bumpers", "hoodFenders": "Hood & fenders", "doors": "Doors", "glass": "Glass", "other": "Other body parts" },
+    "electrical": { "title": "Electrical & electronics", "alternator": "Alternator", "starter": "Starter motor", "ecu": "ECU controllers", "lights": "Lights" },
+    "interior": { "title": "Interior", "seats": "Seats", "dashboard": "Dashboard", "mats": "Floor mats", "other": "Other" },
+    "brakes": { "title": "Brakes", "discs": "Discs & pads", "calipers": "Calipers", "other": "Other" },
+    "other": { "title": "Other / unsorted", "misc": "Other" }
+  },
   "common": {
     "save": "Save",
     "cancel": "Cancel",
@@ -47,6 +57,8 @@
     "email": "Email address",
     "password": "Password",
     "name": "Full name",
+    "driverName": "Driver",
+    "driverNamePlaceholder": "Your nickname (e.g. Driver123)",
     "location": "Location",
     "continueGoogle": "Continue with Google",
     "continueFacebook": "Continue with Facebook",
@@ -73,6 +85,7 @@
     "tabArchive": "Archive",
     "archiveEmpty": "No vehicles in archive",
     "archiveEmptyDesc": "Sold vehicles will appear here.",
+    "project": "Project",
     "emptyAction": "Add your first vehicle",
     "addVehicle": "Add vehicle",
     "totalVehicles": "Vehicles",
@@ -168,7 +181,26 @@
     "filterType": "Type",
     "filterPrice": "Price",
     "filterLocation": "Location",
-    "types": { "all": "All", "car": "Sell car", "parts": "Sell parts", "swap": "Trade/swap" },
+    "types": { "all": "All", "car": "Sell vehicle", "parts": "Sell parts", "swap": "Trade/swap", "full_parts": "Whole car for parts", "project": "Project", "rental": "Rental" },
+    "conditions": {
+      "running": "Running",
+      "damagedRuns": "Damaged (drives)",
+      "damagedDead": "Damaged (doesn't drive)",
+      "restoration": "Restoration project"
+    },
+    "steering": { "left": "Left-hand", "right": "Right-hand (JDM/UK)" },
+    "swapCond": { "any": "Any condition", "running": "Running", "clean": "Clean/garaged" },
+    "conditionLabel": "Vehicle condition",
+    "steeringLabel": "Steering",
+    "partsCategory": "Parts category",
+    "partsSubcategory": "Subcategory",
+    "modelPlaceholder": "Pick or type",
+    "lookingFor": "Looking for in return",
+    "addDesired": "Add desired model",
+    "noDesired": "No items yet. Click + to add.",
+    "yearFrom": "Year from",
+    "yearTo": "Year to",
+    "maxSwaps": "Max 5 items",
     "fromGarage": "From my garage",
     "title_field": "Title",
     "description": "Description",
@@ -314,6 +346,17 @@
     "servicePublicNote": "Public view — costs hidden",
     "notFoundTitle": "Vehicle not found",
     "notFoundDesc": "This vehicle is private or doesn't exist."
+  },
+  "privacy": {
+    "title": "Privacy",
+    "profileVisible": "Profile visible publicly",
+    "showService": "Show service history",
+    "showCosts": "Show service costs",
+    "showMileage": "Show mileage",
+    "privateTooltip": "Private vehicle",
+    "previewAs": "Preview as:",
+    "previewOwner": "Owner",
+    "previewPublic": "Public"
   },
   "sell": {
     "sellVehicle": "Sell vehicle",

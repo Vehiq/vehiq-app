@@ -28,6 +28,7 @@ import NotFound from "@/pages/NotFound";
 
 import AdminLogin from "@/pages/admin/AdminLogin";
 import AdminChangePassword from "@/pages/admin/AdminChangePassword";
+import AdminResetPassword from "@/pages/admin/AdminResetPassword";
 import AdminLayout from "@/pages/admin/AdminLayout";
 import AdminDashboard from "@/pages/admin/AdminDashboard";
 import AdminUsers from "@/pages/admin/AdminUsers";
@@ -120,6 +121,7 @@ function App() {
 
           {/* Admin (separate, no Layout) */}
           <Route path="/gv91-admin" element={<AdminLogin />} />
+          <Route path="/gv91-admin/reset-password" element={<AdminResetPassword />} />
           <Route path="/gv91-admin/change-password" element={<AdminChangePassword />} />
           <Route path="/gv91-admin/*" element={<AdminLayout />}>
             <Route path="dashboard" element={<AdminDashboard />} />

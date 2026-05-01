@@ -1,4 +1,14 @@
 {
+  "parts": {
+    "engine": { "title": "Silnik i osprzęt", "full": "Silnik kompletny", "head": "Głowica", "alternator": "Alternator", "timing": "Rozrząd", "other": "Inne części silnika" },
+    "transmission": { "title": "Skrzynia biegów", "manual": "Skrzynia manualna", "auto": "Skrzynia automatyczna", "clutch": "Sprzęgło" },
+    "suspension": { "title": "Zawieszenie i układ jezdny", "shocks": "Amortyzatory", "springs": "Sprężyny", "arms": "Wahacze", "wheels": "Koła i opony" },
+    "body": { "title": "Karoseria i nadwozie", "bumpers": "Zderzaki", "hoodFenders": "Maski i błotniki", "doors": "Drzwi", "glass": "Szyby", "other": "Inne elementy karoserii" },
+    "electrical": { "title": "Elektryka i elektronika", "alternator": "Alternator", "starter": "Rozrusznik", "ecu": "Sterowniki ECU", "lights": "Oświetlenie" },
+    "interior": { "title": "Wnętrze", "seats": "Fotele", "dashboard": "Deska rozdzielcza", "mats": "Dywaniki", "other": "Inne" },
+    "brakes": { "title": "Układ hamulcowy", "discs": "Tarcze i klocki", "calipers": "Zaciski", "other": "Inne" },
+    "other": { "title": "Inne / Nieprzypisane", "misc": "Inne" }
+  },
   "common": {
     "save": "Zapisz",
     "cancel": "Anuluj",
@@ -31,7 +41,7 @@
   "nav": {
     "garage": "Garaż",
     "service": "Serwis",
-    "marketplace": "Marketplace",
+    "marketplace": "Giełda",
     "messages": "Wiadomości",
     "forum": "Forum",
     "ai": "AI Mechanik",
@@ -47,6 +57,8 @@
     "email": "Adres e-mail",
     "password": "Hasło",
     "name": "Imię i nazwisko",
+    "driverName": "Kierowca",
+    "driverNamePlaceholder": "Twój pseudonim / nick (np. Kierowca123)",
     "location": "Lokalizacja",
     "continueGoogle": "Kontynuuj z Google",
     "continueFacebook": "Kontynuuj z Facebook",
@@ -73,6 +85,7 @@
     "tabArchive": "Archiwum",
     "archiveEmpty": "Brak pojazdów w archiwum",
     "archiveEmptyDesc": "Tu pojawią się pojazdy oznaczone jako sprzedane.",
+    "project": "Projekt",
     "emptyAction": "Dodaj swój pierwszy pojazd",
     "addVehicle": "Dodaj pojazd",
     "totalVehicles": "Pojazdy",
@@ -160,7 +173,7 @@
     "welcomeMessage": "Cześć! Jestem Twoim AI Mechanikiem. Opisz problem ze swoim pojazdem, a postaram się postawić diagnozę."
   },
   "marketplace": {
-    "title": "Marketplace",
+    "title": "Giełda",
     "subtitle": "Kupuj, sprzedawaj, wymieniaj",
     "create": "Wystaw ofertę",
     "myListings": "Moje ogłoszenia",
@@ -168,7 +181,26 @@
     "filterType": "Typ",
     "filterPrice": "Cena",
     "filterLocation": "Lokalizacja",
-    "types": { "all": "Wszystkie", "car": "Sprzedam auto", "parts": "Sprzedam części", "swap": "Zamienię" },
+    "types": { "all": "Wszystkie", "car": "Sprzedam", "parts": "Sprzedam części", "swap": "Zamienię", "full_parts": "Cały na części", "project": "Projekt", "rental": "Wynajem" },
+    "conditions": {
+      "running": "Na chodzie",
+      "damagedRuns": "Uszkodzony (jeździ)",
+      "damagedDead": "Uszkodzony (nie jeździ)",
+      "restoration": "Do renowacji"
+    },
+    "steering": { "left": "Lewa (standardowa)", "right": "Prawa (JDM/UK)" },
+    "swapCond": { "any": "Dowolny stan", "running": "Na chodzie", "clean": "Zadbany" },
+    "conditionLabel": "Stan pojazdu",
+    "steeringLabel": "Kierownica",
+    "partsCategory": "Kategoria części",
+    "partsSubcategory": "Podkategoria",
+    "modelPlaceholder": "Wybierz lub wpisz",
+    "lookingFor": "Szukam w zamian",
+    "addDesired": "Dodaj pożądany model",
+    "noDesired": "Brak pozycji. Kliknij +, aby dodać.",
+    "yearFrom": "Rok od",
+    "yearTo": "Rok do",
+    "maxSwaps": "Max 5 pozycji",
     "fromGarage": "Z mojego garażu",
     "title_field": "Tytuł",
     "description": "Opis",
@@ -226,7 +258,7 @@
     "privacy": "Polityka Prywatności",
     "terms": "Regulamin",
     "cookies": "Cookies",
-    "marketplace": "Regulamin Marketplace",
+    "marketplace": "Regulamin giełdy",
     "contact": "Kontakt",
     "copyright": "© 2026 VEHIQ. Wszelkie prawa zastrzeżone."
   },
@@ -270,7 +302,7 @@
       "garage": { "title": "Garaż", "desc": "Twoje pojazdy w jednym miejscu" },
       "service": { "title": "Serwis", "desc": "Historia napraw i koszty" },
       "ai": { "title": "AI Mechanik", "desc": "Diagnoza problemów" },
-      "marketplace": { "title": "Marketplace", "desc": "Kup, sprzedaj, zamień" }
+      "marketplace": { "title": "Giełda", "desc": "Kup, sprzedaj, zamień" }
     },
     "step1Title": "Witaj w VEHIQ",
     "step1Desc": "Twój wirtualny garaż premium. Wybierz język, by rozpocząć.",
@@ -314,6 +346,17 @@
     "servicePublicNote": "Widok publiczny — ukryte koszty",
     "notFoundTitle": "Pojazd nie znaleziony",
     "notFoundDesc": "Ten pojazd jest prywatny lub nie istnieje."
+  },
+  "privacy": {
+    "title": "Prywatność",
+    "profileVisible": "Profil widoczny publicznie",
+    "showService": "Pokaż historię serwisową",
+    "showCosts": "Pokaż koszty serwisu",
+    "showMileage": "Pokaż przebieg",
+    "privateTooltip": "Pojazd prywatny",
+    "previewAs": "Podgląd jako:",
+    "previewOwner": "Właściciel",
+    "previewPublic": "Publiczny"
   },
   "sell": {
     "sellVehicle": "Sprzedaj pojazd",

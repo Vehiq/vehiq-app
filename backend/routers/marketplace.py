@@ -13,8 +13,16 @@ from activity import log_activity
 router = APIRouter(prefix="/marketplace", tags=["marketplace"])
 
 
+class DesiredSwap(BaseModel):
+    make: Optional[str] = None
+    model: Optional[str] = None
+    year_from: Optional[int] = None
+    year_to: Optional[int] = None
+    condition: Optional[str] = None  # any | running | clean
+
+
 class ListingIn(BaseModel):
-    type: str  # car | parts | swap
+    type: str  # car | parts | swap | full_parts | project | rental
     title: str
     description: Optional[str] = None
     price: float = 0
@@ -23,6 +31,16 @@ class ListingIn(BaseModel):
     vehicle_id: Optional[str] = None
     make: Optional[str] = None
     model: Optional[str] = None
+    # Sell-vehicle / project / rental
+    condition: Optional[str] = None  # running | damaged_runs | damaged_dead | restoration
+    mileage: Optional[int] = None
+    steering: Optional[str] = None  # left | right
+    year: Optional[int] = None
+    # Parts
+    parts_category: Optional[str] = None  # main category id
+    parts_subcategory: Optional[str] = None  # subcategory id
+    # Swap
+    desired_swaps: Optional[List[DesiredSwap]] = None  # max 5
 
 
 class MessageIn(BaseModel):
@@ -44,6 +62,12 @@ async def list_listings(
     min_price: Optional[float] = None,
     max_price: Optional[float] = None,
     location: Optional[str] = None,
+    condition: Optional[str] = None,
+    steering: Optional[str] = None,
+    parts_category: Optional[str] = None,
+    parts_subcategory: Optional[str] = None,
+    min_mileage: Optional[int] = None,
+    max_mileage: Optional[int] = None,
     status: str = "active",
     page: int = 1,
     limit: int = 60,
@@ -52,13 +76,23 @@ async def list_listings(
     db = get_db()
     f = {"status": status}
     if type:
-        f["type"] = type
+        # Allow comma-separated multi-select e.g. ?type=car,parts
+        types = [t.strip() for t in type.split(",") if t.strip()]
+        f["type"] = {"$in": types} if len(types) > 1 else types[0]
     if make:
         f["make"] = {"$regex": f"^{make}$", "$options": "i"}
     if model:
         f["model"] = {"$regex": model, "$options": "i"}
     if location:
         f["location"] = {"$regex": location, "$options": "i"}
+    if condition:
+        f["condition"] = condition
+    if steering:
+        f["steering"] = steering
+    if parts_category:
+        f["parts_category"] = parts_category
+    if parts_subcategory:
+        f["parts_subcategory"] = parts_subcategory
     if q:
         f["$or"] = [
             {"title": {"$regex": q, "$options": "i"}},
@@ -68,6 +102,10 @@ async def list_listings(
         f.setdefault("price", {})["$gte"] = min_price
     if max_price is not None:
         f.setdefault("price", {})["$lte"] = max_price
+    if min_mileage is not None:
+        f.setdefault("mileage", {})["$gte"] = min_mileage
+    if max_mileage is not None:
+        f.setdefault("mileage", {})["$lte"] = max_mileage
 
     total = await db.listings.count_documents(f)
     skip = max(0, (page - 1) * limit)
@@ -97,6 +135,11 @@ async def get_listing(listing_id: str):
 @router.post("/listings")
 async def create_listing(payload: ListingIn, user=Depends(get_current_user)):
     db = get_db()
+    valid_types = {"car", "parts", "swap", "full_parts", "project", "rental"}
+    if payload.type not in valid_types:
+        raise HTTPException(status_code=400, detail=f"Invalid type. Allowed: {sorted(valid_types)}")
+    if payload.desired_swaps and len(payload.desired_swaps) > 5:
+        raise HTTPException(status_code=400, detail="Max 5 desired swaps")
     settings = await db.app_settings.find_one({"key": "max_listings_per_user"})
     max_l = int(settings["value"]) if settings else 10
     count = await db.listings.count_documents({"user_id": user["id"], "status": "active"})

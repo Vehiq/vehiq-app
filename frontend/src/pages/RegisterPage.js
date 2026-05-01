@@ -50,8 +50,8 @@ export default function RegisterPage() {
 
           <form onSubmit={submit} className="space-y-4">
             <div>
-              <label className="vehiq-overline mb-2 block">{t("auth.name")}</label>
-              <input data-testid="register-name" type="text" required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="vehiq-input" />
+              <label className="vehiq-overline mb-2 block">{t("auth.driverName")}</label>
+              <input data-testid="register-name" type="text" required placeholder={t("auth.driverNamePlaceholder")} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="vehiq-input" />
             </div>
             <div>
               <label className="vehiq-overline mb-2 block">{t("auth.email")}</label>

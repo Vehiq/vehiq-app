@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { Plus, Car as CarIcon, Calendar, Bell, Activity, Store, ChevronRight } from "lucide-react";
+import { Plus, Car as CarIcon, Calendar, Bell, Activity, Store, ChevronRight, Lock, Wrench } from "lucide-react";
 import api from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { SkeletonGarageGrid } from "@/components/Skeleton";
@@ -90,7 +90,7 @@ export default function Dashboard() {
               dataTestId="garage-empty"
             />
           ) : (
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-6" data-testid="garage-grid">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6" data-testid="garage-grid">
               {filtered.map((v, idx) => <VehicleCard key={v.id} v={v} t={t} eager={idx < 8} lang={lang} />)}
               {tab === "active" && (
                 <Link to="/garage/new" data-testid="garage-add-card" className="border-2 border-dashed border-vehiq-gold rounded-lg flex flex-col items-center justify-center min-h-[200px] hover:bg-vehiq-gold-dim transition-colors aspect-[4/3]">
@@ -125,6 +125,8 @@ function VehicleCard({ v, t, eager = false, lang = "pl" }) {
       </div>
     );
   }
+  const isPrivate = v.privacy && v.privacy.profile_visible === false;
+  const isProject = !!v.is_project;
   return (
     <Link to={`/garage/${v.id}`} className="group vehiq-card overflow-hidden hover:border-vehiq-gold transition-all duration-200 hover:-translate-y-1" data-testid={`vehicle-card-${v.id}`}>
       <div className="aspect-[4/3] bg-vehiq-bg relative overflow-hidden">
@@ -135,6 +137,18 @@ function VehicleCard({ v, t, eager = false, lang = "pl" }) {
             <CarIcon size={64} />
           </div>
         )}
+        <div className="absolute top-3 left-3 flex gap-1.5">
+          {isPrivate && (
+            <span title={t("privacy.privateTooltip")} className="text-[10px] uppercase tracking-widest px-2 py-1 rounded bg-vehiq-bg/80 text-vehiq-muted border border-vehiq-border inline-flex items-center gap-1" data-testid={`private-badge-${v.id}`}>
+              <Lock size={10}/>
+            </span>
+          )}
+          {isProject && (
+            <span className="text-[10px] uppercase tracking-widest px-2 py-1 rounded bg-vehiq-gold-dim text-vehiq-gold border border-vehiq-gold/40 inline-flex items-center gap-1" data-testid={`project-badge-${v.id}`}>
+              <Wrench size={10}/> {t("vehicle.project")}
+            </span>
+          )}
+        </div>
         {v.status === "archived" && (
           <span className="absolute top-3 right-3 text-[10px] uppercase tracking-widest px-2 py-1 rounded bg-vehiq-bg/80 text-vehiq-gold border border-vehiq-gold/30">
             {t("vehicle.archived")}
@@ -147,8 +161,7 @@ function VehicleCard({ v, t, eager = false, lang = "pl" }) {
         )}
       </div>
       <div className="p-4">
-        <div className="vehiq-display text-xl text-vehiq-text leading-tight">{v.make} {v.model}</div>
-        {v.year && <div className="text-xs uppercase tracking-widest text-vehiq-gold mt-1">{v.year}</div>}
+        <div className="vehiq-display text-xl text-vehiq-text leading-tight">{v.make} {v.model}{v.year ? ` ${v.year}` : ""}</div>
         {plNode}
       </div>
     </Link>

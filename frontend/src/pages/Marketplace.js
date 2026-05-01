@@ -12,7 +12,7 @@ const POPULAR_MAKES = [
   "Seat", "Skoda", "Suzuki", "Toyota", "Volkswagen", "Volvo",
 ];
 
-const TYPE_OPTIONS = ["all", "car", "parts", "swap"];
+const TYPE_OPTIONS = ["all", "car", "parts", "swap", "full_parts", "project", "rental"];
 
 function useDebounced(value, ms = 300) {
   const [v, setV] = useState(value);

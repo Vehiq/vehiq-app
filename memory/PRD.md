@@ -15,7 +15,37 @@ Build a full-stack web + mobile-responsive SaaS application called VEHIQ. A prem
 - Text `#F4F1EC`, Muted `#6B7090`
 - Body font: DM Sans, Display: Cormorant Garamond
 
-## What's Implemented (2026-04-26)
+## What's Implemented (2026-05-01)
+
+### Mega Iteration — Pakiet MINIMUM (DONE 2026-05-01)
+**Quick wins:**
+- Register form: "Imię" → "Kierowca" / "Driver" with placeholder "Twój pseudonim / nick (np. Kierowca123)"
+- PL i18n rename: "Marketplace" → "Giełda" (EN keeps "Marketplace")
+- Garage grid: 4 columns on desktop (`lg:grid-cols-4`)
+- PWA manifest already present with correct theme/background colors
+
+**Admin password reset (NEW):**
+- Backend: `POST /api/admin/forgot-password` (no email enumeration), `POST /api/admin/reset-password` (15 min token TTL, used-once)
+- Strong password policy: 12+ chars, upper+lower+digit+symbol
+- Frontend: "Forgot password?" link on `/gv91-admin` toggles inline form; `/gv91-admin/reset-password?token=...` page with strength meter (5 checks + match)
+- New collection: `admin_password_resets` with idempotent token consumption
+- Best-effort SMTP email with PL subject "VEHIQ Admin — reset hasła"
+
+**New listing types + form fields:**
+- Backend `ListingIn` schema extended: type enum now `car|parts|swap|full_parts|project|rental`, plus `condition`, `mileage`, `steering`, `year`, `parts_category`, `parts_subcategory`, `desired_swaps[]`
+- Server-side validation: invalid type → 400; max 5 desired_swaps → 400
+- GET /listings filters: `type=a,b` (multi-select), `condition`, `steering`, `parts_category`, `parts_subcategory`, `min/max_mileage`
+- Frontend `CreateListing.js` rebuilt: conditional sections for vehicle fields (year/mileage/steering/condition radios), parts category tree (8 main × ~5 subs = ~40 options), swap "Looking for in return" with up to 5 entries (make/model/year_from/year_to/condition)
+- Popular models per make: 23 makes × ~10 popular models with free-form fallback
+
+**Vehicle privacy & project mode:**
+- Vehicle schema gains `is_project: bool` and `privacy: {profile_visible, show_service, show_costs, show_mileage}`
+- New `VehicleUpdateIn` partial schema for PUT (all fields optional — fixes previous bug where partial updates required make/model)
+- Public endpoint respects privacy: `profile_visible=false` → 404 for non-owners; `show_mileage=false` → mileage hidden; `show_service=false` → service entries omitted; `show_costs=false` → costs/workshop/notes stripped
+- OverviewTab rewritten: 4 privacy toggles + project toggle; toast feedback on save
+- Garage card: `Lock` badge for private vehicles, `Wrench` "Projekt" badge for project mode (top-left); existing "Na sprzedaż"/"Archiwum" badges (top-right) untouched
+- New constants file `constants/marketplace.js` — single source of truth for types, conditions, steering, parts categories, popular models
+
 
 ### Iteration 4 Round 2 — Admin routing fix + Sell flow + Social sharing (DONE)
 **P0 Bug fix — Admin panel sections were "empty"**
