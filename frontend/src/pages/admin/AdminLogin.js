@@ -5,7 +5,7 @@ import { toast } from "sonner";
 
 export default function AdminLogin() {
   const navigate = useNavigate();
-  const [adminEmail, setAdminEmail] = useState("admin@vehiq.app");
+  const [adminEmail, setAdminEmail] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [forgotMode, setForgotMode] = useState(false);
@@ -67,7 +67,7 @@ export default function AdminLogin() {
           </form>
         ) : (
           <form onSubmit={login} className="space-y-3">
-            <input type="email" value={adminEmail} onChange={(e) => setAdminEmail(e.target.value)} autoComplete="email" required
+            <input type="email" value={adminEmail} onChange={(e) => setAdminEmail(e.target.value)} autoComplete="email" required placeholder="admin email"
               className="w-full bg-[#0a0b13] border border-[#222540] text-[#F4F1EC] rounded px-3 py-2 text-sm"
               data-testid="admin-login-email" />
             <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Password" autoComplete="current-password" required

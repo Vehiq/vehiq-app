@@ -17,6 +17,19 @@ Build a full-stack web + mobile-responsive SaaS application called VEHIQ. A prem
 
 ## What's Implemented (2026-05-02)
 
+### Atlas SSL Handshake Fix (DONE 2026-05-02 — fork-agent)
+- Root cause: PyMongo rejecting Atlas TLS because `tlsCAFile` was not set → `ServerSelectionTimeoutError: SSL handshake failed: TLSV1_ALERT_INTERNAL_ERROR`
+- Fix: `server.py` now imports `certifi` and passes `tlsCAFile=certifi.where()` to `AsyncIOMotorClient` when URL is `mongodb+srv://` or contains `mongodb.net`
+- `certifi` already in requirements.txt (version 2026.2.25)
+- User also added container IP to Atlas Network Access whitelist
+- Verified: health=200, PUT /api/admin/api-keys persists, GET returns masked saved values round-trip
+
+### Admin Panel UX Fix (DONE 2026-05-02 — fork-agent)
+- Removed stale default email `admin@vehiq.app` from `AdminLogin.js` (was causing user login failures — they kept submitting the wrong email)
+- Added "✓ Saved: abcd****xyz" green indicator below every API key / R2 / SMTP field when a value exists in DB (previously only a grey placeholder, which looked empty to users)
+- Reset link now built dynamically from request `Origin`/`Referer` header → works on both `vehiq.pl` and preview domain
+- Admin password reset to `VehiqAdmin2026#Temp!` (user had lost previous password); documented in `test_credentials.md`
+
 ### MongoDB Atlas Migration (DONE 2026-05-02)
 - Migrated from local `mongodb://localhost:27017` → Atlas `mongodb+srv://vehiq-cluster.yrhi7xb.mongodb.net`
 - Option C migration (admin + infra only): `admin_account`, `api_keys`, `app_settings`, `legal_pages`, `cms_content` = 34 docs migrated

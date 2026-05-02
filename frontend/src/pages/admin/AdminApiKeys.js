@@ -93,23 +93,32 @@ export default function AdminApiKeys() {
   return (
     <div className="space-y-6" data-testid="admin-api-keys">
       <h1 className="text-2xl font-semibold">API Keys & SMTP</h1>
-      <p className="text-sm text-[#6B7090]">Stored encrypted. Showing masked values.</p>
+      <p className="text-sm text-[#6B7090]">Stored encrypted in MongoDB Atlas. Saved values appear masked below each field — leave blank to keep existing value.</p>
       <div className="bg-[#161829] border border-[#222540] rounded p-5 space-y-3">
         {FIELDS.map(f => (
-          <div key={f.key} className="grid grid-cols-1 md:grid-cols-3 gap-2 items-center">
-            <label className="text-sm text-[#F4F1EC]">{f.label}</label>
-            <div className="md:col-span-2 flex gap-2">
-              <input
-                type={reveal[f.key] ? "text" : "password"}
-                placeholder={masked[f.key] || "—"}
-                value={edit[f.key] || ""}
-                onChange={(e) => setEdit({...edit, [f.key]: e.target.value})}
-                className="flex-1 bg-[#0a0b13] border border-[#222540] rounded px-3 py-2 text-sm"
-                data-testid={`api-key-${f.key}`}
-              />
-              <button type="button" onClick={() => setReveal({...reveal, [f.key]: !reveal[f.key]})} className="p-2 text-[#9CA1C2]">
-                {reveal[f.key] ? <EyeOff size={14}/> : <Eye size={14}/>}
-              </button>
+          <div key={f.key} className="grid grid-cols-1 md:grid-cols-3 gap-2 items-start">
+            <label className="text-sm text-[#F4F1EC] pt-2">{f.label}</label>
+            <div className="md:col-span-2 flex flex-col gap-1">
+              <div className="flex gap-2">
+                <input
+                  type={reveal[f.key] ? "text" : "password"}
+                  placeholder={masked[f.key] ? "•••••• (saved — leave blank to keep)" : "not set"}
+                  value={edit[f.key] || ""}
+                  onChange={(e) => setEdit({...edit, [f.key]: e.target.value})}
+                  className="flex-1 bg-[#0a0b13] border border-[#222540] rounded px-3 py-2 text-sm"
+                  data-testid={`api-key-${f.key}`}
+                />
+                <button type="button" onClick={() => setReveal({...reveal, [f.key]: !reveal[f.key]})} className="p-2 text-[#9CA1C2]">
+                  {reveal[f.key] ? <EyeOff size={14}/> : <Eye size={14}/>}
+                </button>
+              </div>
+              {masked[f.key] ? (
+                <div className="text-[11px] text-emerald-400" data-testid={`api-key-${f.key}-saved`}>
+                  ✓ Saved: <span className="font-mono text-[#C9A84C]">{masked[f.key]}</span>
+                </div>
+              ) : (
+                <div className="text-[11px] text-[#6B7090]" data-testid={`api-key-${f.key}-empty`}>Not configured</div>
+              )}
             </div>
           </div>
         ))}
@@ -153,20 +162,29 @@ export default function AdminApiKeys() {
         </p>
         <div className="space-y-2">
           {R2_FIELDS.map(f => (
-            <div key={f.key} className="grid grid-cols-1 md:grid-cols-3 gap-2 items-center">
-              <label className="text-sm text-[#F4F1EC]">{f.label}</label>
-              <div className="md:col-span-2 flex gap-2">
-                <input
-                  type={reveal[f.key] || (!f.key.includes("secret") && !f.key.includes("access_key")) ? "text" : "password"}
-                  placeholder={masked[f.key] || f.placeholder || "—"}
-                  value={edit[f.key] || ""}
-                  onChange={(e) => setEdit({...edit, [f.key]: e.target.value})}
-                  className="flex-1 bg-[#0a0b13] border border-[#222540] rounded px-3 py-2 text-sm"
-                  data-testid={`api-key-${f.key}`}
-                />
-                <button type="button" onClick={() => setReveal({...reveal, [f.key]: !reveal[f.key]})} className="p-2 text-[#9CA1C2]">
-                  {reveal[f.key] ? <EyeOff size={14}/> : <Eye size={14}/>}
-                </button>
+            <div key={f.key} className="grid grid-cols-1 md:grid-cols-3 gap-2 items-start">
+              <label className="text-sm text-[#F4F1EC] pt-2">{f.label}</label>
+              <div className="md:col-span-2 flex flex-col gap-1">
+                <div className="flex gap-2">
+                  <input
+                    type={reveal[f.key] || (!f.key.includes("secret") && !f.key.includes("access_key")) ? "text" : "password"}
+                    placeholder={masked[f.key] ? "•••••• (saved — leave blank to keep)" : (f.placeholder || "not set")}
+                    value={edit[f.key] || ""}
+                    onChange={(e) => setEdit({...edit, [f.key]: e.target.value})}
+                    className="flex-1 bg-[#0a0b13] border border-[#222540] rounded px-3 py-2 text-sm"
+                    data-testid={`api-key-${f.key}`}
+                  />
+                  <button type="button" onClick={() => setReveal({...reveal, [f.key]: !reveal[f.key]})} className="p-2 text-[#9CA1C2]">
+                    {reveal[f.key] ? <EyeOff size={14}/> : <Eye size={14}/>}
+                  </button>
+                </div>
+                {masked[f.key] ? (
+                  <div className="text-[11px] text-emerald-400" data-testid={`api-key-${f.key}-saved`}>
+                    ✓ Saved: <span className="font-mono text-[#C9A84C]">{masked[f.key]}</span>
+                  </div>
+                ) : (
+                  <div className="text-[11px] text-[#6B7090]" data-testid={`api-key-${f.key}-empty`}>Not configured</div>
+                )}
               </div>
             </div>
           ))}

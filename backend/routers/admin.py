@@ -205,7 +205,14 @@ async def admin_forgot_password(payload: ForgotPasswordIn, request: Request):
     # Best-effort email
     try:
         from email_service import send_email, _wrap_html, _btn
-        app_url = os.environ.get("APP_URL", "https://vehiq.pl")
+        # Prefer the origin the admin is currently using (supports preview + production domains)
+        origin = request.headers.get("origin") or request.headers.get("referer") or ""
+        if origin:
+            from urllib.parse import urlparse
+            p = urlparse(origin)
+            app_url = f"{p.scheme}://{p.netloc}" if p.scheme and p.netloc else os.environ.get("APP_URL", "https://vehiq.pl")
+        else:
+            app_url = os.environ.get("APP_URL", "https://vehiq.pl")
         link = f"{app_url}/gv91-admin/reset-password?token={token}"
         body = (
             f'<h2 style="font-family:Georgia,serif;color:#0D0F1A;font-size:24px;margin:0 0 12px;">VEHIQ Admin — reset hasła</h2>'
