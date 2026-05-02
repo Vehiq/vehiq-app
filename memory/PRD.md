@@ -17,6 +17,14 @@ Build a full-stack web + mobile-responsive SaaS application called VEHIQ. A prem
 
 ## What's Implemented (2026-05-02)
 
+### MongoDB Atlas Migration (DONE 2026-05-02)
+- Migrated from local `mongodb://localhost:27017` → Atlas `mongodb+srv://vehiq-cluster.yrhi7xb.mongodb.net`
+- Option C migration (admin + infra only): `admin_account`, `api_keys`, `app_settings`, `legal_pages`, `cms_content` = 34 docs migrated
+- Fresh start for user data: `vehicles`, `listings`, `profiles`, `activity_log`, `forum_threads` — start empty
+- DB_NAME unchanged: `vehiq_database`
+- Network Access: added container egress IP `35.184.53.215` to Atlas allowlist
+- Admin credentials preserved (bcrypt hash + full change history)
+
 ### R2 Storage Migration (DONE 2026-05-02)
 **Backend:**
 - New `backend/storage.py` — R2Storage class (boto3 S3-compatible client) + Pillow image processing
