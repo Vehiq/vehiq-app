@@ -7,6 +7,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
 import os
 import logging
+import certifi
 from pathlib import Path
 from datetime import datetime, timezone, timedelta
 from typing import Optional, List
@@ -16,9 +17,12 @@ import asyncio
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
 
-# MongoDB
+# MongoDB - use certifi for proper TLS CA certs (required for MongoDB Atlas)
 mongo_url = os.environ['MONGO_URL']
-client = AsyncIOMotorClient(mongo_url)
+_client_kwargs = {}
+if mongo_url.startswith('mongodb+srv://') or 'mongodb.net' in mongo_url:
+    _client_kwargs['tlsCAFile'] = certifi.where()
+client = AsyncIOMotorClient(mongo_url, **_client_kwargs)
 db = client[os.environ['DB_NAME']]
 
 # Make db available
