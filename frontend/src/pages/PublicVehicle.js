@@ -5,6 +5,7 @@ import api from "@/lib/api";
 import { toast } from "sonner";
 import { Car as CarIcon, ArrowLeft, Share2, Check, Calendar, Gauge, Fuel, Palette, Wrench } from "lucide-react";
 import SocialShare from "@/components/SocialShare";
+import { photoUrl, photoThumb } from "@/lib/photos";
 
 export default function PublicVehicle() {
   const { t, i18n } = useTranslation();
@@ -78,7 +79,7 @@ export default function PublicVehicle() {
   }
 
   const photos = v.photos || [];
-  const cover = photos[activePhoto] || v.cover_photo;
+  const cover = photoUrl(photos[activePhoto]) || v.cover_photo;
   const fmt = (n) => (typeof n === "number" ? n.toLocaleString(lang === "en" ? "en-US" : "pl-PL") : n);
 
   return (
@@ -118,7 +119,7 @@ export default function PublicVehicle() {
                     className={`aspect-square rounded overflow-hidden border ${i === activePhoto ? "border-vehiq-gold" : "border-vehiq-border"}`}
                     data-testid={`public-thumb-${i}`}
                   >
-                    <img src={p} alt="" className="w-full h-full object-cover" />
+                    <img src={photoThumb(p)} alt="" className="w-full h-full object-cover" />
                   </button>
                 ))}
               </div>

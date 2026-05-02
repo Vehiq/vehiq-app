@@ -15,6 +15,38 @@ Build a full-stack web + mobile-responsive SaaS application called VEHIQ. A prem
 - Text `#F4F1EC`, Muted `#6B7090`
 - Body font: DM Sans, Display: Cormorant Garamond
 
+## What's Implemented (2026-05-02)
+
+### R2 Storage Migration (DONE 2026-05-02)
+**Backend:**
+- New `backend/storage.py` — R2Storage class (boto3 S3-compatible client) + Pillow image processing
+- `process_image()` — auto-rotate via EXIF, convert to RGB, resize to 1920w (full) or 400×300 (thumb), encode WebP quality=85 with optimize=True
+- Compression: tested 3000×2000 JPEG (95KB) → full WebP (4.5KB) + thumb (280B) = ~95% reduction
+- `upload_vehicle_photo()` generates two R2 keys: `vehicles/{vehicle_id}/{photo_uuid}_full.webp` + `_thumb.webp`
+- `Cache-Control: public, max-age=31536000, immutable` set on every R2 PUT
+- `get_storage()` returns None when R2 not configured — caller falls back gracefully (503 with clear message)
+- New endpoints in `routers/vehicles.py`:
+  - `POST /api/vehicles/{id}/photos` — multipart upload, max 10 files/batch, 10MB each, 20 photos/vehicle limit
+  - `DELETE /api/vehicles/{id}/photos/{photo_id}` — removes both full + thumb from R2 + DB
+  - `POST /api/vehicles/{id}/photos/{photo_id}/main` — sets cover_photo_index by photo id
+- New endpoints in `routers/admin.py`:
+  - `GET /api/admin/storage/status` — returns {configured, bucket, base64_vehicles, base64_photos_total, r2_photos_total}
+  - `POST /api/admin/storage/test` — uploads + deletes a 2-byte test object, returns 200 OK or 502 with specific error
+  - `POST /api/admin/migrate/photos-to-r2` — idempotent migration for existing base64 strings → R2 photo objects; never destructive (failed uploads keep base64 fallback)
+- Schema: `vehicles.photos[]` now polymorphic — supports both legacy `"data:image/...;base64,..."` strings AND new `{id, url, thumb_url, full_key, thumb_key, is_main}` objects. All read paths use `_photo_full()`/`_photo_thumb()` helpers.
+- New collection: `vehicle_shares` already existed; no new collections for R2 (config in `api_keys`).
+
+**Frontend:**
+- New `/lib/photos.js` — `photoUrl()`, `photoThumb()`, `photoId()` helpers handle both legacy strings and new objects
+- `OverviewTab.js` rewritten — drag&drop file input, progress, set-as-main button (Star icon), per-photo delete (X), upload flow uses `multipart/form-data` and shows R2 upload requirements (formats, max 20 photos)
+- `AdminApiKeys.js` extended — 5 new R2 fields (account_id, access_key, secret_key, bucket_name, public_url) with eye-toggle reveal; new "Storage" + "Migration" sections with status badge, Test connection button, and Migrate-N-photos red CTA + report card (migrated/failed/duration)
+- `PublicVehicle.js` updated to use `photoUrl()`/`photoThumb()` for galleries
+
+### Admin Email Change (DONE 2026-05-02)
+- `ADMIN_EMAIL` env var changed: `admin@vehiq.app` → `kontakt@vehiq.pl`
+- Existing `admin_account` doc migrated in MongoDB (preserves password hash and history)
+- Login + forgot-password + reset-password all use new email; auto-seed on missing doc uses new email
+
 ## What's Implemented (2026-05-01)
 
 ### Mega Iteration — Pakiet MINIMUM (DONE 2026-05-01)

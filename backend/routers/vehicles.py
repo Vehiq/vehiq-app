@@ -1,5 +1,5 @@
 """Vehicles router — CRUD, photos."""
-from fastapi import APIRouter, HTTPException, Depends, Body
+from fastapi import APIRouter, HTTPException, Depends, Body, UploadFile, File
 from pydantic import BaseModel, Field
 from typing import Optional, List
 from datetime import datetime, timezone
@@ -8,8 +8,30 @@ import re
 
 from db_helper import get_db
 from auth_utils import get_current_user, get_optional_user
+import storage as r2_storage
 
 router = APIRouter(prefix="/vehicles", tags=["vehicles"])
+
+
+def _photo_thumb(photo) -> Optional[str]:
+    """Return the thumbnail URL for a photo (string or dict). Falls back to full URL."""
+    if isinstance(photo, dict):
+        return photo.get("thumb_url") or photo.get("url")
+    return photo  # legacy base64 string
+
+
+def _photo_full(photo) -> Optional[str]:
+    if isinstance(photo, dict):
+        return photo.get("url")
+    return photo
+
+
+def _cover(photos: list, idx: int = 0) -> Optional[str]:
+    if not photos:
+        return None
+    if 0 <= idx < len(photos):
+        return _photo_thumb(photos[idx])
+    return _photo_thumb(photos[0])
 
 
 def _slugify(s: str) -> str:
@@ -92,7 +114,7 @@ async def list_vehicles(user=Depends(get_current_user)):
         for v in items:
             photos = v.get("photos") or []
             idx = v.get("cover_photo_index") or 0
-            v["cover_photo"] = photos[idx] if 0 <= idx < len(photos) else (photos[0] if photos else None)
+            v["cover_photo"] = _cover(photos, idx)
             v["active_listing"] = active_map.get(v["id"])
     return items
 
@@ -127,7 +149,7 @@ async def create_vehicle(payload: VehicleIn, user=Depends(get_current_user)):
     })
     await db.vehicles.insert_one(doc)
     doc.pop("_id", None)
-    doc["cover_photo"] = photos[doc.get("cover_photo_index") or 0] if photos else None
+    doc["cover_photo"] = _photo_full(photos[doc.get("cover_photo_index") or 0]) if photos else None
     from activity import log_activity
     await log_activity(user["id"], "vehicle.create", "vehicle", v_id, f"{doc.get('make')} {doc.get('model')}")
     return doc
@@ -141,7 +163,7 @@ async def get_vehicle(vehicle_id: str, user=Depends(get_current_user)):
         raise HTTPException(status_code=404, detail="Vehicle not found")
     photos = v.get("photos") or []
     idx = v.get("cover_photo_index") or 0
-    v["cover_photo"] = photos[idx] if 0 <= idx < len(photos) else (photos[0] if photos else None)
+    v["cover_photo"] = _cover(photos, idx)
     # Attach active listing (if any) for "Sell this car" / "Mark as sold" UI
     listing = await db.listings.find_one(
         {"vehicle_id": vehicle_id, "status": "active"},
@@ -168,7 +190,7 @@ async def update_vehicle(vehicle_id: str, payload: VehicleUpdateIn, user=Depends
     fresh = await db.vehicles.find_one({"id": vehicle_id}, {"_id": 0})
     photos = fresh.get("photos") or []
     idx = fresh.get("cover_photo_index") or 0
-    fresh["cover_photo"] = photos[idx] if 0 <= idx < len(photos) else (photos[0] if photos else None)
+    fresh["cover_photo"] = _cover(photos, idx)
     return fresh
 
 
@@ -228,7 +250,7 @@ async def get_public_vehicle(slug: str, user=Depends(get_optional_user)):
 
     photos = v.get("photos") or []
     idx = v.get("cover_photo_index") or 0
-    cover = photos[idx] if 0 <= idx < len(photos) else (photos[0] if photos else None)
+    cover = _photo_full(photos[idx]) if (0 <= idx < len(photos)) else (_photo_full(photos[0]) if photos else None)
 
     owner = await db.profiles.find_one({"id": v.get("user_id")}, {"_id": 0, "id": 1, "name": 1, "avatar": 1, "location": 1, "created_at": 1}) or {}
     # Active listing for this vehicle (if any)
@@ -247,7 +269,7 @@ async def get_public_vehicle(slug: str, user=Depends(get_optional_user)):
         "fuel": v.get("fuel"),
         "color": v.get("color"),
         "mileage_current": v.get("mileage_current") if (is_owner or privacy.get("show_mileage", True)) else None,
-        "photos": photos,
+        "photos": [_photo_full(p) for p in photos],
         "cover_photo": cover,
         "status": v.get("status"),
         "is_owner": is_owner,
@@ -362,3 +384,95 @@ async def mark_sold(vehicle_id: str, payload: MarkSoldIn, user=Depends(get_curre
         "total_service_cost": total_service_cost,
         "net_result": net,
     }
+
+
+
+@router.post("/{vehicle_id}/photos")
+async def upload_photos(
+    vehicle_id: str,
+    files: List[UploadFile] = File(...),
+    user=Depends(get_current_user),
+):
+    """Process and upload up to 10 images to Cloudflare R2 in one batch.
+    Each image becomes two WebP files (full + thumb) stored in R2.
+    Photo descriptors are appended to vehicles.photos[]."""
+    db = get_db()
+    v = await db.vehicles.find_one({"id": vehicle_id, "user_id": user["id"]})
+    if not v:
+        raise HTTPException(status_code=404, detail="Vehicle not found")
+    if len(files) > 10:
+        raise HTTPException(status_code=400, detail="Max 10 files per upload")
+    storage = await r2_storage.get_storage()
+    if not storage:
+        raise HTTPException(status_code=503, detail="Storage not configured. Admin must set R2 credentials in /gv91-admin → API Keys.")
+
+    existing = v.get("photos") or []
+    if len(existing) + len(files) > r2_storage.MAX_PHOTOS_PER_VEHICLE:
+        raise HTTPException(status_code=400, detail=f"Max {r2_storage.MAX_PHOTOS_PER_VEHICLE} photos per vehicle")
+
+    uploaded = []
+    failures = []
+    for f in files:
+        data = await f.read()
+        if len(data) > r2_storage.MAX_FILE_BYTES:
+            failures.append({"filename": f.filename, "error": "File exceeds 10MB"})
+            continue
+        if not r2_storage.detect_format(data):
+            failures.append({"filename": f.filename, "error": "Unsupported format"})
+            continue
+        photo = await r2_storage.upload_vehicle_photo(vehicle_id, data)
+        if not photo:
+            failures.append({"filename": f.filename, "error": "Upload failed"})
+            continue
+        uploaded.append(photo)
+
+    if uploaded:
+        await db.vehicles.update_one(
+            {"id": vehicle_id},
+            {"$push": {"photos": {"$each": uploaded}}, "$set": {"updated_at": datetime.now(timezone.utc).isoformat()}},
+        )
+    return {"uploaded": uploaded, "failures": failures}
+
+
+@router.delete("/{vehicle_id}/photos/{photo_id}")
+async def delete_photo(vehicle_id: str, photo_id: str, user=Depends(get_current_user)):
+    db = get_db()
+    v = await db.vehicles.find_one({"id": vehicle_id, "user_id": user["id"]})
+    if not v:
+        raise HTTPException(status_code=404, detail="Vehicle not found")
+    photos = v.get("photos") or []
+    target = None
+    new_photos = []
+    for p in photos:
+        if isinstance(p, dict) and p.get("id") == photo_id:
+            target = p
+            continue
+        new_photos.append(p)
+    if not target:
+        raise HTTPException(status_code=404, detail="Photo not found")
+    await r2_storage.delete_vehicle_photo(target)
+    new_idx = v.get("cover_photo_index") or 0
+    if new_idx >= len(new_photos):
+        new_idx = 0
+    await db.vehicles.update_one(
+        {"id": vehicle_id},
+        {"$set": {"photos": new_photos, "cover_photo_index": new_idx, "updated_at": datetime.now(timezone.utc).isoformat()}},
+    )
+    return {"ok": True, "remaining": len(new_photos)}
+
+
+@router.post("/{vehicle_id}/photos/{photo_id}/main")
+async def set_main_photo(vehicle_id: str, photo_id: str, user=Depends(get_current_user)):
+    db = get_db()
+    v = await db.vehicles.find_one({"id": vehicle_id, "user_id": user["id"]})
+    if not v:
+        raise HTTPException(status_code=404, detail="Vehicle not found")
+    photos = v.get("photos") or []
+    idx = next((i for i, p in enumerate(photos) if isinstance(p, dict) and p.get("id") == photo_id), -1)
+    if idx < 0:
+        raise HTTPException(status_code=404, detail="Photo not found")
+    await db.vehicles.update_one(
+        {"id": vehicle_id},
+        {"$set": {"cover_photo_index": idx, "updated_at": datetime.now(timezone.utc).isoformat()}},
+    )
+    return {"ok": True, "cover_photo_index": idx}

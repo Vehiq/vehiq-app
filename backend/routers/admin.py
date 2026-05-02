@@ -15,7 +15,7 @@ from auth_utils import (
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
-ADMIN_EMAIL = os.environ.get("ADMIN_EMAIL", "admin@vehiq.app").lower()
+ADMIN_EMAIL = os.environ.get("ADMIN_EMAIL", "kontakt@vehiq.pl").lower()
 # Track failed logins per IP in memory (resets on backend restart).
 _failed_attempts = {}
 _lockouts = {}
@@ -468,6 +468,11 @@ class ApiKeysIn(BaseModel):
     smtp_password: Optional[str] = None
     smtp_from_name: Optional[str] = None
     smtp_from_email: Optional[str] = None
+    r2_account_id: Optional[str] = None
+    r2_access_key_id: Optional[str] = None
+    r2_secret_access_key: Optional[str] = None
+    r2_bucket_name: Optional[str] = None
+    r2_public_url: Optional[str] = None
 
 
 @router.put("/api-keys")
@@ -512,3 +517,110 @@ async def admin_run_retention(payload: RetentionRunIn, admin=Depends(get_admin))
     else:
         await retention.run_once()
     return {"ok": True}
+
+
+
+# ---------- Storage (Cloudflare R2) ----------
+import storage as r2_storage  # noqa: E402
+import base64 as _base64  # noqa: E402
+
+
+@router.get("/storage/status")
+async def admin_storage_status(admin=Depends(get_admin)):
+    """Returns R2 configuration status + counts of base64 / R2 photos to migrate."""
+    db = get_db()
+    cfg = await r2_storage.load_r2_config()
+    configured = cfg is not None
+
+    base64_vehicles = 0
+    base64_photos_total = 0
+    r2_photos_total = 0
+    async for v in db.vehicles.find({}, {"_id": 0, "photos": 1}):
+        photos = v.get("photos") or []
+        if not photos:
+            continue
+        b64_in_v = 0
+        r2_in_v = 0
+        for p in photos:
+            if isinstance(p, str) and p.startswith("data:image"):
+                b64_in_v += 1
+            elif isinstance(p, dict) and p.get("url"):
+                r2_in_v += 1
+        if b64_in_v:
+            base64_vehicles += 1
+        base64_photos_total += b64_in_v
+        r2_photos_total += r2_in_v
+    return {
+        "configured": configured,
+        "bucket": cfg.get("r2_bucket_name") if cfg else None,
+        "public_url": cfg.get("r2_public_url") if cfg else None,
+        "base64_vehicles": base64_vehicles,
+        "base64_photos_total": base64_photos_total,
+        "r2_photos_total": r2_photos_total,
+    }
+
+
+@router.post("/storage/test")
+async def admin_storage_test(admin=Depends(get_admin)):
+    ok, msg = await r2_storage.test_r2_connection()
+    if not ok:
+        raise HTTPException(status_code=502, detail=msg)
+    return {"ok": True, "message": msg}
+
+
+@router.post("/migrate/photos-to-r2")
+async def admin_migrate_photos(admin=Depends(get_admin)):
+    """One-shot migration of all base64 photos in vehicles.photos[] to R2.
+    Idempotent — already-migrated photos (dict shape) are skipped.
+    Returns a summary report."""
+    db = get_db()
+    storage = await r2_storage.get_storage()
+    if not storage:
+        raise HTTPException(status_code=503, detail="R2 not configured. Set credentials first via API Keys.")
+
+    started = datetime.now(timezone.utc)
+    migrated = 0
+    failed = 0
+    failed_items = []
+
+    async for v in db.vehicles.find({}, {"_id": 0, "id": 1, "photos": 1, "cover_photo_index": 1}):
+        photos = v.get("photos") or []
+        if not photos:
+            continue
+        new_photos = []
+        changed = False
+        for p in photos:
+            if isinstance(p, dict):
+                new_photos.append(p)
+                continue
+            if not isinstance(p, str) or not p.startswith("data:image"):
+                # Already a URL string or unknown format — keep as-is
+                new_photos.append(p)
+                continue
+            try:
+                # data:image/jpeg;base64,...
+                _, b64part = p.split(",", 1)
+                raw = _base64.b64decode(b64part)
+                photo = await r2_storage.upload_vehicle_photo(v["id"], raw)
+                if not photo:
+                    failed += 1
+                    failed_items.append({"vehicle_id": v["id"], "error": "upload returned None"})
+                    new_photos.append(p)  # keep base64 as fallback
+                    continue
+                new_photos.append(photo)
+                migrated += 1
+                changed = True
+            except Exception as e:
+                failed += 1
+                failed_items.append({"vehicle_id": v["id"], "error": str(e)})
+                new_photos.append(p)
+        if changed:
+            await db.vehicles.update_one({"id": v["id"]}, {"$set": {"photos": new_photos}})
+
+    duration = (datetime.now(timezone.utc) - started).total_seconds()
+    return {
+        "migrated": migrated,
+        "failed": failed,
+        "failed_items": failed_items[:50],
+        "duration_seconds": round(duration, 2),
+    }
