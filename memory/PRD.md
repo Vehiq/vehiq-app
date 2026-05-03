@@ -17,6 +17,21 @@ Build a full-stack web + mobile-responsive SaaS application called VEHIQ. A prem
 
 ## What's Implemented (2026-05-02)
 
+### Iter 6 — Bug fixes + small changes (DONE 2026-05-03 — fork-agent, 20/20 tests PASS)
+**Bug 1 — User password reset:** already wired; added dynamic base_url from request Origin/Referer so `/password-reset/confirm?token=...` links work on both `vehiq.pl` and preview domains. JWT type=password_reset, 1h TTL. `/confirm` correctly rejects regular user JWTs.
+
+**Bug 2 — SMTP emails + logging:** `email_service.send_email` now logs `SMTP send → to=… subject=… via host:port`, `SMTP OK → …`, `SMTP FAIL → …`. `/api/admin/test-email` returns deterministic JSON `{success, error, to}` (never 502); `AdminApiKeys.sendTest` handles new shape. Verified end-to-end via Brevo.
+
+**Bug 3 — Marketplace messages:** already functional end-to-end — POST `/api/marketplace/messages`, GET `/threads` (aggregated last_message + unread count), GET `/{listing_id}/{other_id}` (history + mark-read). ListingDetail has contact form, Messages page renders threads.
+
+**Bug 4 — Correct km formula:** per-vehicle `km_driven = (mileage_at_sale OR mileage_current) - mileage_at_purchase`; total = sum over all user's vehicles (active+archived). Fixed `/analytics/me.total_km` (was summing final odometer readings). NEW `GET /api/vehicles/stats` returns `total_km_driven`, `active_count`, `archived_count`, `per_vehicle[]`. `mark-sold` now saves `mileage_at_sale`. VehicleForm has new fields `vf-mileage-at-purchase` (always) and `vf-mileage-at-sale` (when archived).
+
+**Change 1 — Photo limit 5→6:** `storage.py:MAX_PHOTOS_PER_VEHICLE=6`, `seed.py`+Atlas `app_settings.max_photos_per_vehicle="6"`.
+
+**Change 2 — Forum filters make/model:** GET `/api/forum/threads?make=&model=&category=` matches EITHER linked vehicle (make/model lookup on `vehicles` collection) OR free-text `vehicle_label`. Frontend `/forum` has datalist of popular makes + model input + Search/Clear; URL params synced.
+
+**Change 3 — User search by vehicle:** NEW GET `/api/vehicles/search?make=&model=&year_from=&year_to=` respects `searchable!=false` AND `privacy.profile_visible!=false`, returns owner info (name/avatar). NEW `/users/search` page (data-testid `user-search-page`). New vehicle field `searchable` (default true) + privacy toggle `searchable` in OverviewTab. Sidebar nav entry "Szukaj / Search".
+
 ### Atlas SSL Handshake Fix (DONE 2026-05-02 — fork-agent)
 - Root cause: PyMongo rejecting Atlas TLS because `tlsCAFile` was not set → `ServerSelectionTimeoutError: SSL handshake failed: TLSV1_ALERT_INTERNAL_ERROR`
 - Fix: `server.py` now imports `certifi` and passes `tlsCAFile=certifi.where()` to `AsyncIOMotorClient` when URL is `mongodb+srv://` or contains `mongodb.net`
