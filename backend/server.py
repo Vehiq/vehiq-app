@@ -133,7 +133,11 @@ logger = logging.getLogger(__name__)
 
 @app.on_event("startup")
 async def on_startup():
-    await seed_database(db)
+    try:
+        await seed_database(db)
+    except Exception as e:
+        logger.error(f"seed_database failed (Atlas unreachable?): {e}")
+        logger.error("Backend will continue starting; fix Atlas Network Access to restore DB operations.")
     # Background retention scheduler (D+1, D+7, monthly)
     try:
         from retention import scheduler_loop
