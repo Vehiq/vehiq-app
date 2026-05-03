@@ -22,6 +22,7 @@ import Forum from "@/pages/Forum";
 import NewThread from "@/pages/NewThread";
 import ThreadDetail from "@/pages/ThreadDetail";
 import Profile from "@/pages/Profile";
+import UserSearch from "@/pages/UserSearch";
 import LegalPage from "@/pages/LegalPage";
 import PublicVehicle from "@/pages/PublicVehicle";
 import NotFound from "@/pages/NotFound";
@@ -150,6 +151,7 @@ function App() {
             <Route path="/forum/new" element={<NewThread />} />
             <Route path="/forum/:id" element={<ThreadDetail />} />
             <Route path="/profile" element={<Profile />} />
+            <Route path="/users/search" element={<UserSearch />} />
           </Route>
 
           <Route path="*" element={<NotFound />} />

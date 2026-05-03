@@ -171,6 +171,7 @@ async def send_email(to: str, subject: str, html: str) -> tuple[bool, str]:
     """Send email via SMTP (config from MongoDB). Returns (ok, error_message_or_empty)."""
     cfg = await _get_smtp_config()
     if not cfg["host"] or not cfg["login"] or not cfg["password"]:
+        logger.warning(f"SMTP not configured — skipped email to {to} ({subject!r})")
         return False, "SMTP not configured. Set host/login/password in admin panel."
 
     msg = MIMEMultipart("alternative")
@@ -180,6 +181,7 @@ async def send_email(to: str, subject: str, html: str) -> tuple[bool, str]:
     msg.attach(MIMEText("(This email requires HTML rendering)", "plain", "utf-8"))
     msg.attach(MIMEText(html, "html", "utf-8"))
 
+    logger.info(f"SMTP send → to={to} subject={subject!r} via {cfg['host']}:{cfg['port']} user={cfg['login']}")
     try:
         use_tls = cfg["port"] == 465
         start_tls = cfg["port"] in (587, 25)
@@ -193,10 +195,11 @@ async def send_email(to: str, subject: str, html: str) -> tuple[bool, str]:
             start_tls=start_tls if not use_tls else False,
             timeout=20,
         )
+        logger.info(f"SMTP OK → {to} ({subject!r})")
         return True, ""
     except Exception as e:
-        logger.warning(f"SMTP send failed: {e}")
-        return False, str(e)[:200]
+        logger.error(f"SMTP FAIL → {to} ({subject!r}) via {cfg['host']}:{cfg['port']}: {type(e).__name__}: {e}")
+        return False, f"{type(e).__name__}: {str(e)[:200]}"
 
 
 def fire_and_forget(coro):

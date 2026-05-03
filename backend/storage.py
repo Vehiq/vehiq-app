@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 # ---------- Image processing ----------
 ALLOWED_FORMATS = {"JPEG", "PNG", "WEBP", "HEIF", "MPO"}
 MAX_FILE_BYTES = 10 * 1024 * 1024  # 10 MB
-MAX_PHOTOS_PER_VEHICLE = 20
+MAX_PHOTOS_PER_VEHICLE = 6
 
 
 def process_image(file_data: bytes, image_type: str = "full") -> bytes:

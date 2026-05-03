@@ -13,7 +13,7 @@ export default function VehicleForm({ initial, onSaved }) {
   const navigate = useNavigate();
   const [form, setForm] = useState(initial || {
     make: "", model: "", year: "", vin: "", engine: "", fuel: "petrol", color: "", plate: "",
-    mileage_current: 0, purchase_price: "", purchase_date: "", status: "active",
+    mileage_current: 0, mileage_at_purchase: "", mileage_at_sale: "", purchase_price: "", purchase_date: "", status: "active",
     photos: [], cover_photo_index: 0,
   });
   const [busy, setBusy] = useState(false);
@@ -47,6 +47,8 @@ export default function VehicleForm({ initial, onSaved }) {
         ...form,
         year: form.year ? parseInt(form.year) : null,
         mileage_current: form.mileage_current ? parseInt(form.mileage_current) : 0,
+        mileage_at_purchase: form.mileage_at_purchase !== "" && form.mileage_at_purchase != null ? parseInt(form.mileage_at_purchase) : null,
+        mileage_at_sale: form.mileage_at_sale !== "" && form.mileage_at_sale != null ? parseInt(form.mileage_at_sale) : null,
         purchase_price: form.purchase_price ? parseFloat(form.purchase_price) : null,
         sale_price: form.sale_price ? parseFloat(form.sale_price) : null,
         purchase_date: form.purchase_date || null,
@@ -106,7 +108,10 @@ export default function VehicleForm({ initial, onSaved }) {
             <input value={form.plate || ""} onChange={(e) => setForm({ ...form, plate: e.target.value })} className="vehiq-input" />
           </Field>
           <Field label={t("vehicle.mileage")}>
-            <input type="number" value={form.mileage_current || 0} onChange={(e) => setForm({ ...form, mileage_current: e.target.value })} className="vehiq-input" />
+            <input type="number" value={form.mileage_current || 0} onChange={(e) => setForm({ ...form, mileage_current: e.target.value })} className="vehiq-input" data-testid="vf-mileage-current" />
+          </Field>
+          <Field label={t("vehicle.mileageAtPurchase")}>
+            <input type="number" value={form.mileage_at_purchase ?? ""} onChange={(e) => setForm({ ...form, mileage_at_purchase: e.target.value })} className="vehiq-input" placeholder="0" data-testid="vf-mileage-at-purchase" />
           </Field>
           <Field label={t("vehicle.purchasePrice")}>
             <input type="number" step="0.01" value={form.purchase_price || ""} onChange={(e) => setForm({ ...form, purchase_price: e.target.value })} className="vehiq-input" />
@@ -127,6 +132,9 @@ export default function VehicleForm({ initial, onSaved }) {
               </Field>
               <Field label={t("vehicle.saleDate")}>
                 <input type="date" value={form.sale_date || ""} onChange={(e) => setForm({ ...form, sale_date: e.target.value })} className="vehiq-input" />
+              </Field>
+              <Field label={t("vehicle.mileageAtSale")}>
+                <input type="number" value={form.mileage_at_sale ?? ""} onChange={(e) => setForm({ ...form, mileage_at_sale: e.target.value })} className="vehiq-input" placeholder={String(form.mileage_current || 0)} data-testid="vf-mileage-at-sale" />
               </Field>
             </>
           )}

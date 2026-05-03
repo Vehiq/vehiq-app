@@ -83,10 +83,14 @@ export default function AdminApiKeys() {
     if (!testEmail) { toast.error("Enter email"); return; }
     setTestBusy(true);
     try {
-      await adminApi.post("/admin/test-email", { to: testEmail, language: "en" });
-      toast.success("✅ Email sent successfully");
+      const { data } = await adminApi.post("/admin/test-email", { to: testEmail, language: "en" });
+      if (data?.success) {
+        toast.success(`✅ Email sent to ${data.to}`);
+      } else {
+        toast.error(`❌ SMTP error: ${data?.error || "Unknown"}`);
+      }
     } catch (e) {
-      toast.error("❌ " + (e?.response?.data?.detail || "SMTP failure"));
+      toast.error("❌ " + (e?.response?.data?.detail || "Request failed"));
     } finally { setTestBusy(false); }
   };
 

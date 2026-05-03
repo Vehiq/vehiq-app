@@ -68,6 +68,14 @@ export default function OverviewTab({ vehicle, reload }) {
     } catch { toast.error(t("common.error")); }
   };
 
+  const toggleSearchable = async () => {
+    try {
+      await api.put(`/vehicles/${vehicle.id}`, { searchable: vehicle.searchable === false });
+      toast.success(t("common.success"));
+      if (reload) reload();
+    } catch { toast.error(t("common.error")); }
+  };
+
   const toggleProject = async () => {
     try {
       await api.put(`/vehicles/${vehicle.id}`, { is_project: !vehicle.is_project });
@@ -141,6 +149,7 @@ export default function OverviewTab({ vehicle, reload }) {
           <PrivacyRow id="show_mileage" checked={privacy.show_mileage !== false} onChange={() => togglePrivacy("show_mileage")} label={t("privacy.showMileage")} />
           <PrivacyRow id="show_service" checked={privacy.show_service !== false} onChange={() => togglePrivacy("show_service")} label={t("privacy.showService")} />
           <PrivacyRow id="show_costs" checked={!!privacy.show_costs} onChange={() => togglePrivacy("show_costs")} label={t("privacy.showCosts")} />
+          <PrivacyRow id="searchable" checked={vehicle.searchable !== false} onChange={toggleSearchable} label={t("privacy.searchable")} />
           <div className="pt-3 mt-3 border-t border-vehiq-border">
             <PrivacyRow id="is_project" checked={!!vehicle.is_project} onChange={toggleProject} label={<span className="inline-flex items-center gap-2"><Wrench size={12} className="text-vehiq-gold"/> {t("vehicle.project")}</span>} />
           </div>

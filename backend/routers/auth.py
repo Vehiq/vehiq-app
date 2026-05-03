@@ -1,5 +1,5 @@
 """Auth router — register, login, Emergent Google OAuth, profile."""
-from fastapi import APIRouter, HTTPException, Header, Body, Depends
+from fastapi import APIRouter, HTTPException, Header, Body, Depends, Request
 from pydantic import BaseModel, EmailStr, Field
 from typing import Optional
 from datetime import datetime, timezone
@@ -115,13 +115,21 @@ class PasswordResetConfirmIn(BaseModel):
 
 
 @router.post("/password-reset/request")
-async def password_reset_request(payload: PasswordResetRequestIn):
+async def password_reset_request(payload: PasswordResetRequestIn, request: Request):
     """Always returns 200 to avoid leaking which emails exist."""
     db = get_db()
     user = await db.profiles.find_one({"email": payload.email.lower()})
     if user:
         token = create_access_token({"sub": user["id"], "type": "password_reset"}, expires_hours=1)
-        reset_url = f"{APP_URL}/password-reset/confirm?token={token}"
+        # Derive base URL from request Origin/Referer header so it works on preview + production domains
+        origin = request.headers.get("origin") or request.headers.get("referer") or ""
+        if origin:
+            from urllib.parse import urlparse
+            p = urlparse(origin)
+            base_url = f"{p.scheme}://{p.netloc}" if p.scheme and p.netloc else APP_URL
+        else:
+            base_url = APP_URL
+        reset_url = f"{base_url}/password-reset/confirm?token={token}"
         lang = user.get("language", payload.language or "pl")
         subject, html = tpl_password_reset(reset_url, lang)
         fire_and_forget(send_email(user["email"], subject, html))

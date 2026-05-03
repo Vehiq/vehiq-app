@@ -36,7 +36,8 @@
     "send": "Send",
     "open": "Open",
     "noResults": "No results",
-    "comingSoon": "Coming soon"
+    "comingSoon": "Coming soon",
+    "clear": "Clear"
   },
   "nav": {
     "garage": "Garage",
@@ -102,6 +103,8 @@
     "color": "Color",
     "plate": "Plate",
     "mileage": "Mileage (km)",
+    "mileageAtPurchase": "Mileage at purchase (km)",
+    "mileageAtSale": "Mileage at sale (km)",
     "purchasePrice": "Purchase price",
     "purchaseDate": "Purchase date",
     "salePrice": "Sale price",
@@ -252,7 +255,28 @@
     "noVehiclesYet": "Add a vehicle to your garage first to link it.",
     "whichVehicle": "Which vehicle is this about?",
     "tags": "Tags",
-    "tagsHint": "e.g. engine, gearbox, electric — Enter to add"
+    "tagsHint": "e.g. engine, gearbox, electric — Enter to add",
+    "filterMake": "Make",
+    "filterModel": "Model",
+    "allMakes": "All makes"
+  },
+  "userSearch": {
+    "overline": "Community",
+    "title": "Find users",
+    "subtitle": "Search VEHIQ drivers by vehicle make, model and year. We only show vehicles that are marked as public.",
+    "make": "Make",
+    "model": "Model",
+    "yearFrom": "Year from",
+    "yearTo": "Year to",
+    "hint": "Type a make or model to start",
+    "empty": "No results",
+    "emptyDesc": "Try a different make, model or year range.",
+    "active": "Active",
+    "archived": "Archived"
+  },
+  "stats": {
+    "totalDriven": "Total driven",
+    "km": "km"
   },
   "footer": {
     "privacy": "Privacy Policy",
@@ -352,6 +376,7 @@
     "profileVisible": "Profile visible publicly",
     "showService": "Show service history",
     "showCosts": "Show service costs",
+    "searchable": "Show vehicle in search results",
     "showMileage": "Show mileage",
     "privateTooltip": "Private vehicle",
     "previewAs": "Preview as:",

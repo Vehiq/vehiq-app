@@ -501,9 +501,7 @@ async def admin_test_email(payload: TestEmailIn, admin=Depends(get_admin)):
     from email_service import send_email, tpl_test
     subject, html = tpl_test(payload.language)
     ok, err = await send_email(payload.to, subject, html)
-    if not ok:
-        raise HTTPException(status_code=502, detail=err or "SMTP failure")
-    return {"ok": True}
+    return {"success": ok, "error": err or None, "to": payload.to}
 
 
 class RetentionRunIn(BaseModel):

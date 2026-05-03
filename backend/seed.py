@@ -169,7 +169,7 @@ DEFAULT_SETTINGS = {
     "registrations_enabled": "true",
     "gps_tracking_enabled": "true",
     "max_vehicles_per_user": "0",
-    "max_photos_per_vehicle": "20",
+    "max_photos_per_vehicle": "6",
     "max_listings_per_user": "10",
     "max_forum_posts_per_day": "50",
     "maintenance_mode": "false",

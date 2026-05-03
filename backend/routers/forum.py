@@ -36,13 +36,45 @@ async def list_categories():
 
 
 @router.get("/threads")
-async def list_threads(category: Optional[str] = None, q: Optional[str] = None):
+async def list_threads(
+    category: Optional[str] = None,
+    q: Optional[str] = None,
+    make: Optional[str] = None,
+    model: Optional[str] = None,
+):
     db = get_db()
-    f = {}
+    and_clauses: list = []
     if category and category != "all":
-        f["category"] = category
+        and_clauses.append({"category": category})
     if q:
-        f["$or"] = [{"title": {"$regex": q, "$options": "i"}}, {"content": {"$regex": q, "$options": "i"}}]
+        and_clauses.append({"$or": [
+            {"title": {"$regex": q, "$options": "i"}},
+            {"content": {"$regex": q, "$options": "i"}},
+        ]})
+    # Make/model filter — match EITHER linked vehicle OR free-text vehicle_label
+    if make or model:
+        veh_q: dict = {}
+        if make:
+            veh_q["make"] = {"$regex": f"^{make}$", "$options": "i"}
+        if model:
+            veh_q["model"] = {"$regex": model, "$options": "i"}
+        veh_ids = [v["id"] async for v in db.vehicles.find(veh_q, {"_id": 0, "id": 1})]
+        label_parts = []
+        if make:
+            label_parts.append(make)
+        if model:
+            label_parts.append(model)
+        label_regex = ".*".join(label_parts) if label_parts else ""
+        mm_or: list = []
+        if veh_ids:
+            mm_or.append({"vehicle_id": {"$in": veh_ids}})
+        if label_regex:
+            mm_or.append({"vehicle_label": {"$regex": label_regex, "$options": "i"}})
+        if not mm_or:
+            return []
+        and_clauses.append({"$or": mm_or})
+
+    f = {"$and": and_clauses} if and_clauses else {}
     items = await db.forum_threads.find(f, {"_id": 0}).sort([("pinned", -1), ("created_at", -1)]).to_list(500)
     user_ids = list({i["user_id"] for i in items})
     users = {}

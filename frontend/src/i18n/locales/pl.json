@@ -36,7 +36,8 @@
     "send": "Wyślij",
     "open": "Otwórz",
     "noResults": "Brak wyników",
-    "comingSoon": "Wkrótce"
+    "comingSoon": "Wkrótce",
+    "clear": "Wyczyść"
   },
   "nav": {
     "garage": "Garaż",
@@ -102,6 +103,8 @@
     "color": "Kolor",
     "plate": "Tablica",
     "mileage": "Przebieg (km)",
+    "mileageAtPurchase": "Przebieg przy zakupie (km)",
+    "mileageAtSale": "Przebieg przy sprzedaży (km)",
     "purchasePrice": "Cena zakupu",
     "purchaseDate": "Data zakupu",
     "salePrice": "Cena sprzedaży",
@@ -252,7 +255,28 @@
     "noVehiclesYet": "Najpierw dodaj pojazd do garażu, aby go powiązać.",
     "whichVehicle": "Jakiego auta dotyczy?",
     "tags": "Tagi",
-    "tagsHint": "np. silnik, skrzynia biegów, elektryk — Enter aby dodać"
+    "tagsHint": "np. silnik, skrzynia biegów, elektryk — Enter aby dodać",
+    "filterMake": "Marka",
+    "filterModel": "Model",
+    "allMakes": "Wszystkie marki"
+  },
+  "userSearch": {
+    "overline": "Społeczność",
+    "title": "Znajdź użytkowników",
+    "subtitle": "Wyszukaj kierowców w społeczności VEHIQ po marce, modelu i roczniku pojazdu. Pokazujemy tylko pojazdy oznaczone jako publiczne.",
+    "make": "Marka",
+    "model": "Model",
+    "yearFrom": "Rok od",
+    "yearTo": "Rok do",
+    "hint": "Wpisz markę lub model aby rozpocząć",
+    "empty": "Brak wyników",
+    "emptyDesc": "Spróbuj innej marki, modelu lub zakresu lat.",
+    "active": "Aktywny",
+    "archived": "Archiwum"
+  },
+  "stats": {
+    "totalDriven": "Łącznie przejechanych",
+    "km": "km"
   },
   "footer": {
     "privacy": "Polityka Prywatności",
@@ -352,6 +376,7 @@
     "profileVisible": "Profil widoczny publicznie",
     "showService": "Pokaż historię serwisową",
     "showCosts": "Pokaż koszty serwisu",
+    "searchable": "Pokaż pojazd w wynikach wyszukiwania",
     "showMileage": "Pokaż przebieg",
     "privateTooltip": "Pojazd prywatny",
     "previewAs": "Podgląd jako:",

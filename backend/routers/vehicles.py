@@ -64,6 +64,8 @@ class VehicleIn(BaseModel):
     color: Optional[str] = None
     plate: Optional[str] = None
     mileage_current: Optional[int] = 0
+    mileage_at_purchase: Optional[int] = None
+    mileage_at_sale: Optional[int] = None
     purchase_price: Optional[float] = None
     purchase_date: Optional[str] = None
     sale_price: Optional[float] = None
@@ -74,6 +76,7 @@ class VehicleIn(BaseModel):
     public: Optional[bool] = None
     public_show_service: Optional[bool] = None
     is_project: Optional[bool] = None
+    searchable: Optional[bool] = True
     privacy: Optional[dict] = None  # {profile_visible, show_service, show_costs, show_mileage}
 
 
@@ -88,6 +91,8 @@ class VehicleUpdateIn(BaseModel):
     color: Optional[str] = None
     plate: Optional[str] = None
     mileage_current: Optional[int] = None
+    mileage_at_purchase: Optional[int] = None
+    mileage_at_sale: Optional[int] = None
     purchase_price: Optional[float] = None
     purchase_date: Optional[str] = None
     sale_price: Optional[float] = None
@@ -98,6 +103,7 @@ class VehicleUpdateIn(BaseModel):
     public: Optional[bool] = None
     public_show_service: Optional[bool] = None
     is_project: Optional[bool] = None
+    searchable: Optional[bool] = None
     privacy: Optional[dict] = None
 
 
@@ -117,6 +123,95 @@ async def list_vehicles(user=Depends(get_current_user)):
             v["cover_photo"] = _cover(photos, idx)
             v["active_listing"] = active_map.get(v["id"])
     return items
+
+
+def _km_driven(v: dict) -> int:
+    """km driven per vehicle = (odometer_at_sale OR current) - odometer_at_purchase."""
+    purchase = int(v.get("mileage_at_purchase") or 0)
+    if v.get("status") == "archived" and v.get("mileage_at_sale") is not None:
+        end = int(v.get("mileage_at_sale") or 0)
+    else:
+        end = int(v.get("mileage_current") or 0)
+    return max(0, end - purchase)
+
+
+@router.get("/stats")
+async def user_vehicle_stats(user=Depends(get_current_user)):
+    """Aggregate driving statistics for the authenticated user.
+    total_km_driven = sum over all vehicles (active + archived) of (end_odometer - purchase_odometer).
+    """
+    db = get_db()
+    vehicles = await db.vehicles.find(
+        {"user_id": user["id"]},
+        {"_id": 0, "id": 1, "make": 1, "model": 1, "status": 1,
+         "mileage_current": 1, "mileage_at_purchase": 1, "mileage_at_sale": 1},
+    ).to_list(500)
+    per_vehicle = []
+    total = 0
+    for v in vehicles:
+        km = _km_driven(v)
+        total += km
+        per_vehicle.append({
+            "vehicle_id": v["id"],
+            "label": f"{v.get('make') or ''} {v.get('model') or ''}".strip(),
+            "status": v.get("status") or "active",
+            "km_driven": km,
+        })
+    return {
+        "total_km_driven": total,
+        "vehicle_count": len(vehicles),
+        "active_count": sum(1 for v in vehicles if v.get("status") != "archived"),
+        "archived_count": sum(1 for v in vehicles if v.get("status") == "archived"),
+        "per_vehicle": per_vehicle,
+    }
+
+
+@router.get("/search")
+async def search_vehicles(
+    make: Optional[str] = None,
+    model: Optional[str] = None,
+    year_from: Optional[int] = None,
+    year_to: Optional[int] = None,
+    limit: int = 60,
+):
+    """Public search for vehicles owned by users with public profile + searchable=True.
+    Returns enriched owner info (name, avatar) for the community garage/search page."""
+    db = get_db()
+    f: dict = {"searchable": {"$ne": False}}
+    # privacy.profile_visible must be truthy — treat missing as True by default
+    f["$or"] = [{"privacy.profile_visible": {"$ne": False}}, {"privacy": {"$exists": False}}]
+    if make:
+        f["make"] = {"$regex": f"^{re.escape(make)}$", "$options": "i"}
+    if model:
+        f["model"] = {"$regex": re.escape(model), "$options": "i"}
+    if year_from is not None:
+        f.setdefault("year", {})["$gte"] = year_from
+    if year_to is not None:
+        f.setdefault("year", {})["$lte"] = year_to
+    cursor = db.vehicles.find(f, {"_id": 0, "id": 1, "slug": 1, "make": 1, "model": 1, "year": 1,
+                                   "photos": 1, "cover_photo_index": 1, "user_id": 1, "status": 1}).limit(max(1, min(limit, 120)))
+    items = await cursor.to_list(max(1, min(limit, 120)))
+    owner_ids = list({v["user_id"] for v in items if v.get("user_id")})
+    owners: dict = {}
+    if owner_ids:
+        async for u in db.profiles.find({"id": {"$in": owner_ids}}, {"_id": 0, "id": 1, "name": 1, "avatar": 1}):
+            owners[u["id"]] = u
+    result = []
+    for v in items:
+        photos = v.get("photos") or []
+        idx = v.get("cover_photo_index") or 0
+        result.append({
+            "id": v["id"],
+            "slug": v.get("slug"),
+            "make": v.get("make"),
+            "model": v.get("model"),
+            "year": v.get("year"),
+            "status": v.get("status") or "active",
+            "cover_photo": _cover(photos, idx),
+            "owner": owners.get(v.get("user_id")),
+        })
+    return result
+
 
 
 @router.post("")
@@ -342,22 +437,27 @@ async def track_share(vehicle_id: str, payload: ShareIn, user=Depends(get_option
 class MarkSoldIn(BaseModel):
     sale_price: float
     sale_date: Optional[str] = None  # ISO YYYY-MM-DD
+    mileage_at_sale: Optional[int] = None  # odometer reading at sale; falls back to current mileage
 
 
 @router.post("/{vehicle_id}/mark-sold")
 async def mark_sold(vehicle_id: str, payload: MarkSoldIn, user=Depends(get_current_user)):
-    """Owner marks vehicle as sold: sets sale_price, sale_date, status=archived, closes active listing.
+    """Owner marks vehicle as sold: sets sale_price, sale_date, mileage_at_sale, status=archived.
     Returns the updated P&L summary for confetti display."""
     db = get_db()
     v = await db.vehicles.find_one({"id": vehicle_id, "user_id": user["id"]})
     if not v:
         raise HTTPException(status_code=404, detail="Vehicle not found")
     sale_date = payload.sale_date or datetime.now(timezone.utc).date().isoformat()
+    mileage_at_sale = payload.mileage_at_sale
+    if mileage_at_sale is None:
+        mileage_at_sale = int(v.get("mileage_current") or 0)
     await db.vehicles.update_one(
         {"id": vehicle_id},
         {"$set": {
             "sale_price": float(payload.sale_price),
             "sale_date": sale_date,
+            "mileage_at_sale": int(mileage_at_sale),
             "status": "archived",
             "updated_at": datetime.now(timezone.utc).isoformat(),
         }},
@@ -380,6 +480,7 @@ async def mark_sold(vehicle_id: str, payload: MarkSoldIn, user=Depends(get_curre
         "vehicle_id": vehicle_id,
         "sale_price": sale,
         "sale_date": sale_date,
+        "mileage_at_sale": int(mileage_at_sale),
         "purchase_price": purchase,
         "total_service_cost": total_service_cost,
         "net_result": net,
