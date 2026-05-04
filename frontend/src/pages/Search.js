@@ -2,8 +2,9 @@ import { useEffect, useState, useCallback } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import api from "@/lib/api";
-import { Search as SearchIcon, MapPin, Car, Users, Store, Wrench, Calendar, Loader2, Crosshair } from "lucide-react";
+import { Search as SearchIcon, MapPin, Car, Users, Store, Wrench, Calendar, Loader2, Crosshair, Map as MapIcon, List as ListIcon } from "lucide-react";
 import GarageCard from "@/components/GarageCard";
+import MapView from "@/components/MapView";
 
 const CATS = [
   { id: "all", icon: SearchIcon },
@@ -25,6 +26,7 @@ export default function Search() {
   const [radius, setRadius] = useState(params.get("radius") ? parseInt(params.get("radius")) : 50);
   const [data, setData] = useState(null);
   const [busy, setBusy] = useState(false);
+  const [mapView, setMapView] = useState(false);
 
   const run = useCallback(async (override = {}) => {
     setBusy(true);
@@ -100,18 +102,35 @@ export default function Search() {
         </div>
       </form>
 
-      <div className="flex flex-wrap gap-2">
-        {CATS.map(({ id, icon: Icon }) => (
-          <button key={id} onClick={() => { setCat(id); run({ cat: id }); }} data-testid={`search-cat-${id}`}
-            className={`px-4 py-2 rounded-md text-sm uppercase tracking-wider transition-colors inline-flex items-center gap-2 ${
-              cat === id ? "bg-vehiq-gold text-vehiq-bg" : "bg-vehiq-card text-vehiq-muted hover:text-vehiq-text border border-vehiq-border"
-            }`}>
-            <Icon size={14}/> {t(`search.cats.${id}`)}
-          </button>
-        ))}
+      <div className="flex flex-wrap gap-2 items-center justify-between">
+        <div className="flex flex-wrap gap-2">
+          {CATS.map(({ id, icon: Icon }) => (
+            <button key={id} onClick={() => { setCat(id); run({ cat: id }); }} data-testid={`search-cat-${id}`}
+              className={`px-4 py-2 rounded-md text-sm uppercase tracking-wider transition-colors inline-flex items-center gap-2 ${
+                cat === id ? "bg-vehiq-gold text-vehiq-bg" : "bg-vehiq-card text-vehiq-muted hover:text-vehiq-text border border-vehiq-border"
+              }`}>
+              <Icon size={14}/> {t(`search.cats.${id}`)}
+            </button>
+          ))}
+        </div>
+        {(cat === "all" || cat === "services" || cat === "events") && (
+          <div className="inline-flex rounded border border-vehiq-border overflow-hidden" data-testid="search-view-toggle">
+            <button type="button" onClick={() => setMapView(false)} className={`px-3 py-1.5 text-xs inline-flex items-center gap-1 ${!mapView ? "bg-vehiq-gold text-vehiq-bg" : "text-vehiq-muted"}`}><ListIcon size={12}/> {t("services.viewList")}</button>
+            <button type="button" onClick={() => setMapView(true)} className={`px-3 py-1.5 text-xs inline-flex items-center gap-1 ${mapView ? "bg-vehiq-gold text-vehiq-bg" : "text-vehiq-muted"}`}><MapIcon size={12}/> {t("services.viewMap")}</button>
+          </div>
+        )}
       </div>
 
-      {data && (
+      {data && mapView && (cat === "all" || cat === "services" || cat === "events") && (
+        <MapView
+          items={[...(data.services || []), ...(data.events || [])]}
+          linkPrefix="/services"
+          viewerCoords={coords}
+          height={520}
+        />
+      )}
+
+      {data && !mapView && (
         <div className="space-y-8">
           {(cat === "all" || cat === "users") && data.users?.length > 0 && (
             <Section title={t("search.cats.users")} viewMore={cat === "all" ? () => { setCat("users"); run({ cat: "users" }); } : null}>

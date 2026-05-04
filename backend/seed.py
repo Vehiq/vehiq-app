@@ -238,6 +238,13 @@ async def seed_database(db):
     await db.events.create_index("slug", sparse=True)
     await db.events.create_index("date_start")
     await db.events.create_index([("location.lat", 1), ("location.lng", 1)])
+    await db.event_comments.create_index("event_id")
+    await db.event_comments.create_index([("event_id", 1), ("created_at", -1)])
+    await db.service_reviews.create_index("service_id")
+    try:
+        await db.service_reviews.create_index([("service_id", 1), ("user_id", 1)], unique=True)
+    except Exception:
+        pass
 
     # Backfill: ensure all profiles have a slug + default privacy_settings
     import re as _re

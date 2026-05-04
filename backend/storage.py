@@ -171,8 +171,9 @@ async def test_r2_connection() -> Tuple[bool, str]:
 
 
 # ---------- High-level vehicle photo helpers ----------
-async def upload_vehicle_photo(vehicle_id: str, file_data: bytes) -> Optional[dict]:
-    """Process and upload a single image. Returns photo descriptor or None on failure."""
+async def upload_entity_photo(entity_kind: str, entity_id: str, file_data: bytes) -> Optional[dict]:
+    """Generic R2 upload for any entity (services/events/vehicles).
+    Stores under `{entity_kind}/{entity_id}/{photo_id}_full.webp` (+ thumb)."""
     storage = await get_storage()
     if not storage:
         return None
@@ -183,8 +184,8 @@ async def upload_vehicle_photo(vehicle_id: str, file_data: bytes) -> Optional[di
         logger.warning(f"Image processing failed: {e}")
         return None
     photo_id = _uuid.uuid4().hex
-    full_key = f"vehicles/{vehicle_id}/{photo_id}_full.webp"
-    thumb_key = f"vehicles/{vehicle_id}/{photo_id}_thumb.webp"
+    full_key = f"{entity_kind}/{entity_id}/{photo_id}_full.webp"
+    thumb_key = f"{entity_kind}/{entity_id}/{photo_id}_thumb.webp"
     try:
         full_url = storage.upload(full_bytes, full_key)
         thumb_url = storage.upload(thumb_bytes, thumb_key)
@@ -201,7 +202,12 @@ async def upload_vehicle_photo(vehicle_id: str, file_data: bytes) -> Optional[di
     }
 
 
-async def delete_vehicle_photo(photo: dict) -> bool:
+async def upload_vehicle_photo(vehicle_id: str, file_data: bytes) -> Optional[dict]:
+    """BC wrapper for vehicles. Returns photo descriptor or None."""
+    return await upload_entity_photo("vehicles", vehicle_id, file_data)
+
+
+async def delete_entity_photo(photo: dict) -> bool:
     """Delete both full and thumb from R2. Idempotent."""
     storage = await get_storage()
     if not storage:
@@ -216,3 +222,8 @@ async def delete_vehicle_photo(photo: dict) -> bool:
     elif photo.get("thumb_url"):
         ok = storage.delete(photo["thumb_url"]) and ok
     return ok
+
+
+async def delete_vehicle_photo(photo: dict) -> bool:
+    """BC wrapper."""
+    return await delete_entity_photo(photo)

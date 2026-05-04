@@ -175,7 +175,8 @@
     "thinking": "Mechanic is thinking...",
     "clear": "Clear chat",
     "exportPdf": "Export to PDF",
-    "welcomeMessage": "Hi! I'm your AI Mechanic. Describe the issue with your vehicle and I'll do my best to diagnose it."
+    "welcomeMessage": "Hi! I'm your AI Mechanic. Describe the issue with your vehicle and I'll do my best to diagnose it.",
+    "suggestedServices": "Recommended workshops near you"
   },
   "marketplace": {
     "title": "Marketplace",
@@ -348,6 +349,9 @@
     "geocodeFirst": "Geocode first",
     "location": "Location",
     "openMap": "Open in map",
+    "viewList": "List",
+    "viewMap": "Map",
+    "recommended": "Recommended",
     "contact": "Contact",
     "services": "Services",
     "brands": "Brand specialty",
@@ -393,6 +397,26 @@
     "makeFilter": "Makes only",
     "makeFilterLabel": "Makes (comma separated)",
     "organizer": "Organizer"
+  },
+  "comments": {
+    "title": "Comments",
+    "add": "Add comment",
+    "placeholder": "Write a comment…",
+    "loginToComment": "Log in to comment"
+  },
+  "reviews": {
+    "title": "Reviews",
+    "reviews": "reviews",
+    "submit": "Submit review",
+    "update": "Update review",
+    "placeholder": "What do you think about this business?",
+    "loginToReview": "Log in to review",
+    "pickRating": "Pick a rating 1-5"
+  },
+  "photos": {
+    "title": "Photos",
+    "uploaded": "Uploaded {{count}} photos",
+    "tooMany": "Maximum {{max}} photos"
   },
   "footer": {
     "privacy": "Privacy Policy",

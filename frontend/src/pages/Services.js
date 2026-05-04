@@ -2,8 +2,9 @@ import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import api from "@/lib/api";
-import { Plus, MapPin, Wrench, Search as SearchIcon, Crosshair } from "lucide-react";
+import { Plus, MapPin, Wrench, Search as SearchIcon, Crosshair, Map as MapIcon, List as ListIcon, Star } from "lucide-react";
 import EmptyState from "@/components/EmptyState";
+import MapView from "@/components/MapView";
 
 const CATEGORIES = ["all", "workshop", "dealer", "detailing", "tuning", "rental", "tow", "other"];
 const RADII = [10, 25, 50, 100];
@@ -17,6 +18,7 @@ export default function Services() {
   const [city, setCity] = useState(params.get("city") || "");
   const [coords, setCoords] = useState(null);
   const [radius, setRadius] = useState(50);
+  const [mapView, setMapView] = useState(false);
 
   const load = async (opts = {}) => {
     const p = {};
@@ -80,25 +82,39 @@ export default function Services() {
         </div>
       </form>
 
-      <div className="flex flex-wrap gap-2">
-        {CATEGORIES.map(c => (
-          <button key={c} onClick={() => { setCat(c); load({ cat: c }); }} className={`px-3 py-1.5 rounded-md text-xs uppercase tracking-wider transition-colors ${cat === c ? "bg-vehiq-gold text-vehiq-bg" : "bg-vehiq-card text-vehiq-muted hover:text-vehiq-text border border-vehiq-border"}`} data-testid={`services-cat-${c}`}>
-            {t(`services.cats.${c}`)}
-          </button>
-        ))}
+      <div className="flex flex-wrap gap-2 items-center justify-between">
+        <div className="flex flex-wrap gap-2">
+          {CATEGORIES.map(c => (
+            <button key={c} onClick={() => { setCat(c); load({ cat: c }); }} className={`px-3 py-1.5 rounded-md text-xs uppercase tracking-wider transition-colors ${cat === c ? "bg-vehiq-gold text-vehiq-bg" : "bg-vehiq-card text-vehiq-muted hover:text-vehiq-text border border-vehiq-border"}`} data-testid={`services-cat-${c}`}>
+              {t(`services.cats.${c}`)}
+            </button>
+          ))}
+        </div>
+        <div className="inline-flex rounded border border-vehiq-border overflow-hidden" data-testid="services-view-toggle">
+          <button type="button" onClick={() => setMapView(false)} className={`px-3 py-1.5 text-xs inline-flex items-center gap-1 ${!mapView ? "bg-vehiq-gold text-vehiq-bg" : "text-vehiq-muted"}`} data-testid="services-view-list"><ListIcon size={12}/> {t("services.viewList")}</button>
+          <button type="button" onClick={() => setMapView(true)} className={`px-3 py-1.5 text-xs inline-flex items-center gap-1 ${mapView ? "bg-vehiq-gold text-vehiq-bg" : "text-vehiq-muted"}`} data-testid="services-view-map"><MapIcon size={12}/> {t("services.viewMap")}</button>
+        </div>
       </div>
 
       {items === null ? null : items.length === 0 ? (
         <EmptyState icon={Wrench} title={t("services.empty")} description={t("services.emptyDesc")} dataTestId="services-empty" />
+      ) : mapView ? (
+        <MapView items={items} linkPrefix="/services" viewerCoords={coords} height={520} />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" data-testid="services-list">
           {items.map(s => (
             <Link key={s.id} to={`/services/${s.slug || s.id}`} className="vehiq-card p-5 hover:border-vehiq-gold transition-colors space-y-2" data-testid={`service-${s.id}`}>
               <div className="flex items-center justify-between gap-2">
                 <div className="text-base text-vehiq-text font-medium">{s.name}</div>
-                {s.verified && <span className="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded bg-vehiq-gold-dim text-vehiq-gold border border-vehiq-gold/40">{t("services.verified")}</span>}
+                <div className="flex gap-1">
+                  {s.recommended && <span className="text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-vehiq-gold text-vehiq-bg" data-testid="badge-recommended">★ {t("services.recommended")}</span>}
+                  {s.verified && <span className="text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-vehiq-gold-dim text-vehiq-gold border border-vehiq-gold/40">{t("services.verified")}</span>}
+                </div>
               </div>
               <div className="text-[11px] text-vehiq-gold uppercase tracking-widest">{t(`services.cats.${s.category}`, { defaultValue: s.category })}</div>
+              {(s.rating_count || 0) > 0 && (
+                <div className="text-xs text-vehiq-text inline-flex items-center gap-1"><Star size={11} className="text-vehiq-gold fill-vehiq-gold"/> {(s.rating_avg || 0).toFixed(1)} <span className="text-vehiq-muted">({s.rating_count})</span></div>
+              )}
               {s.description && <p className="text-sm text-vehiq-muted line-clamp-2">{s.description}</p>}
               <div className="text-xs text-vehiq-muted inline-flex items-center gap-1 pt-1 border-t border-vehiq-border">
                 <MapPin size={11}/>{s.location?.city || "—"}{typeof s.distance_km === "number" ? ` · ${s.distance_km} ${t("services.kmFromYou")}` : ""}

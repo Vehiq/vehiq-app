@@ -175,7 +175,8 @@
     "thinking": "Mechanik analizuje...",
     "clear": "Wyczyść rozmowę",
     "exportPdf": "Eksportuj do PDF",
-    "welcomeMessage": "Cześć! Jestem Twoim AI Mechanikiem. Opisz problem ze swoim pojazdem, a postaram się postawić diagnozę."
+    "welcomeMessage": "Cześć! Jestem Twoim AI Mechanikiem. Opisz problem ze swoim pojazdem, a postaram się postawić diagnozę.",
+    "suggestedServices": "Polecane warsztaty w Twojej okolicy"
   },
   "marketplace": {
     "title": "Giełda",
@@ -348,6 +349,9 @@
     "geocodeFirst": "Najpierw pobierz współrzędne",
     "location": "Lokalizacja",
     "openMap": "Otwórz w mapie",
+    "viewList": "Lista",
+    "viewMap": "Mapa",
+    "recommended": "Polecany",
     "contact": "Kontakt",
     "services": "Usługi",
     "brands": "Specjalizacja (marki)",
@@ -393,6 +397,26 @@
     "makeFilter": "Tylko marki",
     "makeFilterLabel": "Marki (po przecinku)",
     "organizer": "Organizator"
+  },
+  "comments": {
+    "title": "Komentarze",
+    "add": "Dodaj komentarz",
+    "placeholder": "Napisz komentarz…",
+    "loginToComment": "Zaloguj się aby komentować"
+  },
+  "reviews": {
+    "title": "Opinie",
+    "reviews": "opinii",
+    "submit": "Dodaj opinię",
+    "update": "Aktualizuj opinię",
+    "placeholder": "Co sądzisz o tej firmie?",
+    "loginToReview": "Zaloguj się aby ocenić",
+    "pickRating": "Wybierz ocenę 1-5"
+  },
+  "photos": {
+    "title": "Zdjęcia",
+    "uploaded": "Wgrano {{count}} zdjęć",
+    "tooMany": "Maksymalnie {{max}} zdjęć"
   },
   "footer": {
     "privacy": "Polityka Prywatności",

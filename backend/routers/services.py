@@ -1,7 +1,7 @@
 """Services router — workshops, dealers, detailing, etc.
 Free-text + Haversine geo filtering. Nominatim geocoding handled client-side.
 """
-from fastapi import APIRouter, HTTPException, Depends, Query
+from fastapi import APIRouter, HTTPException, Depends, Query, UploadFile, File
 from pydantic import BaseModel, Field
 from typing import Optional, List
 from datetime import datetime, timezone
@@ -11,6 +11,7 @@ import re
 
 from db_helper import get_db
 from auth_utils import get_current_user, get_optional_user
+import storage as r2_storage
 
 router = APIRouter(prefix="/services", tags=["services"])
 
@@ -148,4 +149,137 @@ async def delete_service(service_id: str, user=Depends(get_current_user)):
     if s.get("owner_id") != user["id"] and user.get("role") not in ("admin", "moderator"):
         raise HTTPException(status_code=403, detail="Forbidden")
     await db.services.delete_one({"id": service_id})
+    await db.service_reviews.delete_many({"service_id": service_id})
     return {"ok": True}
+
+
+# --------- Photos (R2) ----------
+MAX_PHOTOS_PER_SERVICE = 5
+
+
+@router.post("/{service_id}/photos")
+async def upload_service_photos(service_id: str, files: List[UploadFile] = File(...), user=Depends(get_current_user)):
+    db = get_db()
+    s = await db.services.find_one({"id": service_id})
+    if not s:
+        raise HTTPException(status_code=404, detail="Service not found")
+    if s.get("owner_id") != user["id"] and user.get("role") not in ("admin", "moderator"):
+        raise HTTPException(status_code=403, detail="Forbidden")
+    if len(files) > 10:
+        raise HTTPException(status_code=400, detail="Max 10 files per upload")
+    storage = await r2_storage.get_storage()
+    if not storage:
+        raise HTTPException(status_code=503, detail="Storage not configured")
+    existing = s.get("photos") or []
+    if len(existing) + len(files) > MAX_PHOTOS_PER_SERVICE:
+        raise HTTPException(status_code=400, detail=f"Max {MAX_PHOTOS_PER_SERVICE} photos per service")
+    uploaded, failures = [], []
+    for f in files:
+        data = await f.read()
+        if len(data) > r2_storage.MAX_FILE_BYTES:
+            failures.append({"filename": f.filename, "error": "File exceeds 10MB"}); continue
+        if not r2_storage.detect_format(data):
+            failures.append({"filename": f.filename, "error": "Unsupported format"}); continue
+        photo = await r2_storage.upload_entity_photo("services", service_id, data)
+        if not photo:
+            failures.append({"filename": f.filename, "error": "Upload failed"}); continue
+        uploaded.append(photo)
+    if uploaded:
+        await db.services.update_one({"id": service_id}, {"$push": {"photos": {"$each": uploaded}}, "$set": {"updated_at": datetime.now(timezone.utc).isoformat()}})
+    return {"uploaded": uploaded, "failures": failures}
+
+
+@router.delete("/{service_id}/photos/{photo_id}")
+async def delete_service_photo(service_id: str, photo_id: str, user=Depends(get_current_user)):
+    db = get_db()
+    s = await db.services.find_one({"id": service_id})
+    if not s:
+        raise HTTPException(status_code=404, detail="Service not found")
+    if s.get("owner_id") != user["id"] and user.get("role") not in ("admin", "moderator"):
+        raise HTTPException(status_code=403, detail="Forbidden")
+    photos = s.get("photos") or []
+    target, kept = None, []
+    for p in photos:
+        if isinstance(p, dict) and p.get("id") == photo_id:
+            target = p; continue
+        kept.append(p)
+    if not target:
+        raise HTTPException(status_code=404, detail="Photo not found")
+    await r2_storage.delete_entity_photo(target)
+    await db.services.update_one({"id": service_id}, {"$set": {"photos": kept, "updated_at": datetime.now(timezone.utc).isoformat()}})
+    return {"ok": True, "remaining": len(kept)}
+
+
+# --------- Reviews (ratings) ----------
+class ReviewIn(BaseModel):
+    rating: int = Field(ge=1, le=5)
+    content: Optional[str] = None
+
+
+async def _recompute_rating(db, service_id: str):
+    cursor = db.service_reviews.find({"service_id": service_id}, {"_id": 0, "rating": 1})
+    ratings = [r["rating"] async for r in cursor]
+    avg = round(sum(ratings) / len(ratings), 2) if ratings else 0
+    count = len(ratings)
+    recommended = bool(count >= 3 and avg >= 4.5)
+    await db.services.update_one({"id": service_id}, {"$set": {"rating_avg": avg, "rating_count": count, "recommended": recommended}})
+    return {"rating_avg": avg, "rating_count": count, "recommended": recommended}
+
+
+@router.get("/{service_id}/reviews")
+async def list_reviews(service_id: str, page: int = 1, limit: int = 20):
+    db = get_db()
+    skip = max(0, (page - 1) * limit)
+    items = await db.service_reviews.find({"service_id": service_id}, {"_id": 0}).sort("created_at", -1).skip(skip).limit(min(limit, 50)).to_list(min(limit, 50))
+    total = await db.service_reviews.count_documents({"service_id": service_id})
+    return {"items": items, "total": total, "page": page, "limit": limit}
+
+
+@router.post("/{service_id}/reviews")
+async def add_review(service_id: str, payload: ReviewIn, user=Depends(get_current_user)):
+    db = get_db()
+    s = await db.services.find_one({"id": service_id})
+    if not s:
+        raise HTTPException(status_code=404, detail="Service not found")
+    existing = await db.service_reviews.find_one({"service_id": service_id, "user_id": user["id"]})
+    now = datetime.now(timezone.utc).isoformat()
+    if existing:
+        await db.service_reviews.update_one(
+            {"id": existing["id"]},
+            {"$set": {"rating": payload.rating, "content": payload.content, "updated_at": now}},
+        )
+        review_id = existing["id"]
+    else:
+        review_id = str(uuid.uuid4())
+        await db.service_reviews.insert_one({
+            "id": review_id,
+            "service_id": service_id,
+            "user_id": user["id"],
+            "user_name": user.get("name"),
+            "user_avatar": user.get("avatar"),
+            "rating": payload.rating,
+            "content": payload.content,
+            "created_at": now,
+        })
+    agg = await _recompute_rating(db, service_id)
+    return {"ok": True, "id": review_id, **agg}
+
+
+@router.delete("/{service_id}/reviews/{review_id}")
+async def delete_review(service_id: str, review_id: str, user=Depends(get_current_user)):
+    db = get_db()
+    r = await db.service_reviews.find_one({"id": review_id})
+    if not r:
+        raise HTTPException(status_code=404, detail="Review not found")
+    if r.get("user_id") != user["id"] and user.get("role") not in ("admin", "moderator"):
+        raise HTTPException(status_code=403, detail="Forbidden")
+    await db.service_reviews.delete_one({"id": review_id})
+    agg = await _recompute_rating(db, service_id)
+    return {"ok": True, **agg}
+
+
+@router.get("/{service_id}/my-review")
+async def my_review(service_id: str, user=Depends(get_current_user)):
+    db = get_db()
+    r = await db.service_reviews.find_one({"service_id": service_id, "user_id": user["id"]}, {"_id": 0})
+    return r or {}

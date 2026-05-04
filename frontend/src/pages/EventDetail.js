@@ -4,7 +4,9 @@ import { useTranslation } from "react-i18next";
 import api from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
-import { MapPin, Calendar, Users, Trash2, ArrowLeft, Check, X } from "lucide-react";
+import { MapPin, Calendar, Users, Trash2, ArrowLeft, Check, X, MessageCircle, Edit3 } from "lucide-react";
+import PhotoUploader from "@/components/PhotoUploader";
+import MapView from "@/components/MapView";
 
 export default function EventDetail() {
   const { slug } = useParams();
@@ -13,10 +15,14 @@ export default function EventDetail() {
   const navigate = useNavigate();
   const [e, setE] = useState(null);
   const [busy, setBusy] = useState(false);
+  const [comments, setComments] = useState({ items: [], total: 0 });
+  const [draft, setDraft] = useState("");
+  const [editId, setEditId] = useState(null);
 
   const reload = () => api.get(`/events/${slug}`).then(r => setE(r.data)).catch(() => setE(false));
+  const reloadComments = () => api.get(`/events/${slug}/comments`).then(r => setComments(r.data || { items: [], total: 0 }));
 
-  useEffect(() => { reload(); /* eslint-disable-next-line */ }, [slug]);
+  useEffect(() => { reload(); reloadComments(); /* eslint-disable-next-line */ }, [slug]);
 
   if (e === null) return null;
   if (e === false) return <div className="text-center text-vehiq-muted py-12">404</div>;
@@ -29,17 +35,30 @@ export default function EventDetail() {
     catch (err) { toast.error(err?.response?.data?.detail || t("common.error")); }
     finally { setBusy(false); }
   };
-
-  const leave = async () => {
-    setBusy(true);
-    try { await api.post(`/events/${e.id}/leave`); reload(); }
-    finally { setBusy(false); }
-  };
-
+  const leave = async () => { setBusy(true); try { await api.post(`/events/${e.id}/leave`); reload(); } finally { setBusy(false); } };
   const remove = async () => {
     if (!window.confirm("Delete?")) return;
-    await api.delete(`/events/${e.id}`);
-    navigate("/events");
+    await api.delete(`/events/${e.id}`); navigate("/events");
+  };
+
+  const submitComment = async (ev) => {
+    ev.preventDefault();
+    if (!draft.trim()) return;
+    try {
+      if (editId) {
+        await api.put(`/events/${e.id}/comments/${editId}`, { content: draft });
+      } else {
+        await api.post(`/events/${e.id}/comments`, { content: draft });
+      }
+      setDraft(""); setEditId(null);
+      reloadComments();
+    } catch { toast.error(t("common.error")); }
+  };
+  const startEdit = (c) => { setEditId(c.id); setDraft(c.content); };
+  const removeComment = async (cid) => {
+    if (!window.confirm("Delete?")) return;
+    await api.delete(`/events/${e.id}/comments/${cid}`);
+    reloadComments();
   };
 
   const isFull = e.max_participants && e.participant_count >= e.max_participants;
@@ -54,6 +73,7 @@ export default function EventDetail() {
             <div className="text-xs uppercase tracking-widest text-vehiq-gold mt-1 inline-flex items-center gap-2">
               <Calendar size={12}/> {(e.date_start || "").slice(0, 10)}{e.date_end ? ` — ${e.date_end.slice(0, 10)}` : ""} · {t(`events.types.${e.type}`)}
             </div>
+            <div className="text-xs text-vehiq-muted mt-1 inline-flex items-center gap-1"><MessageCircle size={11}/> {comments.total || 0} {t("comments.title")}</div>
           </div>
           {isOwner && <button onClick={remove} className="text-xs text-red-400 hover:text-red-300 inline-flex items-center gap-1 px-2"><Trash2 size={12}/></button>}
         </div>
@@ -78,12 +98,15 @@ export default function EventDetail() {
         )}
       </div>
 
-      {e.location?.lat != null && (
-        <div className="vehiq-card p-5 space-y-2">
-          <div className="vehiq-overline">{t("services.location")}</div>
-          <div className="text-sm text-vehiq-text">{e.location?.name ? `${e.location.name} · ` : ""}{e.location?.address}, {e.location?.city}</div>
-          <a href={`https://www.openstreetmap.org/?mlat=${e.location.lat}&mlon=${e.location.lng}#map=15/${e.location.lat}/${e.location.lng}`} target="_blank" rel="noreferrer" className="text-xs text-vehiq-gold hover:underline">{t("services.openMap")} →</a>
+      {(e.photos?.length > 0 || isOwner) && (
+        <div className="vehiq-card p-5 space-y-3">
+          <div className="vehiq-overline">{t("photos.title")}</div>
+          <PhotoUploader photos={e.photos || []} canEdit={isOwner} max={5} endpoint={`/events/${e.id}`} onChange={(next) => setE({ ...e, photos: next })} />
         </div>
+      )}
+
+      {e.location?.lat != null && (
+        <MapView items={[e]} linkPrefix="/events" height={320} />
       )}
 
       {e.organizer && (
@@ -96,9 +119,39 @@ export default function EventDetail() {
         </div>
       )}
 
-      {e.make_filter?.length > 0 && (
-        <div className="text-sm text-vehiq-muted">{t("events.makeFilter")}: {e.make_filter.join(", ")}</div>
-      )}
+      {/* Comments */}
+      <div className="vehiq-card p-6 space-y-4" data-testid="event-comments">
+        <div className="vehiq-overline inline-flex items-center gap-2"><MessageCircle size={12}/> {t("comments.title")} ({comments.total || 0})</div>
+        {user ? (
+          <form onSubmit={submitComment} className="space-y-2 pb-3 border-b border-vehiq-border">
+            <textarea value={draft} onChange={(ev) => setDraft(ev.target.value)} rows={3} placeholder={t("comments.placeholder")} className="vehiq-input" data-testid="comment-input"/>
+            <div className="flex gap-2">
+              <button type="submit" className="vehiq-btn-primary text-xs" data-testid="comment-submit">{editId ? t("common.save") : t("comments.add")}</button>
+              {editId && <button type="button" onClick={() => { setEditId(null); setDraft(""); }} className="text-xs text-vehiq-muted">{t("common.cancel")}</button>}
+            </div>
+          </form>
+        ) : <div className="text-xs text-vehiq-muted pb-3 border-b border-vehiq-border">{t("comments.loginToComment")}</div>}
+        <div className="space-y-3">
+          {(comments.items || []).map(c => (
+            <div key={c.id} className="flex gap-3" data-testid={`comment-${c.id}`}>
+              {c.user_avatar ? <img src={c.user_avatar} className="h-8 w-8 rounded-full" alt=""/> : <div className="h-8 w-8 rounded-full bg-vehiq-gold-dim text-vehiq-gold flex items-center justify-center text-xs font-bold">{c.user_name?.[0] || "?"}</div>}
+              <div className="flex-1">
+                <div className="flex items-center gap-2">
+                  {c.user_slug ? <Link to={`/u/${c.user_slug}`} className="text-sm text-vehiq-text hover:text-vehiq-gold">{c.user_name || "—"}</Link> : <span className="text-sm text-vehiq-text">{c.user_name || "—"}</span>}
+                  <span className="text-[11px] text-vehiq-muted">{(c.created_at || "").slice(0, 16).replace("T", " ")}</span>
+                  {user?.id === c.user_id && (
+                    <span className="ml-auto inline-flex gap-1">
+                      <button onClick={() => startEdit(c)} className="text-vehiq-muted hover:text-vehiq-gold" data-testid={`comment-edit-${c.id}`}><Edit3 size={12}/></button>
+                      <button onClick={() => removeComment(c.id)} className="text-red-400 hover:text-red-300" data-testid={`comment-delete-${c.id}`}><Trash2 size={12}/></button>
+                    </span>
+                  )}
+                </div>
+                <div className="text-sm text-vehiq-muted mt-1 whitespace-pre-line">{c.content}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }

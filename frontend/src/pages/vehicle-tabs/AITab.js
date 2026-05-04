@@ -86,10 +86,27 @@ export default function AITab({ vehicle }) {
             </div>
           )}
           {messages.map((m, i) => (
-            <div key={i} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
+            <div key={i} className={`flex flex-col ${m.role === "user" ? "items-end" : "items-start"}`}>
               <div className={`max-w-[85%] rounded-lg px-4 py-3 text-sm whitespace-pre-wrap ${m.role === "user" ? "bg-vehiq-gold text-vehiq-bg" : "bg-vehiq-nav text-vehiq-text border border-vehiq-border"}`}>
                 {m.content}
               </div>
+              {m.role === "assistant" && Array.isArray(m.suggested_services) && m.suggested_services.length > 0 && (
+                <div className="mt-2 max-w-[85%] w-full space-y-2" data-testid="ai-suggested-services">
+                  <div className="text-[11px] text-vehiq-gold uppercase tracking-widest">{t("ai.suggestedServices")}</div>
+                  <div className="grid grid-cols-1 gap-2">
+                    {m.suggested_services.map(s => (
+                      <a key={s.id} href={`/services/${s.slug || s.id}`} className="flex items-center gap-3 p-2 rounded bg-vehiq-bg border border-vehiq-border hover:border-vehiq-gold transition-colors" data-testid={`ai-svc-${s.id}`}>
+                        {s.photo ? <img src={s.photo} className="h-12 w-12 rounded object-cover" alt=""/> : <div className="h-12 w-12 rounded bg-vehiq-gold-dim text-vehiq-gold flex items-center justify-center text-xs">⚙</div>}
+                        <div className="flex-1 min-w-0">
+                          <div className="text-sm text-vehiq-text font-medium line-clamp-1">{s.name}{s.recommended ? " ★" : ""}</div>
+                          <div className="text-[11px] text-vehiq-muted uppercase tracking-wider">{s.category} · {s.city}{typeof s.distance_km === "number" ? ` · ${s.distance_km} km` : ""}{s.rating_count > 0 ? ` · ⭐ ${s.rating_avg}` : ""}</div>
+                        </div>
+                        <span className="text-vehiq-gold text-xs">→</span>
+                      </a>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           ))}
           {busy && (

@@ -65,6 +65,71 @@ async def get_chat(vehicle_id: str, user=Depends(get_current_user)):
     return {"messages": chat.get("messages", [])}
 
 
+CITY_KEYWORDS = ["warszawa", "kraków", "krakow", "wrocław", "wroclaw", "poznań", "poznan", "gdańsk", "gdansk", "łódź", "lodz", "katowice", "lublin", "szczecin", "bydgoszcz", "rzeszów", "rzeszow", "bielsko", "częstochowa", "czestochowa"]
+INTENT_MAP = {
+    "workshop": ["serwis", "warsztat", "wymian", "diagnostyk", "olej", "klock", "zawieszen", "silnik", "skrzyni", "biegów", "biegow", "rozrząd", "rozrzad"],
+    "detailing": ["detailing", "polerow", "lakier", "powłok", "powlok", "wosk", "myjnia"],
+    "tuning": ["tuning", "remap", "chip", "wydech", "stage"],
+    "tow": ["holowanie", "pomoc drogowa", "laweta"],
+    "rental": ["wynajem", "wypożycz", "wypozycz"],
+    "dealer": ["komis", "dealer", "kupić auto", "kupic auto"],
+}
+
+
+def _detect_intent_and_city(text: str, vehicle: dict) -> tuple[Optional[str], Optional[str], Optional[str]]:
+    """Returns (category, city, brand) or Nones."""
+    t = (text or "").lower()
+    city = next((c for c in CITY_KEYWORDS if c in t), None)
+    category = None
+    for cat, words in INTENT_MAP.items():
+        if any(w in t for w in words):
+            category = cat
+            break
+    brand = vehicle.get("make") if vehicle else None
+    if brand and brand.lower() not in t:
+        # only attach brand to query if message itself mentions it OR if it's the user's own vehicle (always included as fallback)
+        brand = vehicle.get("make")
+    return category, city, brand
+
+
+async def _suggest_services(db, intent: Optional[str], city: Optional[str], brand: Optional[str], limit: int = 3):
+    if not intent and not city:
+        return []
+    f: dict = {"active": {"$ne": False}}
+    if intent:
+        f["category"] = intent
+    if city:
+        f["location.city"] = {"$regex": city, "$options": "i"}
+    if brand:
+        # prefer services that specialize in this brand, but don't exclude if none match
+        primary = await db.services.find({**f, "brands": {"$regex": f"^{brand}$", "$options": "i"}}, {"_id": 0}).sort([("recommended", -1), ("rating_avg", -1)]).limit(limit).to_list(limit)
+        if primary:
+            return _trim_service_payload(primary)
+    items = await db.services.find(f, {"_id": 0}).sort([("recommended", -1), ("rating_avg", -1)]).limit(limit).to_list(limit)
+    return _trim_service_payload(items)
+
+
+def _trim_service_payload(items: list) -> list:
+    out = []
+    for s in items:
+        photos = s.get("photos") or []
+        first_photo = photos[0] if photos else None
+        photo = first_photo.get("thumb_url") if isinstance(first_photo, dict) else first_photo
+        out.append({
+            "id": s["id"],
+            "slug": s.get("slug"),
+            "name": s.get("name"),
+            "category": s.get("category"),
+            "address": (s.get("location") or {}).get("address"),
+            "city": (s.get("location") or {}).get("city"),
+            "rating_avg": s.get("rating_avg") or 0,
+            "rating_count": s.get("rating_count") or 0,
+            "recommended": bool(s.get("recommended")),
+            "photo": photo,
+        })
+    return out
+
+
 @router.post("/ask")
 async def ask(payload: AskIn, user=Depends(get_current_user)):
     db = get_db()
@@ -102,9 +167,13 @@ async def ask(payload: AskIn, user=Depends(get_current_user)):
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"AI error: {str(e)[:200]}")
 
+    # Detect intent → suggest local services
+    intent, city, brand = _detect_intent_and_city(payload.message, vehicle)
+    suggested = await _suggest_services(db, intent, city, brand)
+
     now = datetime.now(timezone.utc).isoformat()
     user_msg = {"role": "user", "content": payload.message, "ts": now}
-    ai_msg = {"role": "assistant", "content": reply, "ts": now}
+    ai_msg = {"role": "assistant", "content": reply, "ts": now, "suggested_services": suggested}
 
     await db.ai_chats.update_one(
         {"vehicle_id": payload.vehicle_id, "user_id": user["id"]},
@@ -119,7 +188,7 @@ async def ask(payload: AskIn, user=Depends(get_current_user)):
         },
         upsert=True,
     )
-    return {"reply": reply, "user_message": user_msg, "ai_message": ai_msg}
+    return {"reply": reply, "user_message": user_msg, "ai_message": ai_msg, "suggested_services": suggested}
 
 
 @router.delete("/chat/{vehicle_id}")
