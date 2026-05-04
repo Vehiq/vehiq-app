@@ -17,6 +17,27 @@ Build a full-stack web + mobile-responsive SaaS application called VEHIQ. A prem
 
 ## What's Implemented (2026-05-02)
 
+### Iter 7 — Phase A: Privacy + Garage Card + Global Search + Services + Events (DONE 2026-05-04 — fork-agent, 37/37 backend + UI verified)
+**Privacy profile:** new `profiles.privacy_settings` (all-True default) — `profile_public`, `show_total_km`, `show_forum`, `show_listings`, `show_garage_card`, `searchable`. NEW `GET /api/users/{slug_or_id}` and `/card` endpoints filter sensitive fields server-side (email, costs, VIN, P&L, service history, contact data NEVER returned to non-owner). Auto-slug + privacy backfilled in `seed.py` for existing users.
+
+**Garage Card:** new React component (`/components/GarageCard.js`) — premium dark business-card with avatar, member-since, vehicle count, total km, up to 3 vehicle thumbs + badges. Backend computes 5 badges: `new` (<31d), `active` (last_active <=30d), `expert` (50+ posts), `collector` (5+ vehicles), `traveler` (100k+ km). Variants: `full` (default) + `mini` (forum/listing).
+
+**Public profile `/u/:slug`:** privacy-aware page with owner banner + "Switch to public preview / Owner view" toggle, vehicles grid (only public + searchable), forum threads, active listings — each section gated by user's privacy_settings.
+
+**Global Search `/api/search` + `/search` page:** asyncio.gather across `vehicles`, `profiles` (with searchable filter), `listings`, `services`, `events`. Category tabs (Wszystko/Pojazdy/Użytkownicy/Giełda/Usługi/Zloty), GPS "W mojej okolicy" button (browser geolocation), radius selector (10/25/50/100 km), Haversine filtering server-side. Counts dict in response.
+
+**Services backend + UI:** new `services` collection with categories (workshop|dealer|detailing|tuning|rental|tow|other). Endpoints: `POST/GET/PUT/DELETE /api/services` + `GET /api/services/{slug}`. Filters: q, category, brand, city, lat+lng+radius (Haversine). Slug auto-gen with collision avoidance. Frontend pages: `/services`, `/services/new` (with Nominatim geocoding via fetch), `/services/:slug`. Owner can edit/delete; admin/moderator can override.
+
+**Events backend + UI:** new `events` collection with types (meet|track|show|rally|other). Endpoints: CRUD + `POST /api/events/{id}/join` (enforces max_participants) + `/leave`. `upcoming=true` filter via `date_start>=today`. Frontend pages: `/events`, `/events/new`, `/events/:slug` with join/leave button.
+
+**Vehicle privacy & odometer (recap from iter6):** `mileage_at_purchase`, `mileage_at_sale`, `searchable` fields on vehicle model. `mark-sold` saves `mileage_at_sale`. `/api/vehicles/stats` and `/api/analytics/me.total_km` use correct (end-purchase) per-vehicle formula.
+
+**Sidebar nav (Polish-first):** + Usługi, + Wydarzenia, + Szukaj. App routes wired in `App.js`.
+
+**i18n PL/EN:** complete keys for `community.*`, `search.*`, `services.*`, `events.*`, `privacy.profileSettings.*`, `stats.*`, `publicProfile.*`.
+
+**Test infrastructure:** `/app/backend/tests/test_iter7.py` (37 tests across 7 classes). All run isolated with TEST_ prefix; no production data touched.
+
 ### Iter 6 — Bug fixes + small changes (DONE 2026-05-03 — fork-agent, 20/20 tests PASS)
 **Bug 1 — User password reset:** already wired; added dynamic base_url from request Origin/Referer so `/password-reset/confirm?token=...` links work on both `vehiq.pl` and preview domains. JWT type=password_reset, 1h TTL. `/confirm` correctly rejects regular user JWTs.
 
