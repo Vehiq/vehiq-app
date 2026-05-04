@@ -23,6 +23,14 @@ import NewThread from "@/pages/NewThread";
 import ThreadDetail from "@/pages/ThreadDetail";
 import Profile from "@/pages/Profile";
 import UserSearch from "@/pages/UserSearch";
+import Search from "@/pages/Search";
+import Services from "@/pages/Services";
+import ServiceDetail from "@/pages/ServiceDetail";
+import AddService from "@/pages/AddService";
+import Events from "@/pages/Events";
+import EventDetail from "@/pages/EventDetail";
+import AddEvent from "@/pages/AddEvent";
+import PublicProfile from "@/pages/PublicProfile";
 import LegalPage from "@/pages/LegalPage";
 import PublicVehicle from "@/pages/PublicVehicle";
 import NotFound from "@/pages/NotFound";
@@ -119,6 +127,7 @@ function App() {
 
           {/* Public vehicle profile (shareable) */}
           <Route path="/vehicles/:slug" element={<PublicVehicle />} />
+          <Route path="/u/:slug" element={<PublicProfile />} />
 
           {/* Admin (separate, no Layout) */}
           <Route path="/gv91-admin" element={<AdminLogin />} />
@@ -152,6 +161,13 @@ function App() {
             <Route path="/forum/:id" element={<ThreadDetail />} />
             <Route path="/profile" element={<Profile />} />
             <Route path="/users/search" element={<UserSearch />} />
+            <Route path="/search" element={<Search />} />
+            <Route path="/services" element={<Services />} />
+            <Route path="/services/new" element={<AddService />} />
+            <Route path="/services/:slug" element={<ServiceDetail />} />
+            <Route path="/events" element={<Events />} />
+            <Route path="/events/new" element={<AddEvent />} />
+            <Route path="/events/:slug" element={<EventDetail />} />
           </Route>
 
           <Route path="*" element={<NotFound />} />

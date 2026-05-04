@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { Car, Store, MessagesSquare, Settings, LogOut, Mail, Search } from "lucide-react";
+import { Car, Store, MessagesSquare, Settings, LogOut, Mail, Search, Wrench, Calendar } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import api from "@/lib/api";
 
@@ -9,8 +9,10 @@ const NAV = [
   { to: "/garage", key: "nav.garage", Icon: Car, testId: "sidebar-garage" },
   { to: "/marketplace", key: "nav.marketplace", Icon: Store, testId: "sidebar-marketplace" },
   { to: "/marketplace/messages", key: "nav.messages", Icon: Mail, testId: "sidebar-messages", showBadge: true },
+  { to: "/services", key: "nav.services", Icon: Wrench, testId: "sidebar-services" },
+  { to: "/events", key: "nav.events", Icon: Calendar, testId: "sidebar-events" },
   { to: "/forum", key: "nav.forum", Icon: MessagesSquare, testId: "sidebar-forum" },
-  { to: "/users/search", key: "nav.search", Icon: Search, testId: "sidebar-search" },
+  { to: "/search", key: "nav.search", Icon: Search, testId: "sidebar-search" },
   { to: "/profile", key: "nav.settings", Icon: Settings, testId: "sidebar-settings" },
 ];
 

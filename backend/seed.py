@@ -223,6 +223,7 @@ async def seed_database(db):
     # Indexes
     await db.profiles.create_index("email", unique=True)
     await db.profiles.create_index("id", unique=True)
+    await db.profiles.create_index("slug", sparse=True)
     await db.vehicles.create_index("id", unique=True)
     await db.vehicles.create_index("user_id")
     await db.vehicles.create_index("slug")
@@ -232,6 +233,36 @@ async def seed_database(db):
     await db.page_views.create_index("visited_at")
     await db.listings.create_index([("type", 1), ("status", 1)])
     await db.listings.create_index([("make", 1), ("model", 1)])
+    await db.services.create_index("slug", sparse=True)
+    await db.services.create_index([("location.lat", 1), ("location.lng", 1)])
+    await db.events.create_index("slug", sparse=True)
+    await db.events.create_index("date_start")
+    await db.events.create_index([("location.lat", 1), ("location.lng", 1)])
+
+    # Backfill: ensure all profiles have a slug + default privacy_settings
+    import re as _re
+    DEFAULT_PRIVACY_SEED = {
+        "profile_public": True,
+        "show_total_km": True,
+        "show_forum": True,
+        "show_listings": True,
+        "show_garage_card": True,
+        "searchable": True,
+    }
+    async for p in db.profiles.find({"$or": [{"slug": {"$exists": False}}, {"slug": None}, {"privacy_settings": {"$exists": False}}]}, {"_id": 0, "id": 1, "name": 1, "email": 1, "slug": 1, "privacy_settings": 1}):
+        update = {}
+        if not p.get("slug"):
+            base = _re.sub(r"[^a-z0-9]+", "-", (p.get("name") or (p.get("email") or "user").split("@")[0]).lower()).strip("-") or "user"
+            slug = base
+            suffix = 1
+            while await db.profiles.find_one({"slug": slug, "id": {"$ne": p["id"]}}, {"_id": 0, "id": 1}):
+                suffix += 1
+                slug = f"{base}-{suffix}"
+            update["slug"] = slug
+        if not p.get("privacy_settings"):
+            update["privacy_settings"] = DEFAULT_PRIVACY_SEED.copy()
+        if update:
+            await db.profiles.update_one({"id": p["id"]}, {"$set": update})
 
     # Seed legal pages with January 26, 2025 as default last_updated
     default_date = "2025-01-26T00:00:00+00:00"

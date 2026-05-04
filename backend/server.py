@@ -44,6 +44,10 @@ from routers import admin as admin_router
 from routers import analytics as analytics_router
 from routers import notifications as notifications_router
 from routers import dashboard as dashboard_router
+from routers import users as users_router
+from routers import services as services_router
+from routers import events as events_router
+from routers import search as search_router
 from seed import seed_database
 
 app = FastAPI(title="VEHIQ API", version="1.0.0")
@@ -115,6 +119,10 @@ api_router.include_router(admin_router.router)
 api_router.include_router(analytics_router.router)
 api_router.include_router(notifications_router.router)
 api_router.include_router(dashboard_router.router)
+api_router.include_router(users_router.router)
+api_router.include_router(services_router.router)
+api_router.include_router(events_router.router)
+api_router.include_router(search_router.router)
 
 app.include_router(api_router)
 

@@ -5,6 +5,7 @@ from typing import Optional
 from datetime import datetime, timezone
 import uuid
 import os
+import re
 import httpx
 
 from db_helper import get_db
@@ -43,6 +44,8 @@ class UpdateProfileIn(BaseModel):
     avatar: Optional[str] = None
     onboarded: Optional[bool] = None
     tooltips_seen: Optional[bool] = None
+    bio: Optional[str] = None
+    privacy_settings: Optional[dict] = None  # {profile_public, show_total_km, show_forum, show_listings, show_garage_card, searchable}
 
 
 def _public_user(u: dict) -> dict:
@@ -52,6 +55,7 @@ def _public_user(u: dict) -> dict:
         "name": u.get("name"),
         "avatar": u.get("avatar"),
         "location": u.get("location"),
+        "bio": u.get("bio"),
         "language": u.get("language", "pl"),
         "role": u.get("role", "user"),
         "created_at": u.get("created_at"),
@@ -59,7 +63,19 @@ def _public_user(u: dict) -> dict:
         "onboarded": bool(u.get("onboarded", False)),
         "tooltips_seen": bool(u.get("tooltips_seen", False)),
         "last_active": u.get("last_active"),
+        "slug": u.get("slug"),
+        "privacy_settings": u.get("privacy_settings") or DEFAULT_PRIVACY,
     }
+
+
+DEFAULT_PRIVACY = {
+    "profile_public": True,
+    "show_total_km": True,
+    "show_forum": True,
+    "show_listings": True,
+    "show_garage_card": True,
+    "searchable": True,
+}
 
 
 @router.post("/register")
@@ -77,13 +93,22 @@ async def register(payload: RegisterIn):
         raise HTTPException(status_code=400, detail="Email already registered")
 
     user_id = str(uuid.uuid4())
+    # Generate user slug
+    base_slug = re.sub(r"[^a-z0-9]+", "-", (payload.name or payload.email.split("@")[0]).lower()).strip("-") or "user"
+    slug = base_slug
+    suffix = 1
+    while await db.profiles.find_one({"slug": slug}, {"_id": 0, "id": 1}):
+        suffix += 1
+        slug = f"{base_slug}-{suffix}"
     user = {
         "id": user_id,
         "email": payload.email.lower(),
         "name": payload.name,
+        "slug": slug,
         "password_hash": hash_password(payload.password),
         "avatar": None,
         "location": payload.location,
+        "bio": None,
         "language": payload.language,
         "role": "user",
         "suspended": False,
@@ -92,6 +117,7 @@ async def register(payload: RegisterIn):
         "auth_provider": "email",
         "onboarded": False,
         "tooltips_seen": False,
+        "privacy_settings": DEFAULT_PRIVACY.copy(),
         "created_at": datetime.now(timezone.utc).isoformat(),
         "last_active": datetime.now(timezone.utc).isoformat(),
     }
@@ -202,13 +228,21 @@ async def google_session(x_session_id: Optional[str] = Header(None)):
     user = await db.profiles.find_one({"email": email})
     if not user:
         user_id = str(uuid.uuid4())
+        base_slug = re.sub(r"[^a-z0-9]+", "-", (name or email.split("@")[0]).lower()).strip("-") or "user"
+        slug = base_slug
+        suffix = 1
+        while await db.profiles.find_one({"slug": slug}, {"_id": 0, "id": 1}):
+            suffix += 1
+            slug = f"{base_slug}-{suffix}"
         user = {
             "id": user_id,
             "email": email,
             "name": name,
+            "slug": slug,
             "password_hash": None,
             "avatar": picture,
             "location": None,
+            "bio": None,
             "language": "pl",
             "role": "user",
             "suspended": False,
@@ -217,6 +251,7 @@ async def google_session(x_session_id: Optional[str] = Header(None)):
             "auth_provider": "google",
             "onboarded": False,
             "tooltips_seen": False,
+            "privacy_settings": DEFAULT_PRIVACY.copy(),
             "created_at": datetime.now(timezone.utc).isoformat(),
             "last_active": datetime.now(timezone.utc).isoformat(),
         }
