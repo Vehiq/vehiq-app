@@ -115,8 +115,8 @@ export default function Search() {
         </div>
         {(cat === "all" || cat === "services" || cat === "events") && (
           <div className="inline-flex rounded border border-vehiq-border overflow-hidden" data-testid="search-view-toggle">
-            <button type="button" onClick={() => setMapView(false)} className={`px-3 py-1.5 text-xs inline-flex items-center gap-1 ${!mapView ? "bg-vehiq-gold text-vehiq-bg" : "text-vehiq-muted"}`}><ListIcon size={12}/> {t("services.viewList")}</button>
-            <button type="button" onClick={() => setMapView(true)} className={`px-3 py-1.5 text-xs inline-flex items-center gap-1 ${mapView ? "bg-vehiq-gold text-vehiq-bg" : "text-vehiq-muted"}`}><MapIcon size={12}/> {t("services.viewMap")}</button>
+            <button type="button" onClick={() => setMapView(false)} className={`px-3 py-1.5 text-xs inline-flex items-center gap-1 ${!mapView ? "bg-vehiq-gold text-vehiq-bg" : "text-vehiq-muted"}`} data-testid="services-view-list"><ListIcon size={12}/> {t("services.viewList")}</button>
+            <button type="button" onClick={() => setMapView(true)} className={`px-3 py-1.5 text-xs inline-flex items-center gap-1 ${mapView ? "bg-vehiq-gold text-vehiq-bg" : "text-vehiq-muted"}`} data-testid="services-view-map"><MapIcon size={12}/> {t("services.viewMap")}</button>
           </div>
         )}
       </div>

@@ -96,10 +96,10 @@ export default function Services() {
         </div>
       </div>
 
-      {items === null ? null : items.length === 0 ? (
+      {items === null ? null : mapView ? (
+        <MapView items={items || []} linkPrefix="/services" viewerCoords={coords} height={520} />
+      ) : items.length === 0 ? (
         <EmptyState icon={Wrench} title={t("services.empty")} description={t("services.emptyDesc")} dataTestId="services-empty" />
-      ) : mapView ? (
-        <MapView items={items} linkPrefix="/services" viewerCoords={coords} height={520} />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" data-testid="services-list">
           {items.map(s => (

@@ -17,6 +17,49 @@ Build a full-stack web + mobile-responsive SaaS application called VEHIQ. A prem
 
 ## What's Implemented (2026-05-02)
 
+### Iter 8 — Phase B: Leaflet maps + R2 photos + AI local services + Comments + Reviews (DONE 2026-05-04 — fork-agent, 68/68 backend PASS)
+
+**Photos R2 (services + events):**
+- `storage.py` refactored — generic `upload_entity_photo(kind, id, bytes)` + `delete_entity_photo(photo)` (both with vehicle BC wrappers)
+- `POST /api/services/{id}/photos` (multipart, max 5, owner-only) + DELETE `/photos/{photo_id}`
+- `POST /api/events/{id}/photos` + DELETE `/photos/{photo_id}` (organizer-only)
+- 503 when R2 not configured (well-formed)
+
+**Service reviews + recommended badge:**
+- `POST/GET/DELETE /api/services/{id}/reviews` + `GET /my-review`
+- UPSERT (user re-rates updates instead of duplicating)
+- Auto-recompute `rating_avg`, `rating_count`, `recommended` (count>=3 AND avg>=4.5) on every write
+- Frontend StarsInput (5-star clickable) + reviews list with avatars
+
+**Event comments:**
+- `GET/POST/PUT/DELETE /api/events/{id}/comments`, paginated 20/page
+- Own-edit OK, cross-user PUT/DELETE 403, own/admin DELETE OK
+- Frontend with avatar+timestamp+edit/delete buttons
+
+**AI Mechanic local services integration:**
+- `_detect_intent_and_city(text, vehicle)` — scans message for Polish city + service category keyword
+- `_suggest_services(intent, city, brand)` — prefers brand-specialized services then falls back
+- `POST /api/ai/ask` returns `suggested_services: [{id, slug, name, category, address, city, distance_km, photo, rating_avg, recommended}]` (max 3)
+- AITab renders suggested services as cards under each AI message
+
+**Leaflet OpenStreetMap:**
+- `yarn add leaflet@1.9.4 react-leaflet@5.0.0` installed
+- `MapView.js` reusable component — color-coded divIcon markers per category, popup with link, FitBounds auto-centering
+- List/Map toggle on `/services`, `/search` (when category in all|services|events)
+- Detail pages render single-marker map at item location
+- "View on map" link on detail pages opens openstreetmap.org
+
+**Indexes added (seed.py):**
+- `event_comments(event_id)`, `event_comments(event_id, created_at desc)`
+- `service_reviews(service_id)`, `service_reviews(service_id+user_id)` UNIQUE
+
+**i18n PL/EN:**
+- New keys: `comments.*`, `reviews.*`, `photos.*`, `services.viewList/viewMap/recommended`, `ai.suggestedServices`
+
+**Test coverage:**
+- `/app/backend/tests/test_iter7b.py` — 31 NEW tests (photos 503, reviews UPSERT + recommended threshold + cross-user 403, comments lifecycle + 422 validation, AI keyword detection)
+- All Phase A 37 tests still PASS — zero regression
+
 ### Iter 7 — Phase A: Privacy + Garage Card + Global Search + Services + Events (DONE 2026-05-04 — fork-agent, 37/37 backend + UI verified)
 **Privacy profile:** new `profiles.privacy_settings` (all-True default) — `profile_public`, `show_total_km`, `show_forum`, `show_listings`, `show_garage_card`, `searchable`. NEW `GET /api/users/{slug_or_id}` and `/card` endpoints filter sensitive fields server-side (email, costs, VIN, P&L, service history, contact data NEVER returned to non-owner). Auto-slug + privacy backfilled in `seed.py` for existing users.
 
