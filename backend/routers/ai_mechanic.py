@@ -1,7 +1,6 @@
-"""AI Mechanic router — Claude Sonnet 4.5 via Emergent Universal LLM Key."""
+"""AI Mechanic router — Claude Sonnet 4.5 via official Anthropic SDK."""
 import os
 import uuid
-import json
 from datetime import datetime, timezone
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
@@ -9,12 +8,13 @@ from typing import Optional, List
 
 from db_helper import get_db
 from auth_utils import get_current_user
-from emergentintegrations.llm.chat import LlmChat, UserMessage
+import anthropic
 
 router = APIRouter(prefix="/ai", tags=["ai"])
 
-EMERGENT_LLM_KEY = os.environ.get("EMERGENT_LLM_KEY", "")
-MODEL_NAME = "claude-sonnet-4-5-20250929"
+ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
+MODEL_NAME = os.environ.get("ANTHROPIC_MODEL", "claude-sonnet-4-5-20250929")
+MAX_TOKENS = int(os.environ.get("ANTHROPIC_MAX_TOKENS", "1024"))
 
 
 class AskIn(BaseModel):
@@ -145,25 +145,33 @@ async def ask(payload: AskIn, user=Depends(get_current_user)):
     language = user.get("language", "pl")
     system_prompt = _build_system_prompt(vehicle, services, language)
 
-    if not EMERGENT_LLM_KEY:
-        raise HTTPException(status_code=500, detail="LLM key not configured")
+    if not ANTHROPIC_API_KEY:
+        raise HTTPException(status_code=503, detail="AI Mechanic is not configured (missing ANTHROPIC_API_KEY)")
 
-    session_id = f"vehiq-{user['id']}-{payload.vehicle_id}"
+    # Replay last few turns for continuity (Anthropic native messages format)
+    existing = await db.ai_chats.find_one({"vehicle_id": payload.vehicle_id, "user_id": user["id"]}, {"_id": 0})
+    history: list[dict] = []
+    if existing and existing.get("messages"):
+        for m in existing["messages"][-10:]:
+            role = m.get("role")
+            if role in ("user", "assistant") and m.get("content"):
+                history.append({"role": role, "content": m["content"]})
+    history.append({"role": "user", "content": payload.message})
+
     try:
-        chat = LlmChat(
-            api_key=EMERGENT_LLM_KEY,
-            session_id=session_id,
-            system_message=system_prompt,
-        ).with_model("anthropic", MODEL_NAME)
-
-        # Replay last few turns for continuity
-        existing = await db.ai_chats.find_one({"vehicle_id": payload.vehicle_id, "user_id": user["id"]}, {"_id": 0})
-        if existing and existing.get("messages"):
-            for m in existing["messages"][-6:]:
-                if m["role"] == "user":
-                    await chat.send_message(UserMessage(text=m["content"]))
-
-        reply = await chat.send_message(UserMessage(text=payload.message))
+        client = anthropic.AsyncAnthropic(api_key=ANTHROPIC_API_KEY)
+        resp = await client.messages.create(
+            model=MODEL_NAME,
+            max_tokens=MAX_TOKENS,
+            system=system_prompt,
+            messages=history,
+        )
+        # Concatenate text blocks (Anthropic returns a list of content blocks)
+        reply = "".join(b.text for b in resp.content if getattr(b, "type", None) == "text")
+        if not reply:
+            reply = "(brak odpowiedzi)"
+    except anthropic.APIStatusError as e:
+        raise HTTPException(status_code=502, detail=f"AI error: {e.message[:200] if hasattr(e, 'message') else str(e)[:200]}")
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"AI error: {str(e)[:200]}")
 

@@ -17,6 +17,15 @@ Build a full-stack web + mobile-responsive SaaS application called VEHIQ. A prem
 
 ## What's Implemented (2026-05-02)
 
+### Iter 9 — Render.com deploy fix: removed emergentintegrations (DONE 2026-05-09 — fork-agent)
+- **Problem:** Render odrzucał deploy z `No matching distribution found for emergentintegrations==0.1.0` (pakiet jest prywatny CloudFront index, nie publiczne PyPI).
+- **Fix:** Usunięty `emergentintegrations==0.1.0` z `requirements.txt`, dodane `anthropic==0.100.0` (publiczne PyPI). `routers/ai_mechanic.py` przepisany na natywne `anthropic.AsyncAnthropic` SDK.
+- **Konfiguracja:** Nowa zmienna `ANTHROPIC_API_KEY` w `.env` (puste — user wypełni). Opcjonalne: `ANTHROPIC_MODEL` (default `claude-sonnet-4-5-20250929`), `ANTHROPIC_MAX_TOKENS` (default 1024). `EMERGENT_LLM_KEY` zostaje w .env (do innych integracji w przyszłości), ale AI Mechanic już go nie używa.
+- **Behavior:** Brak klucza → endpoint `/api/ai/ask` zwraca 503 `"AI Mechanic is not configured (missing ANTHROPIC_API_KEY)"` zamiast crashy. Reszta apki działa.
+- **Anthropic native API:** Konwersacja jest replay'ana z bazy (ostatnie 10 turn, role=user/assistant), `system` prompt budowany dynamicznie, response pobierany z `resp.content[0].text`.
+- **Verified:** Backend wstaje czysto (no import errors), `/api/ai/ask` 503 z czytelnym komunikatem, regresja zero (`/services`, `/events`, `/search`, admin login = wszystkie 200).
+- **Action needed by user:** Aby aktywować AI Mechanika na Render, dodaj `ANTHROPIC_API_KEY` w panelu zmiennych środowiskowych Render (klucz z https://console.anthropic.com).
+
 ### Iter 8 — Phase B: Leaflet maps + R2 photos + AI local services + Comments + Reviews (DONE 2026-05-04 — fork-agent, 68/68 backend PASS)
 
 **Photos R2 (services + events):**
