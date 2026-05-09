@@ -17,6 +17,36 @@ Build a full-stack web + mobile-responsive SaaS application called VEHIQ. A prem
 
 ## What's Implemented (2026-05-02)
 
+### Iter 11 — Vercel deploy fix: package.json conflicts (DONE 2026-05-09 — fork-agent)
+
+**Problem 1:** `date-fns@^4.1.0` ↔ `react-day-picker@8.10.1` (wymaga date-fns v2/v3) → ERESOLVE.
+**Problem 2:** `react-day-picker@8.10.1` peerDeps `react ^16/^17/^18` ↔ `react@^19.0.0` projektu → drugi ERESOLVE.
+**Problem 3:** `i18next@26.0.10` peerOptional `typescript ^5/^6` ↔ `react-scripts@5.0.1` peerOptional `typescript ^3/^4` → trzeci ERESOLVE z domyślnym npm resolverem.
+
+**Rozwiązanie (zero kompromisów, pełen `npm install` bez `--legacy-peer-deps`):**
+
+1. **Usunięty martwy kod:** `components/ui/calendar.jsx` (shadcn boilerplate, nigdzie nie importowany; AST scan pokazał że nikt nie używa `Calendar` z `@/components/ui/calendar`).
+2. **Usunięte z package.json:** `react-day-picker`, `date-fns`, `cra-template` (`cra-template` to artefakt CRA bootstrap, nie runtime dep).
+3. **Dodane `overrides` + `resolutions`:** `typescript: "^4.9.5"` — wymusza spójną wersję TypeScript dla wszystkich peerOptional consumers (i18next + react-scripts oba akceptują).
+
+**Zweryfikowane:**
+- `npm install --no-audit --no-fund` na czystym `node v20.20.2` → 1525 packages, **47s, exit 0**, zero ERESOLVE
+- `yarn build` w /app/frontend → **success 26s**, 478 KB main.js gzip, 4 chunks, "build folder is ready to be deployed"
+- Lokalny frontend (supervisor) → 200 OK
+- Bonus: Vercel używa npm domyślnie ALE rozumie też `resolutions` (yarn-style) gdy plik `yarn.lock` jest commitowany; `overrides` dla bezpieczeństwa.
+
+**Komendy do Vercel (Settings → Build & Deploy):**
+```
+Framework Preset: Create React App
+Root Directory:   frontend
+Install Command:  npm install   (lub yarn install jeśli wolisz)
+Build Command:    npm run build
+Output Directory: build
+```
+
+**Required Vercel env vars:**
+- `REACT_APP_BACKEND_URL` = `https://your-vehiq-api.onrender.com` (URL z Render z poprzedniej iteracji)
+
 ### Iter 10 — Production hardening for Render.com (DONE 2026-05-09 — fork-agent)
 
 Kompleksowy przegląd produkcyjny — 9 punktów wymagania zaadresowane:
