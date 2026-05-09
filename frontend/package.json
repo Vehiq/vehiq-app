@@ -61,11 +61,11 @@
     "vite": "^5.0.0",
     "@vitejs/plugin-react": "^4.0.0"
   },
- "scripts": {
-  "start": "craco start",
-  "build": "craco build",
-  "preview": "react-scripts preview"
-},
+  "scripts": {
+    "start": "craco start",
+    "build": "craco build",
+    "preview": "react-scripts preview"
+  },
   "browserslist": {
     "production": [
       ">0.2%",
@@ -80,6 +80,7 @@
   },
   "devDependencies": {
     "@babel/plugin-proposal-private-property-in-object": "^7.21.11",
+    "@craco/craco": "^7.1.0",
     "@eslint/js": "9.23.0",
     "autoprefixer": "^10.4.20",
     "eslint": "9.23.0",
@@ -90,7 +91,6 @@
     "globals": "15.15.0",
     "postcss": "^8.4.49",
     "tailwindcss": "^3.4.17"
-    "@craco/craco": "^7.1.0",
   },
   "resolutions": {
     "typescript": "^4.9.5"
