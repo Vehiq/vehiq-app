@@ -7,7 +7,7 @@ from fastapi import HTTPException, Header, Depends
 from typing import Optional
 from db_helper import get_db
 
-SECRET_KEY = os.environ.get("SECRET_KEY", "vehiq-dev-secret")
+SECRET_KEY = os.environ.get("SECRET_KEY") or os.environ.get("JWT_SECRET") or "vehiq-dev-secret"
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_HOURS = 24 * 7  # 7 days
 ADMIN_TOKEN_EXPIRE_HOURS = 2

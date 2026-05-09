@@ -17,6 +17,45 @@ Build a full-stack web + mobile-responsive SaaS application called VEHIQ. A prem
 
 ## What's Implemented (2026-05-02)
 
+### Iter 10 — Production hardening for Render.com (DONE 2026-05-09 — fork-agent)
+
+Kompleksowy przegląd produkcyjny — 9 punktów wymagania zaadresowane:
+
+**1. Struktura plików:** Dodany `/app/backend/main.py` (alias re-eksportujący `app` z `server.py`). Render może uruchomić `uvicorn main:app` z Root Directory = `backend`. Lokalny supervisor dalej używa `server:app` — oba działają.
+
+**2. CORS production-ready:** Domyślne origins (vehiq.pl + www.vehiq.pl + localhost:3000/5173) + regex (`*.vercel.app`, `*.onrender.com`, `*.preview.emergentagent.com`). Override przez `CORS_ORIGINS` (lista) + `CORS_ORIGIN_REGEX`. `CORS_ORIGINS=*` ⇒ otwarte na świat.
+
+**3. Graceful startup — każda opcjonalna zmienna degraduje moduł, nie crashuje apkę:**
+- `ANTHROPIC_API_KEY` brak → `/api/ai/ask` zwraca **503**
+- `R2_*` brak (klucze w DB `api_keys`) → photos endpoints zwracają **503**
+- Brevo SMTP brak → `email_service.send_email` zwraca `(False, "SMTP not configured")` zamiast 502
+- `GOOGLE_OAUTH_ENABLED=false` w `app_settings` → endpoint zwraca 403
+- `SECRET_KEY` / `JWT_SECRET` brak → wygenerowany losowy + WARNING w logach (sesje stracą ważność przy restartcie — user musi ustawić w Render)
+- `MONGO_URL` (lub alias `MONGO_URI`) brak → **graceful crash z czytelnym błędem** (DB jest wymagana)
+
+**4. Health checks:**
+- `GET /api/health` → `{status:"ok", version, time}` — **BEZ żadnych zewn. zależności** (Render uses this)
+- `GET /api/health/ready` → 200 z DB ping LUB 503 jeśli DB nieosiągalna (do osobnej diagnostyki)
+
+**5. MongoDB connection pooling produkcyjny:**
+```python
+maxPoolSize=10, serverSelectionTimeoutMS=5000, connectTimeoutMS=10000
+```
++ `tlsCAFile=certifi.where()` dla Atlas. Wszystkie konfigurowalne przez `MONGO_*` env vars. Init failure → log error, `db = None`, apka startuje (DB-backed endpoints zwracają błąd, ale `/health` działa).
+
+**6. Static / upload paths:** `ROOT_DIR = Path(__file__).parent` — zero hardkodowanych absolute paths. Wszystkie zdjęcia idą bezpośrednio do R2 (in-memory processing przez Pillow → bytes upload).
+
+**7. Logging:** `logging.basicConfig(level=INFO, format='timestamp - name - level - msg')` przed wszystkim. Wszystkie błędy logowane z kontekstem.
+
+**8. Requirements.txt zweryfikowane:** AST scan wszystkich `.py` → bezpośrednie zależności (PIL, aiosmtplib, anthropic, bcrypt, boto3, certifi, dotenv, fastapi, httpx, jwt, motor, pydantic) wszystkie pokryte. 40 linii, czyste, brak Google API/gRPC/litellm/openai. Czysty install na Python 3.11 venv: exit 0.
+
+**9. PORT:** uvicorn binduje port via CLI flag (`uvicorn main:app --host 0.0.0.0 --port $PORT`), nie hardcoded. Render automatycznie wstrzyknie `$PORT`. Zweryfikowane lokalnie na porcie 8765.
+
+**Render env vars do ustawienia (lista skopiowana niżej):**
+- WYMAGANE: `MONGO_URL`, `DB_NAME`
+- ZALECANE: `SECRET_KEY` (długi losowy string), `ANTHROPIC_API_KEY`, `CORS_ORIGINS`
+- OPCJONALNE: `MONGO_MAX_POOL_SIZE`, `APP_VERSION`, `ANTHROPIC_MODEL`, `EMERGENT_LLM_KEY` (jeśli planujesz)
+
 ### Iter 9 — Render.com deploy fix: removed emergentintegrations (DONE 2026-05-09 — fork-agent)
 - **Problem:** Render odrzucał deploy z `No matching distribution found for emergentintegrations==0.1.0` (pakiet jest prywatny CloudFront index, nie publiczne PyPI).
 - **Fix:** Usunięty `emergentintegrations==0.1.0` z `requirements.txt`, dodane `anthropic==0.100.0` (publiczne PyPI). `routers/ai_mechanic.py` przepisany na natywne `anthropic.AsyncAnthropic` SDK.

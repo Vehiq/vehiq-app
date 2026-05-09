@@ -17,17 +17,54 @@ import asyncio
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
 
-# MongoDB - use certifi for proper TLS CA certs (required for MongoDB Atlas)
-mongo_url = os.environ['MONGO_URL']
-_client_kwargs = {}
-if mongo_url.startswith('mongodb+srv://') or 'mongodb.net' in mongo_url:
-    _client_kwargs['tlsCAFile'] = certifi.where()
-client = AsyncIOMotorClient(mongo_url, **_client_kwargs)
-db = client[os.environ['DB_NAME']]
+# ---- Logging (must be configured before anything else logs) ----
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
+
+# ---- App version ----
+APP_VERSION = os.environ.get("APP_VERSION", "1.0.0")
+
+# ---- MongoDB connection (graceful) ----
+# Accept either MONGO_URL (legacy) or MONGO_URI (Render-style). REQUIRED.
+mongo_url = os.environ.get("MONGO_URL") or os.environ.get("MONGO_URI")
+db_name = os.environ.get("DB_NAME") or os.environ.get("MONGO_DB", "vehiq_database")
+if not mongo_url:
+    raise RuntimeError(
+        "MONGO_URL (or MONGO_URI) environment variable is required. "
+        "Set it in your Render Environment Variables."
+    )
+
+_client_kwargs = dict(
+    maxPoolSize=int(os.environ.get("MONGO_MAX_POOL_SIZE", 10)),
+    serverSelectionTimeoutMS=int(os.environ.get("MONGO_SERVER_SELECTION_TIMEOUT_MS", 5000)),
+    connectTimeoutMS=int(os.environ.get("MONGO_CONNECT_TIMEOUT_MS", 10000)),
+)
+if mongo_url.startswith("mongodb+srv://") or "mongodb.net" in mongo_url:
+    _client_kwargs["tlsCAFile"] = certifi.where()
+
+try:
+    client = AsyncIOMotorClient(mongo_url, **_client_kwargs)
+    db = client[db_name]
+    logger.info(f"MongoDB client initialized → db={db_name}, pool={_client_kwargs['maxPoolSize']}")
+except Exception as e:
+    logger.error(f"MongoDB client init failed: {e}. Backend will start but DB-backed endpoints will fail.")
+    client = None
+    db = None
 
 # Make db available
 from db_helper import set_db
 set_db(db)
+
+# ---- SECRET_KEY warning for production ----
+_jwt_secret_env = os.environ.get("SECRET_KEY") or os.environ.get("JWT_SECRET")
+if not _jwt_secret_env:
+    # Generate a stable random secret for this process so JWTs work in single-instance deploys.
+    # WARNING: this rotates on every restart — sessions WILL invalidate. Set SECRET_KEY explicitly in prod.
+    os.environ["SECRET_KEY"] = uuid.uuid4().hex + uuid.uuid4().hex
+    logger.warning(
+        "SECRET_KEY (JWT_SECRET) is not set! Using a random per-process secret — JWTs will be invalidated on restart. "
+        "Set SECRET_KEY in your Render env vars for stable sessions."
+    )
 
 # Routers
 from routers import auth as auth_router
@@ -50,7 +87,7 @@ from routers import events as events_router
 from routers import search as search_router
 from seed import seed_database
 
-app = FastAPI(title="VEHIQ API", version="1.0.0")
+app = FastAPI(title="VEHIQ API", version=APP_VERSION)
 
 api_router = APIRouter(prefix="/api")
 
@@ -60,7 +97,7 @@ class VisitTrackingMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         path = request.url.path
         # Track only non-API, non-static visits hitting backend
-        if not path.startswith("/api") and not path.startswith("/static"):
+        if db is not None and not path.startswith("/api") and not path.startswith("/static"):
             try:
                 ua = request.headers.get("user-agent", "")
                 device = "mobile" if any(s in ua.lower() for s in ["mobile", "iphone", "android"]) else "desktop"
@@ -82,15 +119,29 @@ class VisitTrackingMiddleware(BaseHTTPMiddleware):
 
 @api_router.get("/")
 async def root():
-    return {"message": "VEHIQ API is running", "version": "1.0.0"}
+    return {"message": "VEHIQ API is running", "version": APP_VERSION}
 
 @api_router.get("/health")
 async def health():
-    return {"status": "ok", "time": datetime.now(timezone.utc).isoformat()}
+    """Liveness probe — does NOT depend on MongoDB. Render uses this for health checks."""
+    return {"status": "ok", "version": APP_VERSION, "time": datetime.now(timezone.utc).isoformat()}
+
+@api_router.get("/health/ready")
+async def health_ready():
+    """Readiness probe — verifies DB connectivity. Use only when checking degraded mode."""
+    if db is None:
+        return JSONResponse(status_code=503, content={"status": "no_db", "version": APP_VERSION})
+    try:
+        await client.admin.command("ping")
+        return {"status": "ready", "version": APP_VERSION}
+    except Exception as e:
+        return JSONResponse(status_code=503, content={"status": "db_unreachable", "error": str(e)[:200], "version": APP_VERSION})
 
 @api_router.post("/track")
 async def track_visit(payload: dict):
     """Frontend calls this to track page visits."""
+    if db is None:
+        return {"ok": False, "reason": "db_unavailable"}
     doc = {
         "id": str(uuid.uuid4()),
         "page_path": payload.get("path", "/"),
@@ -126,35 +177,62 @@ api_router.include_router(search_router.router)
 
 app.include_router(api_router)
 
+# ---- CORS configuration (production-ready) ----
+DEFAULT_ALLOWED_ORIGINS = [
+    "https://vehiq.pl",
+    "https://www.vehiq.pl",
+    "http://localhost:3000",
+    "http://localhost:5173",  # Vite dev (in case)
+]
+DEFAULT_ALLOWED_ORIGIN_REGEX = (
+    r"https://(.*\.)?vercel\.app|"
+    r"https://.*\.preview\.emergentagent\.com|"
+    r"https://(.*\.)?onrender\.com"
+)
+_cors_env = os.environ.get("CORS_ORIGINS", "").strip()
+if _cors_env == "*":
+    cors_origins = ["*"]
+    cors_regex = None
+elif _cors_env:
+    cors_origins = [o.strip() for o in _cors_env.split(",") if o.strip()]
+    cors_regex = os.environ.get("CORS_ORIGIN_REGEX") or None
+else:
+    cors_origins = DEFAULT_ALLOWED_ORIGINS
+    cors_regex = os.environ.get("CORS_ORIGIN_REGEX") or DEFAULT_ALLOWED_ORIGIN_REGEX
+
+logger.info(f"CORS origins: {cors_origins} regex={cors_regex}")
 app.add_middleware(
     CORSMiddleware,
     allow_credentials=True,
-    allow_origins=os.environ.get('CORS_ORIGINS', '*').split(','),
+    allow_origins=cors_origins,
+    allow_origin_regex=cors_regex,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 app.add_middleware(VisitTrackingMiddleware)
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-logger = logging.getLogger(__name__)
-
 
 @app.on_event("startup")
 async def on_startup():
-    try:
-        await seed_database(db)
-    except Exception as e:
-        logger.error(f"seed_database failed (Atlas unreachable?): {e}")
-        logger.error("Backend will continue starting; fix Atlas Network Access to restore DB operations.")
+    if db is not None:
+        try:
+            await seed_database(db)
+            logger.info("seed_database completed.")
+        except Exception as e:
+            logger.error(f"seed_database failed (Atlas unreachable?): {e}")
+            logger.error("Backend will continue starting; DB-backed endpoints may return errors until DB is reachable.")
+    else:
+        logger.warning("Skipping seed_database — db is None.")
     # Background retention scheduler (D+1, D+7, monthly)
     try:
         from retention import scheduler_loop
         asyncio.create_task(scheduler_loop())
     except Exception as e:
         logger.warning(f"retention scheduler failed to start: {e}")
-    logger.info("VEHIQ backend ready.")
+    logger.info(f"VEHIQ backend ready. version={APP_VERSION}")
 
 
 @app.on_event("shutdown")
 async def on_shutdown():
-    client.close()
+    if client is not None:
+        client.close()
