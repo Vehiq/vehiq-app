@@ -370,3 +370,27 @@ maxPoolSize=10, serverSelectionTimeoutMS=5000, connectTimeoutMS=10000
 - Frontend (desktop): onboarding wizard, confetti success, FAB sub-actions (4), Share menu, public-vehicle page — VERIFIED via screenshot smoke
 - Frontend (mobile 390x844): BottomNav visible (4 items), Sidebar `display:none` — VERIFIED
 - FirstUseTooltips overlay renders on first dashboard load (1/3 spotlight on Sidebar Garage) — VERIFIED
+
+---
+
+## Iter 8 — Vercel Build Fix (Feb 2026)
+
+**Problem**: Frontend build padał na Vercel przy Node.js 24 z powodu `@craco/craco` v7 + `ajv-keywords` v3 niekompatybilność.
+
+**Rozwiązanie**:
+- `frontend/package.json`: dodano `"engines": { "node": ">=18.0.0 <21.0.0" }` — wymusza Node 18/20 na Vercel, blokuje Node 24
+- `frontend/.nvmrc`: `18` — Vercel używa do wyboru wersji Node
+- `frontend/package.json`: `overrides` + `resolutions` dla `typescript: ^4.9.5` (ajv override usunięty — łamał ajv-keywords 3.x)
+
+**Weryfikacja**: `yarn install && yarn build` → success na Node 20 (lokalnie), build artifact 478 kB main.js
+
+**UptimeRobot guide**: `/app/UPTIMEROBOT_SETUP.md` — pełna dokumentacja konfiguracji monitora `/api/health` z alertami e-mail, status page i obejściem Render cold start.
+
+## Backlog (aktualizacja po iter 8)
+- P1: Stripe (Płatności) — DEFERRED, czeka na decyzję
+- P1: GPS Geolocation dla mileage — DEFERRED
+- P1: Push notifications — TODO
+- P1: Project Mode — pozostałe taby (Budget, Notes, Parts list)
+- P2: Facebook OAuth (czeka na klucze)
+- P2: Admin System Health widget
+- P2 (Tech Debt): Migracja `@craco/craco` → Vite (`@craco/craco` wymusza Node ≤20, blokuje przyszłe upgrade)
