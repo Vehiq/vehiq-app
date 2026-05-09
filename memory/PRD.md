@@ -394,3 +394,29 @@ maxPoolSize=10, serverSelectionTimeoutMS=5000, connectTimeoutMS=10000
 - P2: Facebook OAuth (czeka na klucze)
 - P2: Admin System Health widget
 - P2 (Tech Debt): Migracja `@craco/craco` → Vite (`@craco/craco` wymusza Node ≤20, blokuje przyszłe upgrade)
+
+---
+
+## Iter 9 — Migracja CRA + craco → Vite 7 (Feb 2026)
+
+**Powód**: Konflikt `react-scripts` + `terser-webpack-plugin` + `ajv` + `schema-utils` blokował Vercel build. Zamiast łatać, kompletna wymiana toolingu.
+
+**Zmiany**:
+- ❌ Usunięto: `react-scripts`, `@craco/craco`, `@emergentbase/visual-edits`, `craco.config.js`
+- ✅ Dodano: `vite@^7.1.0`, `@vitejs/plugin-react@^4.3.0` (Vite 8 odrzucony — Rolldown nie obsługuje JSX-w-.js bez przebudowy całego src)
+- ✅ `frontend/vite.config.js`: alias `@`→`src`, `outDir: 'build'`, `server.port: 3000`, `host: '0.0.0.0'`, `allowedHosts: true`, JSX w plikach `.js` przez `react({ include: /\.(js|jsx|ts|tsx)$/ })` + esbuild loader
+- ✅ `process.env.REACT_APP_BACKEND_URL` zachowane (define + loadEnv z prefix `REACT_APP_`) — zero zmian w kodzie aplikacji
+- ✅ `frontend/index.html` przeniesiony do roota, `%PUBLIC_URL%/` → `/`, dodany `<script type="module" src="/src/index.js">`
+- ✅ `frontend/public/index.html` usunięty
+- ✅ `engines.node`: `>=20.19.0` (wymóg Vite 7), `.nvmrc`: `20`
+- ✅ Scripts: `"start": "vite"`, `"build": "vite build"`, `"preview": "vite preview"`
+
+**Weryfikacja**:
+- `yarn build` → ✓ (2715 modules, 480 kB main gzipped, 6 sek)
+- `yarn start` przez supervisor → ✓ (Vite dev v7.3.3 ready in 140 ms)
+- Smoke test (screenshot login page) → ✓ (renderowanie OK, brand intact)
+- Wszystkie istniejące importy `@/...` i `process.env.REACT_APP_BACKEND_URL` działają bez zmian
+
+**Vercel**: Powinien teraz zbudować z Node 20 (z `.nvmrc`) używając `yarn build` → `build/`. Brak konfliktów ajv/terser/schema-utils.
+
+**Tech debt usunięty**: `@craco/craco`, problemy z Node 24, dependency hell `react-scripts` 5.0.1.
