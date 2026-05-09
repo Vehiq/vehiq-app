@@ -61,11 +61,11 @@
     "vite": "^5.0.0",
     "@vitejs/plugin-react": "^4.0.0"
   },
-  "scripts": {
-    "start": "vite",
-    "build": "vite build",
-    "preview": "vite preview"
-  },
+ "scripts": {
+  "start": "craco start",
+  "build": "craco build",
+  "preview": "react-scripts preview"
+},
   "browserslist": {
     "production": [
       ">0.2%",
@@ -90,6 +90,7 @@
     "globals": "15.15.0",
     "postcss": "^8.4.49",
     "tailwindcss": "^3.4.17"
+    "@craco/craco": "^7.1.0",
   },
   "resolutions": {
     "typescript": "^4.9.5"
