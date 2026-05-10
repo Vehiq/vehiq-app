@@ -14,6 +14,18 @@ export default defineConfig(({ mode }) => {
     define: {
       'process.env.REACT_APP_BACKEND_URL': JSON.stringify(env.REACT_APP_BACKEND_URL)
     },
+    esbuild: {
+      loader: 'jsx',
+      include: /src\/.*\.js$/,
+      exclude: []
+    },
+    optimizeDeps: {
+      esbuildOptions: {
+        loader: {
+          '.js': 'jsx'
+        }
+      }
+    },
     build: {
       outDir: 'build'
     }
