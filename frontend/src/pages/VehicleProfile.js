@@ -111,7 +111,11 @@ export default function VehicleProfile() {
       {soldResult && <SoldResultBanner result={soldResult} vehicle={vehicle} onClose={() => setSoldResult(null)} />}
 
       <div className="border-b border-vehiq-border flex gap-1 overflow-x-auto">
-        {TABS.map(({ id: tid, key }) => (
+        {TABS.filter(({ id: tid }) => {
+          // Feat 20: mileage tracker shown only for SOLD vehicles (atut przy sprzedaży)
+          if (tid === "mileage") return vehicle.status === "sold" || vehicle.status === "archived";
+          return true;
+        }).map(({ id: tid, key }) => (
           <button
             key={tid}
             onClick={() => setTab(tid)}

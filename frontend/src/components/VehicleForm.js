@@ -5,15 +5,39 @@ import api from "@/lib/api";
 import { toast } from "sonner";
 import { ArrowLeft, Upload, X } from "lucide-react";
 
-const FUEL_OPTIONS = ["petrol", "diesel", "hybrid", "electric", "lpg"];
-const POPULAR_MAKES = ["Audi", "BMW", "Mercedes-Benz", "Porsche", "Volkswagen", "Toyota", "Honda", "Ford", "Mazda", "Volvo", "Skoda", "Tesla", "Lexus", "Land Rover"];
+// All popular brands. Pinned (Polish market) first, alphabetical rest.
+// "other" is a free-form option translated via i18n.
+const ALL_MAKES = [
+  "Alfa Romeo", "Aston Martin", "Audi", "Bentley", "BMW", "Bugatti", "Buick",
+  "Cadillac", "Chevrolet", "Chrysler", "Citroën", "Dacia", "Daewoo", "Ferrari",
+  "Fiat", "Ford", "Genesis", "Honda", "Hyundai", "Infiniti", "Jaguar", "Jeep",
+  "Kia", "Lamborghini", "Land Rover", "Lexus", "Maserati", "Mazda", "McLaren",
+  "Mercedes-Benz", "MG", "MINI", "Mitsubishi", "Nissan", "Opel", "Peugeot",
+  "Porsche", "RAM", "Renault", "Rolls-Royce", "SEAT", "Skoda", "Smart",
+  "Subaru", "Suzuki", "Tesla", "Toyota", "Volkswagen", "Volvo",
+];
+
+// Fuel ids match backend storage. Labels come from i18n (vehicle.fuels.*).
+const FUEL_OPTIONS = [
+  "petrol_95", "petrol_98", "diesel", "lpg", "cng",
+  "hybrid", "hybrid_plugin", "electric", "hydrogen",
+];
+
+// Lifecycle status (active/sold). Mileage tracker is gated to "sold".
+const STATUS_OPTIONS = ["active", "sold", "archived"];
+
+// Vehicle CONDITION (different from lifecycle status). All optional.
+const CONDITION_OPTIONS = [
+  "running", "needs_repair", "renovation", "project", "damaged", "for_parts",
+];
 
 export default function VehicleForm({ initial, onSaved }) {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [form, setForm] = useState(initial || {
-    make: "", model: "", year: "", vin: "", engine: "", fuel: "petrol", color: "", plate: "",
-    mileage_current: 0, mileage_at_purchase: "", mileage_at_sale: "", purchase_price: "", purchase_date: "", status: "active",
+    make: "", model: "", year: "", vin: "", engine: "", fuel: "petrol_95", color: "", plate: "",
+    mileage_current: 0, mileage_at_purchase: "", mileage_at_sale: "",
+    purchase_price: "", purchase_date: "", status: "active", condition: "",
     photos: [], cover_photo_index: 0,
   });
   const [busy, setBusy] = useState(false);
@@ -53,6 +77,7 @@ export default function VehicleForm({ initial, onSaved }) {
         sale_price: form.sale_price ? parseFloat(form.sale_price) : null,
         purchase_date: form.purchase_date || null,
         sale_date: form.sale_date || null,
+        condition: form.condition || null,
       };
       let resp;
       if (initial?.id) {
@@ -64,11 +89,14 @@ export default function VehicleForm({ initial, onSaved }) {
       if (onSaved) onSaved(resp.data);
       else navigate(`/garage/${resp.data.id}`);
     } catch (err) {
-      toast.error(t("common.error"));
+      const { apiErrorMessage } = await import("@/lib/api");
+      toast.error(apiErrorMessage(err, t("common.error")));
     } finally {
       setBusy(false);
     }
   };
+
+  const isSold = form.status === "sold" || form.status === "archived";
 
   return (
     <form onSubmit={submit} className="space-y-6 animate-fade-in" data-testid="vehicle-form">
@@ -81,8 +109,11 @@ export default function VehicleForm({ initial, onSaved }) {
       <div className="vehiq-card p-6 space-y-5">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Field label={t("vehicle.make")}>
-            <input data-testid="vehicle-make" list="makes" required value={form.make} onChange={(e) => setForm({ ...form, make: e.target.value })} className="vehiq-input" />
-            <datalist id="makes">{POPULAR_MAKES.map(m => <option key={m} value={m} />)}</datalist>
+            <input data-testid="vehicle-make" list="makes" required value={form.make} onChange={(e) => setForm({ ...form, make: e.target.value })} className="vehiq-input" placeholder={t("vehicle.makePlaceholder")} />
+            <datalist id="makes">
+              {ALL_MAKES.map(m => <option key={m} value={m} />)}
+              <option value={t("vehicle.otherMake")} />
+            </datalist>
           </Field>
           <Field label={t("vehicle.model")}>
             <input data-testid="vehicle-model" required value={form.model} onChange={(e) => setForm({ ...form, model: e.target.value })} className="vehiq-input" />
@@ -97,8 +128,8 @@ export default function VehicleForm({ initial, onSaved }) {
             <input value={form.engine || ""} onChange={(e) => setForm({ ...form, engine: e.target.value })} className="vehiq-input" />
           </Field>
           <Field label={t("vehicle.fuel")}>
-            <select value={form.fuel || "petrol"} onChange={(e) => setForm({ ...form, fuel: e.target.value })} className="vehiq-input">
-              {FUEL_OPTIONS.map(f => <option key={f} value={f}>{f}</option>)}
+            <select value={form.fuel || "petrol_95"} onChange={(e) => setForm({ ...form, fuel: e.target.value })} className="vehiq-input" data-testid="vehicle-fuel">
+              {FUEL_OPTIONS.map(f => <option key={f} value={f}>{t(`vehicle.fuels.${f}`)}</option>)}
             </select>
           </Field>
           <Field label={t("vehicle.color")}>
@@ -106,6 +137,12 @@ export default function VehicleForm({ initial, onSaved }) {
           </Field>
           <Field label={t("vehicle.plate")}>
             <input value={form.plate || ""} onChange={(e) => setForm({ ...form, plate: e.target.value })} className="vehiq-input" />
+          </Field>
+          <Field label={t("vehicle.conditionLabel")}>
+            <select value={form.condition || ""} onChange={(e) => setForm({ ...form, condition: e.target.value })} className="vehiq-input" data-testid="vehicle-condition">
+              <option value="">—</option>
+              {CONDITION_OPTIONS.map(c => <option key={c} value={c}>{t(`vehicle.conditions.${c}`)}</option>)}
+            </select>
           </Field>
           <Field label={t("vehicle.mileage")}>
             <input type="number" value={form.mileage_current || 0} onChange={(e) => setForm({ ...form, mileage_current: e.target.value })} className="vehiq-input" data-testid="vf-mileage-current" />
@@ -120,12 +157,11 @@ export default function VehicleForm({ initial, onSaved }) {
             <input type="date" value={form.purchase_date || ""} onChange={(e) => setForm({ ...form, purchase_date: e.target.value })} className="vehiq-input" />
           </Field>
           <Field label={t("vehicle.status")}>
-            <select value={form.status || "active"} onChange={(e) => setForm({ ...form, status: e.target.value })} className="vehiq-input">
-              <option value="active">{t("vehicle.active")}</option>
-              <option value="archived">{t("vehicle.archived")}</option>
+            <select value={form.status || "active"} onChange={(e) => setForm({ ...form, status: e.target.value })} className="vehiq-input" data-testid="vehicle-status">
+              {STATUS_OPTIONS.map(s => <option key={s} value={s}>{t(`vehicle.statuses.${s}`)}</option>)}
             </select>
           </Field>
-          {form.status === "archived" && (
+          {isSold && (
             <>
               <Field label={t("vehicle.salePrice")}>
                 <input type="number" step="0.01" value={form.sale_price || ""} onChange={(e) => setForm({ ...form, sale_price: e.target.value })} className="vehiq-input" />

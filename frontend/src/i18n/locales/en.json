@@ -97,11 +97,24 @@
   },
   "vehicle": {
     "make": "Make",
+    "makePlaceholder": "Pick or type a brand",
+    "otherMake": "Other",
     "model": "Model",
     "year": "Year",
     "vin": "VIN",
     "engine": "Engine",
     "fuel": "Fuel",
+    "fuels": {
+      "petrol_95": "Petrol 95",
+      "petrol_98": "Petrol 98",
+      "diesel": "Diesel",
+      "lpg": "LPG",
+      "cng": "CNG",
+      "hybrid": "Hybrid",
+      "hybrid_plugin": "Plug-in hybrid",
+      "electric": "Electric",
+      "hydrogen": "Hydrogen"
+    },
     "color": "Color",
     "plate": "Plate",
     "mileage": "Mileage (km)",
@@ -112,11 +125,26 @@
     "salePrice": "Sale price",
     "saleDate": "Sale date",
     "status": "Status",
+    "statuses": {
+      "active": "Active",
+      "sold": "Sold",
+      "archived": "Archived"
+    },
+    "conditionLabel": "Condition",
+    "conditions": {
+      "running": "Runs & drives",
+      "needs_repair": "Needs repair",
+      "renovation": "In restoration",
+      "project": "Project",
+      "damaged": "Damaged",
+      "for_parts": "For parts"
+    },
     "active": "Active",
     "archived": "Sold",
     "photos": "Photos",
     "uploadPhotos": "Upload photos",
     "selectMain": "Main photo",
+    "project": "Project",
     "tabs": {
       "overview": "Overview",
       "service": "Service",

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Car as CarIcon, Lock, Wrench, Upload, X, Star } from "lucide-react";
-import api from "@/lib/api";
+import api, { apiErrorMessage } from "@/lib/api";
 import { toast } from "sonner";
 import { photoUrl, photoThumb } from "@/lib/photos";
 
@@ -29,7 +29,7 @@ export default function OverviewTab({ vehicle, reload }) {
         if (reload) reload();
       }
     } catch (err) {
-      toast.error(err?.response?.data?.detail || t("common.error"));
+      toast.error(apiErrorMessage(err, t("common.error")));
     } finally { setUploading(false); }
   };
 
@@ -135,12 +135,13 @@ export default function OverviewTab({ vehicle, reload }) {
           <Spec label={t("vehicle.year")} value={vehicle.year} />
           <Spec label={t("vehicle.vin")} value={vehicle.vin} />
           <Spec label={t("vehicle.engine")} value={vehicle.engine} />
-          <Spec label={t("vehicle.fuel")} value={vehicle.fuel?.toUpperCase()} />
+          <Spec label={t("vehicle.fuel")} value={vehicle.fuel ? t(`vehicle.fuels.${vehicle.fuel}`, { defaultValue: vehicle.fuel.toUpperCase() }) : null} />
           <Spec label={t("vehicle.color")} value={vehicle.color} />
           <Spec label={t("vehicle.plate")} value={vehicle.plate} />
           <Spec label={t("vehicle.mileage")} value={vehicle.mileage_current ? `${vehicle.mileage_current.toLocaleString("pl-PL")} km` : null} />
           <Spec label={t("vehicle.purchasePrice")} value={vehicle.purchase_price ? `${vehicle.purchase_price.toLocaleString("pl-PL")} PLN` : null} />
-          <Spec label={t("vehicle.status")} value={vehicle.status === "archived" ? t("vehicle.archived") : t("vehicle.active")} />
+          <Spec label={t("vehicle.status")} value={vehicle.status ? t(`vehicle.statuses.${vehicle.status}`, { defaultValue: vehicle.status }) : null} />
+          {vehicle.condition && <Spec label={t("vehicle.conditionLabel")} value={t(`vehicle.conditions.${vehicle.condition}`, { defaultValue: vehicle.condition })} />}
         </div>
 
         <div className="vehiq-card p-6 space-y-3" data-testid="overview-privacy">

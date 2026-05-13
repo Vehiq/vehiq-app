@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link, useSearchParams, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import api from "@/lib/api";
+import api, { apiErrorMessage } from "@/lib/api";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import { toast } from "sonner";
 
@@ -75,7 +75,7 @@ export function PasswordResetConfirm() {
       toast.success(t("common.success"));
       navigate("/login");
     } catch (err) {
-      toast.error(err?.response?.data?.detail || t("common.error"));
+      toast.error(apiErrorMessage(err, t("common.error")));
     } finally { setBusy(false); }
   };
 

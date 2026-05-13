@@ -21,4 +21,26 @@ api.interceptors.response.use(
   }
 );
 
+/**
+ * Flatten any axios error into a plain string, including Pydantic 422
+ * validation arrays (which would otherwise crash React with #31 when
+ * passed directly to <toast.error> or rendered as a child).
+ */
+export function apiErrorMessage(err, fallback = "") {
+  const d = err?.response?.data?.detail;
+  if (typeof d === "string") return d;
+  if (Array.isArray(d)) {
+    return (
+      d
+        .map((e) => (typeof e === "string" ? e : e?.msg || ""))
+        .filter(Boolean)
+        .join(", ") || fallback || err?.message || ""
+    );
+  }
+  if (d && typeof d === "object") {
+    return d.msg || d.message || fallback || err?.message || "";
+  }
+  return fallback || err?.message || "";
+}
+
 export default api;

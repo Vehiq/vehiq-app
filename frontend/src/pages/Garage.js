@@ -24,9 +24,10 @@ export default function Dashboard() {
     api.get("/dashboard").then((r) => setDash(r.data)).catch(() => setDash({ reminders: [], activity: [], featured_listings: [] }));
   }, []);
 
-  const filtered = vehicles ? vehicles.filter((v) => (tab === "archive" ? v.status === "archived" : v.status !== "archived")) : null;
-  const activeCount = vehicles ? vehicles.filter((v) => v.status !== "archived").length : 0;
-  const archivedCount = vehicles ? vehicles.filter((v) => v.status === "archived").length : 0;
+  const isArchived = (v) => ["archived", "sold"].includes(v?.status);
+  const filtered = vehicles ? vehicles.filter((v) => (tab === "archive" ? isArchived(v) : !isArchived(v))) : null;
+  const activeCount = vehicles ? vehicles.filter((v) => !isArchived(v)).length : 0;
+  const archivedCount = vehicles ? vehicles.filter((v) => isArchived(v)).length : 0;
 
   return (
     <div className="space-y-8 animate-fade-in" data-testid="dashboard-page">
@@ -116,7 +117,7 @@ function VehicleCard({ v, t, eager = false, lang = "pl" }) {
   const fmt = (n) => Number(n || 0).toLocaleString(lang === "en" ? "en-US" : "pl-PL", { maximumFractionDigits: 0 });
   // Compute net P&L for archived (sold) vehicles
   let plNode = null;
-  if (v.status === "archived" && v.sale_price && v.purchase_price) {
+  if ((v.status === "archived" || v.status === "sold") && v.sale_price && v.purchase_price) {
     const net = (v.sale_price || 0) - (v.purchase_price || 0);
     const profit = net >= 0;
     plNode = (
@@ -149,12 +150,12 @@ function VehicleCard({ v, t, eager = false, lang = "pl" }) {
             </span>
           )}
         </div>
-        {v.status === "archived" && (
+        {(v.status === "archived" || v.status === "sold") && (
           <span className="absolute top-3 right-3 text-[10px] uppercase tracking-widest px-2 py-1 rounded bg-vehiq-bg/80 text-vehiq-gold border border-vehiq-gold/30">
             {t("vehicle.archived")}
           </span>
         )}
-        {v.status !== "archived" && v.active_listing && (
+        {v.status !== "archived" && v.status !== "sold" && v.active_listing && (
           <span className="absolute top-3 right-3 text-[10px] uppercase tracking-widest px-2 py-1 rounded bg-vehiq-gold text-vehiq-bg font-medium" data-testid={`for-sale-badge-${v.id}`}>
             {t("sell.forSale")}
           </span>

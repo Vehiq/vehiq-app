@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
+import Logo from "@/components/Logo";
 import Confetti from "@/components/Confetti";
 import { useAuth } from "@/contexts/AuthContext";
 import api from "@/lib/api";
@@ -120,10 +121,7 @@ function WelcomeScreen({ onAdd, onSkip, t }) {
   ];
   return (
     <div className="vehiq-card p-8 md:p-12 max-w-3xl w-full text-center" data-testid="onboarding-welcome">
-      <div className="inline-flex items-center gap-2 mb-4">
-        <div className="h-12 w-12 rounded-md bg-vehiq-gold flex items-center justify-center text-vehiq-bg font-bold text-2xl">V</div>
-        <div className="vehiq-display text-3xl tracking-wider text-vehiq-text">VEHIQ</div>
-      </div>
+      <div className="mb-4 flex justify-center"><Logo size="lg" /></div>
       <h1 className="vehiq-display text-4xl sm:text-5xl text-vehiq-text">{t("onboarding.welcomeTitle")}</h1>
       <p className="text-vehiq-muted mt-3 max-w-lg mx-auto">{t("onboarding.welcomeDesc")}</p>
 

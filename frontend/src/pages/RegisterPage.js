@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { useTranslation, Trans } from "react-i18next";
 import { useAuth } from "@/contexts/AuthContext";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
+import Logo from "@/components/Logo";
 import { toast } from "sonner";
 
 export default function RegisterPage() {
@@ -26,24 +27,32 @@ export default function RegisterPage() {
       toast.success(t("common.success"));
       navigate("/onboarding");
     } catch (err) {
-      const msg = err?.response?.data?.detail || t("auth.registerFailed");
-      toast.error(typeof msg === "string" ? msg : t("auth.registerFailed"));
+      const { apiErrorMessage } = await import("@/lib/api");
+      toast.error(apiErrorMessage(err, t("auth.registerFailed")));
     } finally {
       setBusy(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-vehiq-bg" data-testid="register-page">
+    <div className="min-h-screen flex flex-col bg-vehiq-bg relative" data-testid="register-page">
+      <div className="absolute inset-0 -z-10">
+        <img
+          src="https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=1920&auto=format&fit=crop&q=70"
+          alt=""
+          className="w-full h-full object-cover"
+          loading="eager"
+          data-testid="register-bg-image"
+        />
+        <div className="absolute inset-0 bg-vehiq-bg" style={{ opacity: 0.6 }} />
+      </div>
+
       <div className="flex justify-end p-6"><LanguageSwitcher /></div>
 
       <div className="flex-1 flex items-center justify-center px-4 py-8">
-        <div className="w-full max-w-md vehiq-card p-8 md:p-10">
+        <div className="w-full max-w-md vehiq-card p-8 md:p-10 backdrop-blur-sm">
           <div className="text-center mb-8">
-            <div className="inline-flex items-center gap-2 mb-4">
-              <div className="h-12 w-12 rounded-md bg-vehiq-gold flex items-center justify-center text-vehiq-bg font-bold text-2xl">V</div>
-              <div className="vehiq-display text-3xl tracking-wider text-vehiq-text">VEHIQ</div>
-            </div>
+            <div className="inline-flex mb-4"><Logo size="lg" /></div>
             <h1 className="vehiq-display text-3xl text-vehiq-text">{t("auth.registerTitle")}</h1>
             <p className="text-sm text-vehiq-muted mt-1">{t("auth.registerSubtitle")}</p>
           </div>

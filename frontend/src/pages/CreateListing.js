@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import api from "@/lib/api";
+import api, { apiErrorMessage } from "@/lib/api";
 import { toast } from "sonner";
 import { ArrowLeft, Upload, X, Plus } from "lucide-react";
 import {
@@ -97,7 +97,7 @@ export default function CreateListing() {
       toast.success(t("common.success"));
       navigate(`/marketplace/${data.id}`);
     } catch (err) {
-      toast.error(err?.response?.data?.detail || t("common.error"));
+      toast.error(apiErrorMessage(err, t("common.error")));
     } finally { setBusy(false); }
   };
 

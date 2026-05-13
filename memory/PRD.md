@@ -420,3 +420,38 @@ maxPoolSize=10, serverSelectionTimeoutMS=5000, connectTimeoutMS=10000
 **Vercel**: Powinien teraz zbudować z Node 20 (z `.nvmrc`) używając `yarn build` → `build/`. Brak konfliktów ajv/terser/schema-utils.
 
 **Tech debt usunięty**: `@craco/craco`, problemy z Node 24, dependency hell `react-scripts` 5.0.1.
+
+---
+
+## Iter 10 — Phase A: Bug Fix Sprint + Quick Features (Feb 2026)
+
+**Naprawione bugi:**
+- ✅ Bug 1 (React #31): Helper `apiErrorMessage()` w `/app/frontend/src/lib/api.js` — flattuje Pydantic 422 arrays do stringa. Zastosowane w: CreateListing.js, EventDetail.js, OverviewTab.js, AITab.js, PasswordReset.js, RegisterPage.js, VehicleForm.js
+- ✅ Bug 2: `routers/vehicles.py:create_vehicle` — limit liczy tylko `status NOT IN [archived, sold]`. Archived/sold nie konsumują slotu.
+- ✅ Bug 3: Garage filter — `isArchived(v)` helper, obsługa `sold` jako synonimu `archived` w aktywnym vs archiwum.
+- ✅ Bug 4: Etykiety paliwa PL — `vehicle.fuels.*` w i18n: Benzyna PB 95/98, Diesel (ON), LPG, CNG, Hybryda, Hybryda plug-in, Elektryczny, Wodór. VehicleForm select renderuje przez `t()`. OverviewTab Spec używa `t()` z fallback.
+- ✅ Bug 5: Pole `condition` w VehicleIn/Update (+ enum 6 wartości PL). UI: nowy select w VehicleForm (Stan pojazdu). OverviewTab pokazuje stan jeśli ustawiony.
+- ✅ Bug 6: Backend startup backfill brakujących slugów dla `services` i `events` (services.py exports `_slug` + `_unique_slug`). Naprawia 404 dla legacy danych z map-markerów.
+- ✅ Bug 9: PDF templates przegląd — bez typo (PL już poprawne).
+
+**Nowe funkcje:**
+- ✅ Feat 10: Skeleton loader był już zaimplementowany (`SkeletonGarageGrid`); aktywnie używany w Garage gdy `vehicles===null`.
+- ✅ Feat 12: 49 marek + "Inna" w `ALL_MAKES` (VehicleForm.js).
+- ✅ Feat 15: Komponent `<Logo>` (`components/Logo.js`) — "Veh" jasny / "IQ" #F59E0B. Stosowany w: Sidebar, LoginPage, RegisterPage, Onboarding.
+- ✅ Feat 16: Tło bramy garażowej z Unsplash (`photo-1558618666-fcd25c85cd64`) na LoginPage + RegisterPage z overlay opacity 0.6.
+- ✅ Feat 20: Mileage tracker tab ukryty dla `status: active`, pokazywany tylko dla `sold/archived` (filtr TABS w VehicleProfile.js).
+
+**Backend (`routers/vehicles.py`):**
+- Dodano `condition` Optional[str] do `VehicleIn` i `VehicleUpdateIn`.
+- Zaktualizowano komentarz statusu: `active | sold | archived`.
+
+**Testy backend (`backend/tests/test_iter8_phase_a.py`):**
+- 20 nowych testów, wszystkie PASS (Pydantic 422 envelope, active-only limit, condition values, sold status, slug routing, regression: auth/health/password-reset).
+- Regression: 85/88 istniejących testów PASS (1 pre-existing fail: `max_photos_per_vehicle=5 vs 6`, nasz kod nie zmienia tej wartości).
+
+**Phase B (następna iteracja) — zaplanowane:**
+- Bug 7 Password reset full flow (audit + integration_playbook_expert_v2 call)
+- Bug 8 Email między użytkownikami (Brevo SMTP)
+- Feat 11 R2 thumbnails 200x200 (Pillow + R2 upload pod `/thumbs/`)
+- Feat 13 Public profile privacy per section
+- Feat 14 Edit/Delete buttons everywhere

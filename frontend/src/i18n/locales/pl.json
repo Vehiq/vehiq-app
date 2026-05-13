@@ -97,11 +97,24 @@
   },
   "vehicle": {
     "make": "Marka",
+    "makePlaceholder": "Wybierz lub wpisz markę",
+    "otherMake": "Inna",
     "model": "Model",
     "year": "Rok",
     "vin": "VIN",
     "engine": "Silnik",
     "fuel": "Paliwo",
+    "fuels": {
+      "petrol_95": "Benzyna PB 95",
+      "petrol_98": "Benzyna PB 98",
+      "diesel": "Diesel (ON)",
+      "lpg": "LPG",
+      "cng": "CNG",
+      "hybrid": "Hybryda",
+      "hybrid_plugin": "Hybryda plug-in",
+      "electric": "Elektryczny",
+      "hydrogen": "Wodór"
+    },
     "color": "Kolor",
     "plate": "Tablica",
     "mileage": "Przebieg (km)",
@@ -112,11 +125,26 @@
     "salePrice": "Cena sprzedaży",
     "saleDate": "Data sprzedaży",
     "status": "Status",
+    "statuses": {
+      "active": "Aktywny",
+      "sold": "Sprzedany",
+      "archived": "Zarchiwizowany"
+    },
+    "conditionLabel": "Stan pojazdu",
+    "conditions": {
+      "running": "Na chodzie",
+      "needs_repair": "Wymaga naprawy",
+      "renovation": "W trakcie renowacji",
+      "project": "Projekt",
+      "damaged": "Uszkodzony",
+      "for_parts": "Na części"
+    },
     "active": "Aktywny",
     "archived": "Sprzedany",
     "photos": "Zdjęcia",
     "uploadPhotos": "Dodaj zdjęcia",
     "selectMain": "Główne zdjęcie",
+    "project": "Projekt",
     "tabs": {
       "overview": "Przegląd",
       "service": "Serwis",

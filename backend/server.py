@@ -229,6 +229,20 @@ async def on_startup():
         asyncio.create_task(scheduler_loop())
     except Exception as e:
         logger.warning(f"retention scheduler failed to start: {e}")
+    # Backfill missing slugs on services & events (fixes map-marker 404 for legacy data)
+    if db is not None:
+        try:
+            from routers.services import _slug, _unique_slug
+            async for s in db.services.find({"$or": [{"slug": {"$exists": False}}, {"slug": None}, {"slug": ""}]}, {"_id": 0, "id": 1, "name": 1, "location": 1}):
+                base = _slug(f"{s.get('name','')}-{(s.get('location') or {}).get('city','')}")
+                new_slug = await _unique_slug(db, "services", base)
+                await db.services.update_one({"id": s["id"]}, {"$set": {"slug": new_slug}})
+            async for e_doc in db.events.find({"$or": [{"slug": {"$exists": False}}, {"slug": None}, {"slug": ""}]}, {"_id": 0, "id": 1, "name": 1, "location": 1}):
+                base = _slug(f"{e_doc.get('name','')}-{(e_doc.get('location') or {}).get('city','')}")
+                new_slug = await _unique_slug(db, "events", base)
+                await db.events.update_one({"id": e_doc["id"]}, {"$set": {"slug": new_slug}})
+        except Exception as e:
+            logger.warning(f"slug backfill failed: {e}")
     logger.info(f"VEHIQ backend ready. version={APP_VERSION}")
 
 

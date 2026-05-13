@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import api from "@/lib/api";
+import api, { apiErrorMessage } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { MapPin, Calendar, Users, Trash2, ArrowLeft, Check, X, MessageCircle, Edit3 } from "lucide-react";
@@ -32,7 +32,7 @@ export default function EventDetail() {
   const join = async () => {
     setBusy(true);
     try { await api.post(`/events/${e.id}/join`); reload(); toast.success(t("common.success")); }
-    catch (err) { toast.error(err?.response?.data?.detail || t("common.error")); }
+    catch (err) { toast.error(apiErrorMessage(err, t("common.error"))); }
     finally { setBusy(false); }
   };
   const leave = async () => { setBusy(true); try { await api.post(`/events/${e.id}/leave`); reload(); } finally { setBusy(false); } };

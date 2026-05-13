@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from "react";
 import { useTranslation } from "react-i18next";
-import api from "@/lib/api";
+import api, { apiErrorMessage } from "@/lib/api";
 import { Send, Sparkles, Trash2, FileDown } from "lucide-react";
 import { toast } from "sonner";
 import jsPDF from "jspdf";
@@ -29,7 +29,7 @@ export default function AITab({ vehicle }) {
       const { data } = await api.post("/ai/ask", { vehicle_id: vehicle.id, message: text });
       setMessages((m) => [...m, data.ai_message]);
     } catch (err) {
-      toast.error(err?.response?.data?.detail || t("common.error"));
+      toast.error(apiErrorMessage(err, t("common.error")));
       setMessages((m) => m.slice(0, -1));
     } finally {
       setBusy(false);

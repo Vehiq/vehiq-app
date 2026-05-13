@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { Car, Store, MessagesSquare, Settings, LogOut, Mail, Search, Wrench, Calendar } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import api from "@/lib/api";
+import Logo from "@/components/Logo";
 
 const NAV = [
   { to: "/garage", key: "nav.garage", Icon: Car, testId: "sidebar-garage" },
@@ -39,13 +40,7 @@ export default function Sidebar({ onNavigate }) {
   return (
     <aside className="hidden md:flex w-64 flex-col bg-vehiq-nav border-r border-vehiq-border min-h-screen sticky top-0" data-testid="sidebar">
       <div className="p-6 border-b border-vehiq-border">
-        <div className="flex items-center gap-2">
-          <div className="h-10 w-10 rounded-md bg-vehiq-gold flex items-center justify-center text-vehiq-bg font-bold text-lg">V</div>
-          <div>
-            <div className="vehiq-display text-2xl tracking-wide text-vehiq-text leading-none">VEHIQ</div>
-            <div className="text-[10px] uppercase tracking-[0.25em] text-vehiq-gold mt-1">Virtual Garage</div>
-          </div>
-        </div>
+        <Logo size="md" showTagline />
       </div>
 
       <nav className="flex-1 p-4 space-y-1">

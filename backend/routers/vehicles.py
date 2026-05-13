@@ -70,7 +70,8 @@ class VehicleIn(BaseModel):
     purchase_date: Optional[str] = None
     sale_price: Optional[float] = None
     sale_date: Optional[str] = None
-    status: Optional[str] = "active"  # active | archived
+    status: Optional[str] = "active"  # active | sold | archived
+    condition: Optional[str] = None  # running|needs_repair|renovation|project|damaged|for_parts
     photos: Optional[List[str]] = []  # base64 data URLs
     cover_photo_index: Optional[int] = 0
     public: Optional[bool] = None
@@ -98,6 +99,7 @@ class VehicleUpdateIn(BaseModel):
     sale_price: Optional[float] = None
     sale_date: Optional[str] = None
     status: Optional[str] = None
+    condition: Optional[str] = None
     photos: Optional[List[str]] = None
     cover_photo_index: Optional[int] = None
     public: Optional[bool] = None
@@ -220,7 +222,12 @@ async def create_vehicle(payload: VehicleIn, user=Depends(get_current_user)):
     settings = await db.app_settings.find_one({"key": "max_vehicles_per_user"})
     max_v = int(settings["value"]) if settings else 0
     if max_v > 0:
-        count = await db.vehicles.count_documents({"user_id": user["id"]})
+        # Count only ACTIVE (non-archived/non-sold) vehicles against the plan limit.
+        # Sold/archived vehicles must not consume a slot — they're history.
+        count = await db.vehicles.count_documents({
+            "user_id": user["id"],
+            "status": {"$nin": ["archived", "sold"]},
+        })
         if count >= max_v:
             raise HTTPException(status_code=400, detail=f"Max vehicles per user reached ({max_v})")
 
