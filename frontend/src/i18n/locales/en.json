@@ -132,7 +132,7 @@
     },
     "conditionLabel": "Condition",
     "conditions": {
-      "running": "Runs & drives",
+      "running": "Operational",
       "needs_repair": "Needs repair",
       "renovation": "In restoration",
       "project": "Project",

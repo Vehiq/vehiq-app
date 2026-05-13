@@ -35,21 +35,20 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-vehiq-bg relative" data-testid="register-page">
-      <div className="absolute inset-0 -z-10">
-        <img
-          src="https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=1920&auto=format&fit=crop&q=70"
-          alt=""
-          className="w-full h-full object-cover"
-          loading="eager"
-          data-testid="register-bg-image"
-        />
-        <div className="absolute inset-0 bg-vehiq-bg" style={{ opacity: 0.6 }} />
-      </div>
+    <div className="min-h-screen flex flex-col relative" data-testid="register-page" style={{ backgroundColor: "#0D0F1A" }}>
+      <div
+        className="absolute inset-0 bg-cover bg-center"
+        style={{
+          backgroundImage: "url('https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=1920&auto=format&fit=crop&q=70')",
+          zIndex: 0,
+        }}
+        data-testid="register-bg-image"
+      />
+      <div className="absolute inset-0" style={{ backgroundColor: "rgba(13, 15, 26, 0.6)", zIndex: 1 }} />
 
-      <div className="flex justify-end p-6"><LanguageSwitcher /></div>
+      <div className="relative flex justify-end p-6" style={{ zIndex: 2 }}><LanguageSwitcher /></div>
 
-      <div className="flex-1 flex items-center justify-center px-4 py-8">
+      <div className="relative flex-1 flex items-center justify-center px-4 py-8" style={{ zIndex: 2 }}>
         <div className="w-full max-w-md vehiq-card p-8 md:p-10 backdrop-blur-sm">
           <div className="text-center mb-8">
             <div className="inline-flex mb-4"><Logo size="lg" /></div>

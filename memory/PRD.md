@@ -455,3 +455,13 @@ maxPoolSize=10, serverSelectionTimeoutMS=5000, connectTimeoutMS=10000
 - Feat 11 R2 thumbnails 200x200 (Pillow + R2 upload pod `/thumbs/`)
 - Feat 13 Public profile privacy per section
 - Feat 14 Edit/Delete buttons everywhere
+
+---
+
+## Iter 11 — Hotfix 4 items (Feb 2026)
+
+1. ✅ PL condition labels — "Na chodzie" → "Sprawny", "W trakcie renowacji" → "W renowacji" (PL+EN i18n).
+2. ✅ P&L tab — przeniesiony filter z mileage na pl: pokazuje się tylko dla `status: sold|archived`.
+3. ✅ Bg image Login/Register — usunięto `bg-vehiq-bg` z wrappera (zasłaniał `-z-10`). Przeszło z `<img>` na `background-image` na pełnym divie `inset-0 z-0`, overlay `rgba(13,15,26,0.6) z-1`, content `z-2`. Zweryfikowane screenshot — obraz Unsplash widoczny z ciemną nakładką.
+4. ✅ Mileage tab — filtr usunięty, widoczny dla wszystkich pojazdów.
+5. ✅ Tabs Overview/Service/Mileage/P&L/AI — wszystkie 5 renderuje się (overview/mileage zawsze, pl tylko sold).

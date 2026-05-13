@@ -112,8 +112,8 @@ export default function VehicleProfile() {
 
       <div className="border-b border-vehiq-border flex gap-1 overflow-x-auto">
         {TABS.filter(({ id: tid }) => {
-          // Feat 20: mileage tracker shown only for SOLD vehicles (atut przy sprzedaży)
-          if (tid === "mileage") return vehicle.status === "sold" || vehicle.status === "archived";
+          // P&L visible only for sold/archived vehicles (lifetime financial summary)
+          if (tid === "pl") return vehicle.status === "sold" || vehicle.status === "archived";
           return true;
         }).map(({ id: tid, key }) => (
           <button

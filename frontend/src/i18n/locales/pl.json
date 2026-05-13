@@ -132,9 +132,9 @@
     },
     "conditionLabel": "Stan pojazdu",
     "conditions": {
-      "running": "Na chodzie",
+      "running": "Sprawny",
       "needs_repair": "Wymaga naprawy",
-      "renovation": "W trakcie renowacji",
+      "renovation": "W renowacji",
       "project": "Projekt",
       "damaged": "Uszkodzony",
       "for_parts": "Na części"
