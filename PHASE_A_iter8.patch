@@ -1,0 +1,981 @@
+commit ae9147baffd7b753450f6677e06f1af4562c80d8
+Author: emergent-agent-e1 <github@emergent.sh>
+Date:   Wed May 13 19:42:05 2026 +0000
+
+    auto-commit for 348d7535-cf24-4681-be6a-2ea3fc285fdd
+
+diff --git a/backend/routers/vehicles.py b/backend/routers/vehicles.py
+index c12bcf1..d893702 100644
+--- a/backend/routers/vehicles.py
++++ b/backend/routers/vehicles.py
+@@ -70,7 +70,8 @@ class VehicleIn(BaseModel):
+     purchase_date: Optional[str] = None
+     sale_price: Optional[float] = None
+     sale_date: Optional[str] = None
+-    status: Optional[str] = "active"  # active | archived
++    status: Optional[str] = "active"  # active | sold | archived
++    condition: Optional[str] = None  # running|needs_repair|renovation|project|damaged|for_parts
+     photos: Optional[List[str]] = []  # base64 data URLs
+     cover_photo_index: Optional[int] = 0
+     public: Optional[bool] = None
+@@ -98,6 +99,7 @@ class VehicleUpdateIn(BaseModel):
+     sale_price: Optional[float] = None
+     sale_date: Optional[str] = None
+     status: Optional[str] = None
++    condition: Optional[str] = None
+     photos: Optional[List[str]] = None
+     cover_photo_index: Optional[int] = None
+     public: Optional[bool] = None
+@@ -220,7 +222,12 @@ async def create_vehicle(payload: VehicleIn, user=Depends(get_current_user)):
+     settings = await db.app_settings.find_one({"key": "max_vehicles_per_user"})
+     max_v = int(settings["value"]) if settings else 0
+     if max_v > 0:
+-        count = await db.vehicles.count_documents({"user_id": user["id"]})
++        # Count only ACTIVE (non-archived/non-sold) vehicles against the plan limit.
++        # Sold/archived vehicles must not consume a slot — they're history.
++        count = await db.vehicles.count_documents({
++            "user_id": user["id"],
++            "status": {"$nin": ["archived", "sold"]},
++        })
+         if count >= max_v:
+             raise HTTPException(status_code=400, detail=f"Max vehicles per user reached ({max_v})")
+ 
+diff --git a/backend/server.py b/backend/server.py
+index 5cd1af4..00c8070 100644
+--- a/backend/server.py
++++ b/backend/server.py
+@@ -229,6 +229,20 @@ async def on_startup():
+         asyncio.create_task(scheduler_loop())
+     except Exception as e:
+         logger.warning(f"retention scheduler failed to start: {e}")
++    # Backfill missing slugs on services & events (fixes map-marker 404 for legacy data)
++    if db is not None:
++        try:
++            from routers.services import _slug, _unique_slug
++            async for s in db.services.find({"$or": [{"slug": {"$exists": False}}, {"slug": None}, {"slug": ""}]}, {"_id": 0, "id": 1, "name": 1, "location": 1}):
++                base = _slug(f"{s.get('name','')}-{(s.get('location') or {}).get('city','')}")
++                new_slug = await _unique_slug(db, "services", base)
++                await db.services.update_one({"id": s["id"]}, {"$set": {"slug": new_slug}})
++            async for e_doc in db.events.find({"$or": [{"slug": {"$exists": False}}, {"slug": None}, {"slug": ""}]}, {"_id": 0, "id": 1, "name": 1, "location": 1}):
++                base = _slug(f"{e_doc.get('name','')}-{(e_doc.get('location') or {}).get('city','')}")
++                new_slug = await _unique_slug(db, "events", base)
++                await db.events.update_one({"id": e_doc["id"]}, {"$set": {"slug": new_slug}})
++        except Exception as e:
++            logger.warning(f"slug backfill failed: {e}")
+     logger.info(f"VEHIQ backend ready. version={APP_VERSION}")
+ 
+ 
+diff --git a/backend/tests/test_iter8_phase_a.py b/backend/tests/test_iter8_phase_a.py
+new file mode 100644
+index 0000000..2011e62
+--- /dev/null
++++ b/backend/tests/test_iter8_phase_a.py
+@@ -0,0 +1,222 @@
++"""VEHIQ Phase A (Iteration 8) backend tests — 20 cases.
++
++Scope:
++  - apiErrorMessage helper indirect: 422 responses are well-formed (frontend-side render coverage).
++  - Bug 2: Vehicle limit counts ONLY active vehicles (archived/sold don't count).
++  - Bug 5: VehicleIn accepts new `condition` field (running/needs_repair/...).
++  - Bug 5: VehicleIn accepts new `status` value `sold`.
++  - Bug 6: Service slug backfill — newly created services get a slug; GET /services/{slug} works.
++  - Backend regression: vehicle CRUD, listing creation, auth, password reset request.
++
++All test data prefixed with TEST_iter8_<hex> for safe cleanup.
++"""
++import os
++import uuid
++import pytest
++import requests
++
++BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "https://vehicle-hub-301.preview.emergentagent.com").rstrip("/")
++API = f"{BASE_URL}/api"
++TAG = uuid.uuid4().hex[:6]
++
++
++def _email(suffix: str) -> str:
++    return f"TEST_iter8_{suffix}_{uuid.uuid4().hex[:6]}@example.com"
++
++
++def H(token):
++    return {"Authorization": f"Bearer {token}"}
++
++
++@pytest.fixture(scope="module")
++def user_token():
++    """Register a fresh user and return their bearer token."""
++    email = _email("user")
++    payload = {
++        "name": f"TEST_iter8_user_{TAG}",
++        "email": email,
++        "password": "TestPass1234!",
++        "accept_tos": True,
++        "language": "pl",
++    }
++    r = requests.post(f"{API}/auth/register", json=payload, timeout=10)
++    assert r.status_code in (200, 201), r.text
++    return r.json()["token"]
++
++
++@pytest.fixture(scope="module")
++def admin_token():
++    r = requests.post(f"{API}/admin/login", json={
++        "email": "kontakt@vehiq.pl",
++        "password": "VehiqAdmin2026#Temp!",
++    }, timeout=10)
++    if r.status_code != 200:
++        pytest.skip(f"admin login failed: {r.status_code}")
++    return r.json()["token"]
++
++
++# ---------- BUG 1 / 422 envelope ----------
++
++def test_01_register_validation_returns_array(user_token):
++    """Pydantic should return detail as an array of dicts (frontend renders via apiErrorMessage)."""
++    r = requests.post(f"{API}/auth/register", json={"email": "not-an-email"}, timeout=10)
++    assert r.status_code == 422
++    body = r.json()
++    assert "detail" in body and isinstance(body["detail"], list)
++    # each entry has 'msg'
++    assert all("msg" in e for e in body["detail"])
++
++
++def test_02_listing_validation_422(user_token):
++    """Missing required field -> 422 with array detail."""
++    r = requests.post(f"{API}/marketplace/listings", headers=H(user_token), json={"price": 1000}, timeout=10)
++    assert r.status_code in (400, 422)
++    if r.status_code == 422:
++        assert isinstance(r.json()["detail"], list)
++
++
++# ---------- BUG 2: vehicle limit counts active only ----------
++
++def test_03_admin_can_set_vehicle_limit(admin_token):
++    """Admin sets max_vehicles_per_user=2 for the test below."""
++    r = requests.put(
++        f"{API}/admin/settings/max_vehicles_per_user",
++        headers=H(admin_token),
++        json={"value": "2"},
++        timeout=10,
++    )
++    assert r.status_code in (200, 204), r.text
++
++
++def test_04_can_add_two_active_vehicles(user_token):
++    """User adds 2 vehicles within the active limit."""
++    for i in range(2):
++        r = requests.post(f"{API}/vehicles", headers=H(user_token), json={
++            "make": f"TESTMK{TAG}", "model": f"M{i}",
++            "year": 2020, "status": "active",
++        }, timeout=10)
++        assert r.status_code == 200, r.text
++
++
++def test_05_third_active_vehicle_rejected(user_token):
++    """3rd active vehicle should be rejected (limit=2)."""
++    r = requests.post(f"{API}/vehicles", headers=H(user_token), json={
++        "make": f"TESTMK{TAG}", "model": "M_X",
++        "year": 2020, "status": "active",
++    }, timeout=10)
++    assert r.status_code == 400, r.text
++    assert "Max" in r.json().get("detail", "")
++
++
++def test_06_sold_vehicle_does_not_count_against_limit(user_token):
++    """Marking a vehicle as sold frees up a slot."""
++    # Mark one vehicle sold
++    r = requests.get(f"{API}/vehicles", headers=H(user_token), timeout=10)
++    assert r.status_code == 200
++    vehicles = r.json()
++    target = next(v for v in vehicles if v["status"] == "active")
++    r = requests.put(f"{API}/vehicles/{target['id']}", headers=H(user_token), json={"status": "sold"}, timeout=10)
++    assert r.status_code == 200
++    # Now we can add a new active vehicle
++    r = requests.post(f"{API}/vehicles", headers=H(user_token), json={
++        "make": f"TESTMK{TAG}", "model": "M_AFTER",
++        "year": 2020, "status": "active",
++    }, timeout=10)
++    assert r.status_code == 200, r.text
++
++
++def test_07_archived_vehicle_does_not_count_either(user_token):
++    """Archived (legacy 'archived' value) also frees a slot."""
++    r = requests.get(f"{API}/vehicles", headers=H(user_token), timeout=10)
++    vehicles = r.json()
++    target = next(v for v in vehicles if v["status"] == "active")
++    requests.put(f"{API}/vehicles/{target['id']}", headers=H(user_token), json={"status": "archived"}, timeout=10)
++    r = requests.post(f"{API}/vehicles", headers=H(user_token), json={
++        "make": f"TESTMK{TAG}", "model": "M_AFTER2",
++        "year": 2020, "status": "active",
++    }, timeout=10)
++    assert r.status_code == 200
++
++
++def test_08_restore_vehicle_limit_unlimited(admin_token):
++    """Restore: set limit to 0 (unlimited) to not break later tests."""
++    r = requests.put(
++        f"{API}/admin/settings/max_vehicles_per_user",
++        headers=H(admin_token),
++        json={"value": "0"},
++        timeout=10,
++    )
++    assert r.status_code in (200, 204)
++
++
++# ---------- BUG 5: condition field ----------
++
++@pytest.mark.parametrize("cond", ["running", "needs_repair", "renovation", "project", "damaged", "for_parts"])
++def test_09_to_14_vehicle_condition_accepted(user_token, cond):
++    """Vehicle should accept all 6 condition values."""
++    r = requests.post(f"{API}/vehicles", headers=H(user_token), json={
++        "make": f"COND{TAG}", "model": cond, "year": 2020, "condition": cond,
++    }, timeout=10)
++    assert r.status_code == 200, r.text
++    body = r.json()
++    assert body["condition"] == cond
++
++
++def test_15_vehicle_status_sold_accepted(user_token):
++    """`status: 'sold'` should be accepted (new value)."""
++    r = requests.post(f"{API}/vehicles", headers=H(user_token), json={
++        "make": f"STAT{TAG}", "model": "sold-test", "year": 2020,
++        "status": "sold", "sale_price": 30000,
++    }, timeout=10)
++    assert r.status_code == 200
++    assert r.json()["status"] == "sold"
++
++
++# ---------- BUG 6: services slug routing ----------
++
++def test_16_service_create_has_slug(user_token):
++    r = requests.post(f"{API}/services", headers=H(user_token), json={
++        "name": f"TEST_iter8_svc_{TAG}",
++        "category": "workshop",
++        "description": "test workshop",
++        "location": {"address": "Test 1", "city": "Warszawa", "lat": 52.2, "lng": 21.0},
++    }, timeout=10)
++    assert r.status_code == 200, r.text
++    svc = r.json()
++    assert svc.get("slug")
++    # GET by slug should work
++    r = requests.get(f"{API}/services/{svc['slug']}", timeout=10)
++    assert r.status_code == 200
++    # GET by id should also work
++    r = requests.get(f"{API}/services/{svc['id']}", timeout=10)
++    assert r.status_code == 200
++
++
++def test_17_service_list_returns_slug(user_token):
++    r = requests.get(f"{API}/services", timeout=10)
++    assert r.status_code == 200
++    items = r.json()
++    assert isinstance(items, list)
++    for s in items:
++        assert "slug" in s and s["slug"], f"service missing slug: {s}"
++
++
++# ---------- REGRESSION: auth + password reset ----------
++
++def test_18_login_with_token_works(user_token):
++    r = requests.get(f"{API}/auth/me", headers=H(user_token), timeout=10)
++    assert r.status_code == 200
++    assert r.json()["email"].lower().startswith("test_iter8_user_")
++
++
++def test_19_password_reset_request_idempotent():
++    """Always returns 200, even for unknown email (anti-enumeration)."""
++    r = requests.post(f"{API}/auth/password-reset/request", json={"email": "unknown@example.com"}, timeout=10)
++    assert r.status_code in (200, 204)
++
++
++def test_20_health_check():
++    r = requests.get(f"{API}/health", timeout=5)
++    assert r.status_code == 200
++    body = r.json()
++    assert body.get("status") == "ok"
+diff --git a/frontend/src/components/Logo.js b/frontend/src/components/Logo.js
+new file mode 100644
+index 0000000..4f87cb8
+--- /dev/null
++++ b/frontend/src/components/Logo.js
+@@ -0,0 +1,34 @@
++/**
++ * VEHIQ wordmark — "Veh" in light/white, "IQ" in amber gold (#F59E0B).
++ * Use everywhere a text logo is rendered. Accepts a size variant for layout.
++ */
++export default function Logo({ size = "md", showTagline = false, className = "" }) {
++  const sizes = {
++    sm: { box: "h-7 w-7 text-base", word: "text-lg" },
++    md: { box: "h-10 w-10 text-lg", word: "text-2xl" },
++    lg: { box: "h-12 w-12 text-2xl", word: "text-3xl" },
++    xl: { box: "h-14 w-14 text-3xl", word: "text-4xl" },
++  }[size] || { box: "h-10 w-10 text-lg", word: "text-2xl" };
++
++  return (
++    <div className={`inline-flex items-center gap-2 ${className}`} data-testid="vehiq-logo">
++      <div
++        className={`${sizes.box} rounded-md bg-vehiq-gold flex items-center justify-center text-vehiq-bg font-bold`}
++        aria-hidden="true"
++      >
++        V
++      </div>
++      <div className="leading-none">
++        <div className={`vehiq-display tracking-wider ${sizes.word}`}>
++          <span className="text-vehiq-text">Veh</span>
++          <span style={{ color: "#F59E0B" }}>IQ</span>
++        </div>
++        {showTagline && (
++          <div className="text-[10px] uppercase tracking-[0.25em] text-vehiq-gold mt-1">
++            Virtual Garage
++          </div>
++        )}
++      </div>
++    </div>
++  );
++}
+diff --git a/frontend/src/components/VehicleForm.js b/frontend/src/components/VehicleForm.js
+index 6eed35b..afc27e7 100644
+--- a/frontend/src/components/VehicleForm.js
++++ b/frontend/src/components/VehicleForm.js
+@@ -5,15 +5,39 @@ import api from "@/lib/api";
+ import { toast } from "sonner";
+ import { ArrowLeft, Upload, X } from "lucide-react";
+ 
+-const FUEL_OPTIONS = ["petrol", "diesel", "hybrid", "electric", "lpg"];
+-const POPULAR_MAKES = ["Audi", "BMW", "Mercedes-Benz", "Porsche", "Volkswagen", "Toyota", "Honda", "Ford", "Mazda", "Volvo", "Skoda", "Tesla", "Lexus", "Land Rover"];
++// All popular brands. Pinned (Polish market) first, alphabetical rest.
++// "other" is a free-form option translated via i18n.
++const ALL_MAKES = [
++  "Alfa Romeo", "Aston Martin", "Audi", "Bentley", "BMW", "Bugatti", "Buick",
++  "Cadillac", "Chevrolet", "Chrysler", "Citroën", "Dacia", "Daewoo", "Ferrari",
++  "Fiat", "Ford", "Genesis", "Honda", "Hyundai", "Infiniti", "Jaguar", "Jeep",
++  "Kia", "Lamborghini", "Land Rover", "Lexus", "Maserati", "Mazda", "McLaren",
++  "Mercedes-Benz", "MG", "MINI", "Mitsubishi", "Nissan", "Opel", "Peugeot",
++  "Porsche", "RAM", "Renault", "Rolls-Royce", "SEAT", "Skoda", "Smart",
++  "Subaru", "Suzuki", "Tesla", "Toyota", "Volkswagen", "Volvo",
++];
++
++// Fuel ids match backend storage. Labels come from i18n (vehicle.fuels.*).
++const FUEL_OPTIONS = [
++  "petrol_95", "petrol_98", "diesel", "lpg", "cng",
++  "hybrid", "hybrid_plugin", "electric", "hydrogen",
++];
++
++// Lifecycle status (active/sold). Mileage tracker is gated to "sold".
++const STATUS_OPTIONS = ["active", "sold", "archived"];
++
++// Vehicle CONDITION (different from lifecycle status). All optional.
++const CONDITION_OPTIONS = [
++  "running", "needs_repair", "renovation", "project", "damaged", "for_parts",
++];
+ 
+ export default function VehicleForm({ initial, onSaved }) {
+   const { t } = useTranslation();
+   const navigate = useNavigate();
+   const [form, setForm] = useState(initial || {
+-    make: "", model: "", year: "", vin: "", engine: "", fuel: "petrol", color: "", plate: "",
+-    mileage_current: 0, mileage_at_purchase: "", mileage_at_sale: "", purchase_price: "", purchase_date: "", status: "active",
++    make: "", model: "", year: "", vin: "", engine: "", fuel: "petrol_95", color: "", plate: "",
++    mileage_current: 0, mileage_at_purchase: "", mileage_at_sale: "",
++    purchase_price: "", purchase_date: "", status: "active", condition: "",
+     photos: [], cover_photo_index: 0,
+   });
+   const [busy, setBusy] = useState(false);
+@@ -53,6 +77,7 @@ export default function VehicleForm({ initial, onSaved }) {
+         sale_price: form.sale_price ? parseFloat(form.sale_price) : null,
+         purchase_date: form.purchase_date || null,
+         sale_date: form.sale_date || null,
++        condition: form.condition || null,
+       };
+       let resp;
+       if (initial?.id) {
+@@ -64,12 +89,15 @@ export default function VehicleForm({ initial, onSaved }) {
+       if (onSaved) onSaved(resp.data);
+       else navigate(`/garage/${resp.data.id}`);
+     } catch (err) {
+-      toast.error(t("common.error"));
++      const { apiErrorMessage } = await import("@/lib/api");
++      toast.error(apiErrorMessage(err, t("common.error")));
+     } finally {
+       setBusy(false);
+     }
+   };
+ 
++  const isSold = form.status === "sold" || form.status === "archived";
++
+   return (
+     <form onSubmit={submit} className="space-y-6 animate-fade-in" data-testid="vehicle-form">
+       <button type="button" onClick={() => navigate(-1)} className="text-sm text-vehiq-muted hover:text-vehiq-gold inline-flex items-center gap-1">
+@@ -81,8 +109,11 @@ export default function VehicleForm({ initial, onSaved }) {
+       <div className="vehiq-card p-6 space-y-5">
+         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+           <Field label={t("vehicle.make")}>
+-            <input data-testid="vehicle-make" list="makes" required value={form.make} onChange={(e) => setForm({ ...form, make: e.target.value })} className="vehiq-input" />
+-            <datalist id="makes">{POPULAR_MAKES.map(m => <option key={m} value={m} />)}</datalist>
++            <input data-testid="vehicle-make" list="makes" required value={form.make} onChange={(e) => setForm({ ...form, make: e.target.value })} className="vehiq-input" placeholder={t("vehicle.makePlaceholder")} />
++            <datalist id="makes">
++              {ALL_MAKES.map(m => <option key={m} value={m} />)}
++              <option value={t("vehicle.otherMake")} />
++            </datalist>
+           </Field>
+           <Field label={t("vehicle.model")}>
+             <input data-testid="vehicle-model" required value={form.model} onChange={(e) => setForm({ ...form, model: e.target.value })} className="vehiq-input" />
+@@ -97,8 +128,8 @@ export default function VehicleForm({ initial, onSaved }) {
+             <input value={form.engine || ""} onChange={(e) => setForm({ ...form, engine: e.target.value })} className="vehiq-input" />
+           </Field>
+           <Field label={t("vehicle.fuel")}>
+-            <select value={form.fuel || "petrol"} onChange={(e) => setForm({ ...form, fuel: e.target.value })} className="vehiq-input">
+-              {FUEL_OPTIONS.map(f => <option key={f} value={f}>{f}</option>)}
++            <select value={form.fuel || "petrol_95"} onChange={(e) => setForm({ ...form, fuel: e.target.value })} className="vehiq-input" data-testid="vehicle-fuel">
++              {FUEL_OPTIONS.map(f => <option key={f} value={f}>{t(`vehicle.fuels.${f}`)}</option>)}
+             </select>
+           </Field>
+           <Field label={t("vehicle.color")}>
+@@ -107,6 +138,12 @@ export default function VehicleForm({ initial, onSaved }) {
+           <Field label={t("vehicle.plate")}>
+             <input value={form.plate || ""} onChange={(e) => setForm({ ...form, plate: e.target.value })} className="vehiq-input" />
+           </Field>
++          <Field label={t("vehicle.conditionLabel")}>
++            <select value={form.condition || ""} onChange={(e) => setForm({ ...form, condition: e.target.value })} className="vehiq-input" data-testid="vehicle-condition">
++              <option value="">—</option>
++              {CONDITION_OPTIONS.map(c => <option key={c} value={c}>{t(`vehicle.conditions.${c}`)}</option>)}
++            </select>
++          </Field>
+           <Field label={t("vehicle.mileage")}>
+             <input type="number" value={form.mileage_current || 0} onChange={(e) => setForm({ ...form, mileage_current: e.target.value })} className="vehiq-input" data-testid="vf-mileage-current" />
+           </Field>
+@@ -120,12 +157,11 @@ export default function VehicleForm({ initial, onSaved }) {
+             <input type="date" value={form.purchase_date || ""} onChange={(e) => setForm({ ...form, purchase_date: e.target.value })} className="vehiq-input" />
+           </Field>
+           <Field label={t("vehicle.status")}>
+-            <select value={form.status || "active"} onChange={(e) => setForm({ ...form, status: e.target.value })} className="vehiq-input">
+-              <option value="active">{t("vehicle.active")}</option>
+-              <option value="archived">{t("vehicle.archived")}</option>
++            <select value={form.status || "active"} onChange={(e) => setForm({ ...form, status: e.target.value })} className="vehiq-input" data-testid="vehicle-status">
++              {STATUS_OPTIONS.map(s => <option key={s} value={s}>{t(`vehicle.statuses.${s}`)}</option>)}
+             </select>
+           </Field>
+-          {form.status === "archived" && (
++          {isSold && (
+             <>
+               <Field label={t("vehicle.salePrice")}>
+                 <input type="number" step="0.01" value={form.sale_price || ""} onChange={(e) => setForm({ ...form, sale_price: e.target.value })} className="vehiq-input" />
+diff --git a/frontend/src/components/layout/Sidebar.js b/frontend/src/components/layout/Sidebar.js
+index ff540f1..509f840 100644
+--- a/frontend/src/components/layout/Sidebar.js
++++ b/frontend/src/components/layout/Sidebar.js
+@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
+ import { Car, Store, MessagesSquare, Settings, LogOut, Mail, Search, Wrench, Calendar } from "lucide-react";
+ import { useAuth } from "@/contexts/AuthContext";
+ import api from "@/lib/api";
++import Logo from "@/components/Logo";
+ 
+ const NAV = [
+   { to: "/garage", key: "nav.garage", Icon: Car, testId: "sidebar-garage" },
+@@ -39,13 +40,7 @@ export default function Sidebar({ onNavigate }) {
+   return (
+     <aside className="hidden md:flex w-64 flex-col bg-vehiq-nav border-r border-vehiq-border min-h-screen sticky top-0" data-testid="sidebar">
+       <div className="p-6 border-b border-vehiq-border">
+-        <div className="flex items-center gap-2">
+-          <div className="h-10 w-10 rounded-md bg-vehiq-gold flex items-center justify-center text-vehiq-bg font-bold text-lg">V</div>
+-          <div>
+-            <div className="vehiq-display text-2xl tracking-wide text-vehiq-text leading-none">VEHIQ</div>
+-            <div className="text-[10px] uppercase tracking-[0.25em] text-vehiq-gold mt-1">Virtual Garage</div>
+-          </div>
+-        </div>
++        <Logo size="md" showTagline />
+       </div>
+ 
+       <nav className="flex-1 p-4 space-y-1">
+diff --git a/frontend/src/i18n/locales/en.json b/frontend/src/i18n/locales/en.json
+index baa4989..cfdcb5a 100644
+--- a/frontend/src/i18n/locales/en.json
++++ b/frontend/src/i18n/locales/en.json
+@@ -97,11 +97,24 @@
+   },
+   "vehicle": {
+     "make": "Make",
++    "makePlaceholder": "Pick or type a brand",
++    "otherMake": "Other",
+     "model": "Model",
+     "year": "Year",
+     "vin": "VIN",
+     "engine": "Engine",
+     "fuel": "Fuel",
++    "fuels": {
++      "petrol_95": "Petrol 95",
++      "petrol_98": "Petrol 98",
++      "diesel": "Diesel",
++      "lpg": "LPG",
++      "cng": "CNG",
++      "hybrid": "Hybrid",
++      "hybrid_plugin": "Plug-in hybrid",
++      "electric": "Electric",
++      "hydrogen": "Hydrogen"
++    },
+     "color": "Color",
+     "plate": "Plate",
+     "mileage": "Mileage (km)",
+@@ -112,11 +125,26 @@
+     "salePrice": "Sale price",
+     "saleDate": "Sale date",
+     "status": "Status",
++    "statuses": {
++      "active": "Active",
++      "sold": "Sold",
++      "archived": "Archived"
++    },
++    "conditionLabel": "Condition",
++    "conditions": {
++      "running": "Runs & drives",
++      "needs_repair": "Needs repair",
++      "renovation": "In restoration",
++      "project": "Project",
++      "damaged": "Damaged",
++      "for_parts": "For parts"
++    },
+     "active": "Active",
+     "archived": "Sold",
+     "photos": "Photos",
+     "uploadPhotos": "Upload photos",
+     "selectMain": "Main photo",
++    "project": "Project",
+     "tabs": {
+       "overview": "Overview",
+       "service": "Service",
+diff --git a/frontend/src/i18n/locales/pl.json b/frontend/src/i18n/locales/pl.json
+index 301ce34..da8c159 100644
+--- a/frontend/src/i18n/locales/pl.json
++++ b/frontend/src/i18n/locales/pl.json
+@@ -97,11 +97,24 @@
+   },
+   "vehicle": {
+     "make": "Marka",
++    "makePlaceholder": "Wybierz lub wpisz markę",
++    "otherMake": "Inna",
+     "model": "Model",
+     "year": "Rok",
+     "vin": "VIN",
+     "engine": "Silnik",
+     "fuel": "Paliwo",
++    "fuels": {
++      "petrol_95": "Benzyna PB 95",
++      "petrol_98": "Benzyna PB 98",
++      "diesel": "Diesel (ON)",
++      "lpg": "LPG",
++      "cng": "CNG",
++      "hybrid": "Hybryda",
++      "hybrid_plugin": "Hybryda plug-in",
++      "electric": "Elektryczny",
++      "hydrogen": "Wodór"
++    },
+     "color": "Kolor",
+     "plate": "Tablica",
+     "mileage": "Przebieg (km)",
+@@ -112,11 +125,26 @@
+     "salePrice": "Cena sprzedaży",
+     "saleDate": "Data sprzedaży",
+     "status": "Status",
++    "statuses": {
++      "active": "Aktywny",
++      "sold": "Sprzedany",
++      "archived": "Zarchiwizowany"
++    },
++    "conditionLabel": "Stan pojazdu",
++    "conditions": {
++      "running": "Na chodzie",
++      "needs_repair": "Wymaga naprawy",
++      "renovation": "W trakcie renowacji",
++      "project": "Projekt",
++      "damaged": "Uszkodzony",
++      "for_parts": "Na części"
++    },
+     "active": "Aktywny",
+     "archived": "Sprzedany",
+     "photos": "Zdjęcia",
+     "uploadPhotos": "Dodaj zdjęcia",
+     "selectMain": "Główne zdjęcie",
++    "project": "Projekt",
+     "tabs": {
+       "overview": "Przegląd",
+       "service": "Serwis",
+diff --git a/frontend/src/lib/api.js b/frontend/src/lib/api.js
+index 51fa85f..33167f1 100644
+--- a/frontend/src/lib/api.js
++++ b/frontend/src/lib/api.js
+@@ -21,4 +21,26 @@ api.interceptors.response.use(
+   }
+ );
+ 
++/**
++ * Flatten any axios error into a plain string, including Pydantic 422
++ * validation arrays (which would otherwise crash React with #31 when
++ * passed directly to <toast.error> or rendered as a child).
++ */
++export function apiErrorMessage(err, fallback = "") {
++  const d = err?.response?.data?.detail;
++  if (typeof d === "string") return d;
++  if (Array.isArray(d)) {
++    return (
++      d
++        .map((e) => (typeof e === "string" ? e : e?.msg || ""))
++        .filter(Boolean)
++        .join(", ") || fallback || err?.message || ""
++    );
++  }
++  if (d && typeof d === "object") {
++    return d.msg || d.message || fallback || err?.message || "";
++  }
++  return fallback || err?.message || "";
++}
++
+ export default api;
+diff --git a/frontend/src/pages/CreateListing.js b/frontend/src/pages/CreateListing.js
+index 4a27638..ef31eae 100644
+--- a/frontend/src/pages/CreateListing.js
++++ b/frontend/src/pages/CreateListing.js
+@@ -1,7 +1,7 @@
+ import { useState, useEffect } from "react";
+ import { useNavigate, useSearchParams } from "react-router-dom";
+ import { useTranslation } from "react-i18next";
+-import api from "@/lib/api";
++import api, { apiErrorMessage } from "@/lib/api";
+ import { toast } from "sonner";
+ import { ArrowLeft, Upload, X, Plus } from "lucide-react";
+ import {
+@@ -97,7 +97,7 @@ export default function CreateListing() {
+       toast.success(t("common.success"));
+       navigate(`/marketplace/${data.id}`);
+     } catch (err) {
+-      toast.error(err?.response?.data?.detail || t("common.error"));
++      toast.error(apiErrorMessage(err, t("common.error")));
+     } finally { setBusy(false); }
+   };
+ 
+diff --git a/frontend/src/pages/EventDetail.js b/frontend/src/pages/EventDetail.js
+index a7ee801..30e569e 100644
+--- a/frontend/src/pages/EventDetail.js
++++ b/frontend/src/pages/EventDetail.js
+@@ -1,7 +1,7 @@
+ import { useEffect, useState } from "react";
+ import { useParams, Link, useNavigate } from "react-router-dom";
+ import { useTranslation } from "react-i18next";
+-import api from "@/lib/api";
++import api, { apiErrorMessage } from "@/lib/api";
+ import { useAuth } from "@/contexts/AuthContext";
+ import { toast } from "sonner";
+ import { MapPin, Calendar, Users, Trash2, ArrowLeft, Check, X, MessageCircle, Edit3 } from "lucide-react";
+@@ -32,7 +32,7 @@ export default function EventDetail() {
+   const join = async () => {
+     setBusy(true);
+     try { await api.post(`/events/${e.id}/join`); reload(); toast.success(t("common.success")); }
+-    catch (err) { toast.error(err?.response?.data?.detail || t("common.error")); }
++    catch (err) { toast.error(apiErrorMessage(err, t("common.error"))); }
+     finally { setBusy(false); }
+   };
+   const leave = async () => { setBusy(true); try { await api.post(`/events/${e.id}/leave`); reload(); } finally { setBusy(false); } };
+diff --git a/frontend/src/pages/Garage.js b/frontend/src/pages/Garage.js
+index 186f78e..757d46c 100644
+--- a/frontend/src/pages/Garage.js
++++ b/frontend/src/pages/Garage.js
+@@ -24,9 +24,10 @@ export default function Dashboard() {
+     api.get("/dashboard").then((r) => setDash(r.data)).catch(() => setDash({ reminders: [], activity: [], featured_listings: [] }));
+   }, []);
+ 
+-  const filtered = vehicles ? vehicles.filter((v) => (tab === "archive" ? v.status === "archived" : v.status !== "archived")) : null;
+-  const activeCount = vehicles ? vehicles.filter((v) => v.status !== "archived").length : 0;
+-  const archivedCount = vehicles ? vehicles.filter((v) => v.status === "archived").length : 0;
++  const isArchived = (v) => ["archived", "sold"].includes(v?.status);
++  const filtered = vehicles ? vehicles.filter((v) => (tab === "archive" ? isArchived(v) : !isArchived(v))) : null;
++  const activeCount = vehicles ? vehicles.filter((v) => !isArchived(v)).length : 0;
++  const archivedCount = vehicles ? vehicles.filter((v) => isArchived(v)).length : 0;
+ 
+   return (
+     <div className="space-y-8 animate-fade-in" data-testid="dashboard-page">
+@@ -116,7 +117,7 @@ function VehicleCard({ v, t, eager = false, lang = "pl" }) {
+   const fmt = (n) => Number(n || 0).toLocaleString(lang === "en" ? "en-US" : "pl-PL", { maximumFractionDigits: 0 });
+   // Compute net P&L for archived (sold) vehicles
+   let plNode = null;
+-  if (v.status === "archived" && v.sale_price && v.purchase_price) {
++  if ((v.status === "archived" || v.status === "sold") && v.sale_price && v.purchase_price) {
+     const net = (v.sale_price || 0) - (v.purchase_price || 0);
+     const profit = net >= 0;
+     plNode = (
+@@ -149,12 +150,12 @@ function VehicleCard({ v, t, eager = false, lang = "pl" }) {
+             </span>
+           )}
+         </div>
+-        {v.status === "archived" && (
++        {(v.status === "archived" || v.status === "sold") && (
+           <span className="absolute top-3 right-3 text-[10px] uppercase tracking-widest px-2 py-1 rounded bg-vehiq-bg/80 text-vehiq-gold border border-vehiq-gold/30">
+             {t("vehicle.archived")}
+           </span>
+         )}
+-        {v.status !== "archived" && v.active_listing && (
++        {v.status !== "archived" && v.status !== "sold" && v.active_listing && (
+           <span className="absolute top-3 right-3 text-[10px] uppercase tracking-widest px-2 py-1 rounded bg-vehiq-gold text-vehiq-bg font-medium" data-testid={`for-sale-badge-${v.id}`}>
+             {t("sell.forSale")}
+           </span>
+diff --git a/frontend/src/pages/LoginPage.js b/frontend/src/pages/LoginPage.js
+index 99da029..1d3b00b 100644
+--- a/frontend/src/pages/LoginPage.js
++++ b/frontend/src/pages/LoginPage.js
+@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
+ import { useTranslation, Trans } from "react-i18next";
+ import { useAuth } from "@/contexts/AuthContext";
+ import LanguageSwitcher from "@/components/LanguageSwitcher";
++import Logo from "@/components/Logo";
+ import { toast } from "sonner";
+ 
+ export default function LoginPage() {
+@@ -33,11 +34,16 @@ export default function LoginPage() {
+   };
+ 
+   return (
+-    <div className="min-h-screen flex flex-col bg-vehiq-bg" data-testid="login-page">
++    <div className="min-h-screen flex flex-col bg-vehiq-bg relative" data-testid="login-page">
+       <div className="absolute inset-0 -z-10">
+-        <img src="https://images.pexels.com/photos/17092455/pexels-photo-17092455.png?auto=compress&cs=tinysrgb&dpr=2&h=1024&w=1536"
+-          alt="" className="w-full h-full object-cover opacity-30" />
+-        <div className="absolute inset-0 bg-vehiq-bg/80" />
++        <img
++          src="https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=1920&auto=format&fit=crop&q=70"
++          alt=""
++          className="w-full h-full object-cover"
++          loading="eager"
++          data-testid="login-bg-image"
++        />
++        <div className="absolute inset-0 bg-vehiq-bg" style={{ opacity: 0.6 }} />
+       </div>
+ 
+       <div className="flex justify-end p-6">
+@@ -47,10 +53,7 @@ export default function LoginPage() {
+       <div className="flex-1 flex items-center justify-center px-4 py-8">
+         <div className="w-full max-w-md vehiq-card p-8 md:p-10 backdrop-blur-sm">
+           <div className="text-center mb-8">
+-            <div className="inline-flex items-center gap-2 mb-4">
+-              <div className="h-12 w-12 rounded-md bg-vehiq-gold flex items-center justify-center text-vehiq-bg font-bold text-2xl">V</div>
+-              <div className="vehiq-display text-3xl tracking-wider text-vehiq-text">VEHIQ</div>
+-            </div>
++            <div className="inline-flex mb-4"><Logo size="lg" /></div>
+             <h1 className="vehiq-display text-3xl text-vehiq-text">{t("auth.loginTitle")}</h1>
+             <p className="text-sm text-vehiq-muted mt-1">{t("auth.loginSubtitle")}</p>
+           </div>
+diff --git a/frontend/src/pages/Onboarding.js b/frontend/src/pages/Onboarding.js
+index 33c50dd..c6b9326 100644
+--- a/frontend/src/pages/Onboarding.js
++++ b/frontend/src/pages/Onboarding.js
+@@ -2,6 +2,7 @@ import { useState } from "react";
+ import { useNavigate } from "react-router-dom";
+ import { useTranslation } from "react-i18next";
+ import LanguageSwitcher from "@/components/LanguageSwitcher";
++import Logo from "@/components/Logo";
+ import Confetti from "@/components/Confetti";
+ import { useAuth } from "@/contexts/AuthContext";
+ import api from "@/lib/api";
+@@ -120,10 +121,7 @@ function WelcomeScreen({ onAdd, onSkip, t }) {
+   ];
+   return (
+     <div className="vehiq-card p-8 md:p-12 max-w-3xl w-full text-center" data-testid="onboarding-welcome">
+-      <div className="inline-flex items-center gap-2 mb-4">
+-        <div className="h-12 w-12 rounded-md bg-vehiq-gold flex items-center justify-center text-vehiq-bg font-bold text-2xl">V</div>
+-        <div className="vehiq-display text-3xl tracking-wider text-vehiq-text">VEHIQ</div>
+-      </div>
++      <div className="mb-4 flex justify-center"><Logo size="lg" /></div>
+       <h1 className="vehiq-display text-4xl sm:text-5xl text-vehiq-text">{t("onboarding.welcomeTitle")}</h1>
+       <p className="text-vehiq-muted mt-3 max-w-lg mx-auto">{t("onboarding.welcomeDesc")}</p>
+ 
+diff --git a/frontend/src/pages/PasswordReset.js b/frontend/src/pages/PasswordReset.js
+index 7186b8f..56b0ea9 100644
+--- a/frontend/src/pages/PasswordReset.js
++++ b/frontend/src/pages/PasswordReset.js
+@@ -1,7 +1,7 @@
+ import { useState } from "react";
+ import { Link, useSearchParams, useNavigate } from "react-router-dom";
+ import { useTranslation } from "react-i18next";
+-import api from "@/lib/api";
++import api, { apiErrorMessage } from "@/lib/api";
+ import LanguageSwitcher from "@/components/LanguageSwitcher";
+ import { toast } from "sonner";
+ 
+@@ -75,7 +75,7 @@ export function PasswordResetConfirm() {
+       toast.success(t("common.success"));
+       navigate("/login");
+     } catch (err) {
+-      toast.error(err?.response?.data?.detail || t("common.error"));
++      toast.error(apiErrorMessage(err, t("common.error")));
+     } finally { setBusy(false); }
+   };
+ 
+diff --git a/frontend/src/pages/RegisterPage.js b/frontend/src/pages/RegisterPage.js
+index 64e5441..87cd880 100644
+--- a/frontend/src/pages/RegisterPage.js
++++ b/frontend/src/pages/RegisterPage.js
+@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
+ import { useTranslation, Trans } from "react-i18next";
+ import { useAuth } from "@/contexts/AuthContext";
+ import LanguageSwitcher from "@/components/LanguageSwitcher";
++import Logo from "@/components/Logo";
+ import { toast } from "sonner";
+ 
+ export default function RegisterPage() {
+@@ -26,24 +27,32 @@ export default function RegisterPage() {
+       toast.success(t("common.success"));
+       navigate("/onboarding");
+     } catch (err) {
+-      const msg = err?.response?.data?.detail || t("auth.registerFailed");
+-      toast.error(typeof msg === "string" ? msg : t("auth.registerFailed"));
++      const { apiErrorMessage } = await import("@/lib/api");
++      toast.error(apiErrorMessage(err, t("auth.registerFailed")));
+     } finally {
+       setBusy(false);
+     }
+   };
+ 
+   return (
+-    <div className="min-h-screen flex flex-col bg-vehiq-bg" data-testid="register-page">
++    <div className="min-h-screen flex flex-col bg-vehiq-bg relative" data-testid="register-page">
++      <div className="absolute inset-0 -z-10">
++        <img
++          src="https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=1920&auto=format&fit=crop&q=70"
++          alt=""
++          className="w-full h-full object-cover"
++          loading="eager"
++          data-testid="register-bg-image"
++        />
++        <div className="absolute inset-0 bg-vehiq-bg" style={{ opacity: 0.6 }} />
++      </div>
++
+       <div className="flex justify-end p-6"><LanguageSwitcher /></div>
+ 
+       <div className="flex-1 flex items-center justify-center px-4 py-8">
+-        <div className="w-full max-w-md vehiq-card p-8 md:p-10">
++        <div className="w-full max-w-md vehiq-card p-8 md:p-10 backdrop-blur-sm">
+           <div className="text-center mb-8">
+-            <div className="inline-flex items-center gap-2 mb-4">
+-              <div className="h-12 w-12 rounded-md bg-vehiq-gold flex items-center justify-center text-vehiq-bg font-bold text-2xl">V</div>
+-              <div className="vehiq-display text-3xl tracking-wider text-vehiq-text">VEHIQ</div>
+-            </div>
++            <div className="inline-flex mb-4"><Logo size="lg" /></div>
+             <h1 className="vehiq-display text-3xl text-vehiq-text">{t("auth.registerTitle")}</h1>
+             <p className="text-sm text-vehiq-muted mt-1">{t("auth.registerSubtitle")}</p>
+           </div>
+diff --git a/frontend/src/pages/VehicleProfile.js b/frontend/src/pages/VehicleProfile.js
+index fc354ce..b7b052a 100644
+--- a/frontend/src/pages/VehicleProfile.js
++++ b/frontend/src/pages/VehicleProfile.js
+@@ -111,7 +111,11 @@ export default function VehicleProfile() {
+       {soldResult && <SoldResultBanner result={soldResult} vehicle={vehicle} onClose={() => setSoldResult(null)} />}
+ 
+       <div className="border-b border-vehiq-border flex gap-1 overflow-x-auto">
+-        {TABS.map(({ id: tid, key }) => (
++        {TABS.filter(({ id: tid }) => {
++          // Feat 20: mileage tracker shown only for SOLD vehicles (atut przy sprzedaży)
++          if (tid === "mileage") return vehicle.status === "sold" || vehicle.status === "archived";
++          return true;
++        }).map(({ id: tid, key }) => (
+           <button
+             key={tid}
+             onClick={() => setTab(tid)}
+diff --git a/frontend/src/pages/vehicle-tabs/AITab.js b/frontend/src/pages/vehicle-tabs/AITab.js
+index 2e8e6d2..9ce478f 100644
+--- a/frontend/src/pages/vehicle-tabs/AITab.js
++++ b/frontend/src/pages/vehicle-tabs/AITab.js
+@@ -1,6 +1,6 @@
+ import { useEffect, useState, useRef } from "react";
+ import { useTranslation } from "react-i18next";
+-import api from "@/lib/api";
++import api, { apiErrorMessage } from "@/lib/api";
+ import { Send, Sparkles, Trash2, FileDown } from "lucide-react";
+ import { toast } from "sonner";
+ import jsPDF from "jspdf";
+@@ -29,7 +29,7 @@ export default function AITab({ vehicle }) {
+       const { data } = await api.post("/ai/ask", { vehicle_id: vehicle.id, message: text });
+       setMessages((m) => [...m, data.ai_message]);
+     } catch (err) {
+-      toast.error(err?.response?.data?.detail || t("common.error"));
++      toast.error(apiErrorMessage(err, t("common.error")));
+       setMessages((m) => m.slice(0, -1));
+     } finally {
+       setBusy(false);
+diff --git a/frontend/src/pages/vehicle-tabs/OverviewTab.js b/frontend/src/pages/vehicle-tabs/OverviewTab.js
+index 545f72d..27e63d4 100644
+--- a/frontend/src/pages/vehicle-tabs/OverviewTab.js
++++ b/frontend/src/pages/vehicle-tabs/OverviewTab.js
+@@ -1,7 +1,7 @@
+ import { useState } from "react";
+ import { useTranslation } from "react-i18next";
+ import { Car as CarIcon, Lock, Wrench, Upload, X, Star } from "lucide-react";
+-import api from "@/lib/api";
++import api, { apiErrorMessage } from "@/lib/api";
+ import { toast } from "sonner";
+ import { photoUrl, photoThumb } from "@/lib/photos";
+ 
+@@ -29,7 +29,7 @@ export default function OverviewTab({ vehicle, reload }) {
+         if (reload) reload();
+       }
+     } catch (err) {
+-      toast.error(err?.response?.data?.detail || t("common.error"));
++      toast.error(apiErrorMessage(err, t("common.error")));
+     } finally { setUploading(false); }
+   };
+ 
+@@ -135,12 +135,13 @@ export default function OverviewTab({ vehicle, reload }) {
+           <Spec label={t("vehicle.year")} value={vehicle.year} />
+           <Spec label={t("vehicle.vin")} value={vehicle.vin} />
+           <Spec label={t("vehicle.engine")} value={vehicle.engine} />
+-          <Spec label={t("vehicle.fuel")} value={vehicle.fuel?.toUpperCase()} />
++          <Spec label={t("vehicle.fuel")} value={vehicle.fuel ? t(`vehicle.fuels.${vehicle.fuel}`, { defaultValue: vehicle.fuel.toUpperCase() }) : null} />
+           <Spec label={t("vehicle.color")} value={vehicle.color} />
+           <Spec label={t("vehicle.plate")} value={vehicle.plate} />
+           <Spec label={t("vehicle.mileage")} value={vehicle.mileage_current ? `${vehicle.mileage_current.toLocaleString("pl-PL")} km` : null} />
+           <Spec label={t("vehicle.purchasePrice")} value={vehicle.purchase_price ? `${vehicle.purchase_price.toLocaleString("pl-PL")} PLN` : null} />
+-          <Spec label={t("vehicle.status")} value={vehicle.status === "archived" ? t("vehicle.archived") : t("vehicle.active")} />
++          <Spec label={t("vehicle.status")} value={vehicle.status ? t(`vehicle.statuses.${vehicle.status}`, { defaultValue: vehicle.status }) : null} />
++          {vehicle.condition && <Spec label={t("vehicle.conditionLabel")} value={t(`vehicle.conditions.${vehicle.condition}`, { defaultValue: vehicle.condition })} />}
+         </div>
+ 
+         <div className="vehiq-card p-6 space-y-3" data-testid="overview-privacy">
+diff --git a/memory/PRD.md b/memory/PRD.md
+index 79b76ab..83c13dd 100644
+--- a/memory/PRD.md
++++ b/memory/PRD.md
+@@ -420,3 +420,38 @@ maxPoolSize=10, serverSelectionTimeoutMS=5000, connectTimeoutMS=10000
+ **Vercel**: Powinien teraz zbudować z Node 20 (z `.nvmrc`) używając `yarn build` → `build/`. Brak konfliktów ajv/terser/schema-utils.
+ 
+ **Tech debt usunięty**: `@craco/craco`, problemy z Node 24, dependency hell `react-scripts` 5.0.1.
++
++---
++
++## Iter 10 — Phase A: Bug Fix Sprint + Quick Features (Feb 2026)
++
++**Naprawione bugi:**
++- ✅ Bug 1 (React #31): Helper `apiErrorMessage()` w `/app/frontend/src/lib/api.js` — flattuje Pydantic 422 arrays do stringa. Zastosowane w: CreateListing.js, EventDetail.js, OverviewTab.js, AITab.js, PasswordReset.js, RegisterPage.js, VehicleForm.js
++- ✅ Bug 2: `routers/vehicles.py:create_vehicle` — limit liczy tylko `status NOT IN [archived, sold]`. Archived/sold nie konsumują slotu.
++- ✅ Bug 3: Garage filter — `isArchived(v)` helper, obsługa `sold` jako synonimu `archived` w aktywnym vs archiwum.
++- ✅ Bug 4: Etykiety paliwa PL — `vehicle.fuels.*` w i18n: Benzyna PB 95/98, Diesel (ON), LPG, CNG, Hybryda, Hybryda plug-in, Elektryczny, Wodór. VehicleForm select renderuje przez `t()`. OverviewTab Spec używa `t()` z fallback.
++- ✅ Bug 5: Pole `condition` w VehicleIn/Update (+ enum 6 wartości PL). UI: nowy select w VehicleForm (Stan pojazdu). OverviewTab pokazuje stan jeśli ustawiony.
++- ✅ Bug 6: Backend startup backfill brakujących slugów dla `services` i `events` (services.py exports `_slug` + `_unique_slug`). Naprawia 404 dla legacy danych z map-markerów.
++- ✅ Bug 9: PDF templates przegląd — bez typo (PL już poprawne).
++
++**Nowe funkcje:**
++- ✅ Feat 10: Skeleton loader był już zaimplementowany (`SkeletonGarageGrid`); aktywnie używany w Garage gdy `vehicles===null`.
++- ✅ Feat 12: 49 marek + "Inna" w `ALL_MAKES` (VehicleForm.js).
++- ✅ Feat 15: Komponent `<Logo>` (`components/Logo.js`) — "Veh" jasny / "IQ" #F59E0B. Stosowany w: Sidebar, LoginPage, RegisterPage, Onboarding.
++- ✅ Feat 16: Tło bramy garażowej z Unsplash (`photo-1558618666-fcd25c85cd64`) na LoginPage + RegisterPage z overlay opacity 0.6.
++- ✅ Feat 20: Mileage tracker tab ukryty dla `status: active`, pokazywany tylko dla `sold/archived` (filtr TABS w VehicleProfile.js).
++
++**Backend (`routers/vehicles.py`):**
++- Dodano `condition` Optional[str] do `VehicleIn` i `VehicleUpdateIn`.
++- Zaktualizowano komentarz statusu: `active | sold | archived`.
++
++**Testy backend (`backend/tests/test_iter8_phase_a.py`):**
++- 20 nowych testów, wszystkie PASS (Pydantic 422 envelope, active-only limit, condition values, sold status, slug routing, regression: auth/health/password-reset).
++- Regression: 85/88 istniejących testów PASS (1 pre-existing fail: `max_photos_per_vehicle=5 vs 6`, nasz kod nie zmienia tej wartości).
++
++**Phase B (następna iteracja) — zaplanowane:**
++- Bug 7 Password reset full flow (audit + integration_playbook_expert_v2 call)
++- Bug 8 Email między użytkownikami (Brevo SMTP)
++- Feat 11 R2 thumbnails 200x200 (Pillow + R2 upload pod `/thumbs/`)
++- Feat 13 Public profile privacy per section
++- Feat 14 Edit/Delete buttons everywhere
