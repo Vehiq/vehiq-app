@@ -1,4 +1,9 @@
-"""Email service — async SMTP with 5 bilingual templates (PL/EN) and VEHIQ branding."""
+"""Email service — Brevo HTTP API (primary, Render Free compatible) with SMTP fallback.
+
+Render Free blocks outbound SMTP ports (25/465/587). The Brevo HTTP API uses
+plain HTTPS on 443 which is always allowed. SMTP path is kept as fallback for
+self-hosting / non-Render deployments.
+"""
 import os
 import asyncio
 import html as html_lib
@@ -6,23 +11,23 @@ import logging
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 import aiosmtplib
+import httpx
 
 from db_helper import get_db
 
 logger = logging.getLogger(__name__)
 APP_URL = os.environ.get("APP_URL", "https://vehiq.pl")
+BREVO_API_URL = "https://api.brevo.com/v3/smtp/email"
 
 
 async def _get_smtp_config():
-    """Load SMTP config from MongoDB (admin panel).
-
-    Brevo on Render Free: port 587 (STARTTLS) is BLOCKED on outbound by Render.
-    Default to 465 (SMTPS / implicit SSL) which Render allows.
-    Override via admin panel if your provider uses different port.
-    """
+    """Load email config (Brevo HTTP API key + SMTP fallback) from MongoDB."""
     db = get_db()
     cfg = await db.api_keys.find_one({"id": "default"}, {"_id": 0}) or {}
+    # BREVO_API_KEY from env takes priority over DB (12-factor)
+    brevo_api_key = os.environ.get("BREVO_API_KEY") or cfg.get("brevo_api_key")
     return {
+        "brevo_api_key": brevo_api_key,
         "host": cfg.get("smtp_host") or "smtp-relay.brevo.com",
         "port": int(cfg.get("smtp_port") or 465),
         "login": cfg.get("smtp_login"),
@@ -174,11 +179,49 @@ def tpl_test(lang: str = "pl"):
 
 # ---------- Sender ----------
 async def send_email(to: str, subject: str, html: str) -> tuple[bool, str]:
-    """Send email via SMTP (config from MongoDB). Returns (ok, error_message_or_empty)."""
+    """Send email — Brevo HTTP API (primary) or SMTP (fallback).
+
+    Brevo HTTP API works over HTTPS:443 (allowed on Render Free).
+    SMTP fallback is used only when BREVO_API_KEY is NOT configured.
+
+    Returns (ok, error_message_or_empty).
+    """
     cfg = await _get_smtp_config()
+
+    # ─── Path 1: Brevo HTTP API ───
+    if cfg["brevo_api_key"]:
+        try:
+            async with httpx.AsyncClient(timeout=20.0) as client:
+                r = await client.post(
+                    BREVO_API_URL,
+                    headers={
+                        "api-key": cfg["brevo_api_key"],
+                        "Content-Type": "application/json",
+                        "Accept": "application/json",
+                    },
+                    json={
+                        "sender": {"name": cfg["from_name"], "email": cfg["from_email"]},
+                        "to": [{"email": to}],
+                        "subject": subject,
+                        "htmlContent": html,
+                    },
+                )
+            if 200 <= r.status_code < 300:
+                msg_id = (r.json() or {}).get("messageId", "?")
+                logger.info(f"BREVO API OK → {to} ({subject!r}) messageId={msg_id}")
+                return True, ""
+            else:
+                err = f"HTTP {r.status_code}: {r.text[:200]}"
+                logger.error(f"BREVO API FAIL → {to} ({subject!r}) {err}")
+                return False, err
+        except Exception as e:
+            logger.error(f"BREVO API EXC → {to} ({subject!r}) {type(e).__name__}: {e}")
+            return False, f"{type(e).__name__}: {str(e)[:200]}"
+
+    # ─── Path 2: SMTP fallback (no API key configured) ───
     if not cfg["host"] or not cfg["login"] or not cfg["password"]:
-        logger.warning(f"SMTP not configured — skipped email to {to} ({subject!r})")
-        return False, "SMTP not configured. Set host/login/password in admin panel."
+        logger.warning(f"Email not configured (no BREVO_API_KEY, no SMTP) — skipped {to} ({subject!r})")
+        return False, "Email not configured. Set BREVO_API_KEY (recommended) or SMTP credentials in admin panel."
 
     msg = MIMEMultipart("alternative")
     msg["From"] = f"{cfg['from_name']} <{cfg['from_email']}>"
@@ -187,32 +230,12 @@ async def send_email(to: str, subject: str, html: str) -> tuple[bool, str]:
     msg.attach(MIMEText("(This email requires HTML rendering)", "plain", "utf-8"))
     msg.attach(MIMEText(html, "html", "utf-8"))
 
-    logger.info(f"SMTP send → to={to} subject={subject!r} via {cfg['host']}:{cfg['port']} user={cfg['login']}")
+    logger.info(f"SMTP fallback send → to={to} subject={subject!r} via {cfg['host']}:{cfg['port']}")
     try:
-        # Port 465 = implicit TLS (SMTPS, use_tls=True) — REQUIRED on Render Free
-        # Port 587/25 = STARTTLS upgrade — blocked outbound on Render Free
         if cfg["port"] == 465:
-            await aiosmtplib.send(
-                msg,
-                hostname=cfg["host"],
-                port=cfg["port"],
-                username=cfg["login"],
-                password=cfg["password"],
-                use_tls=True,
-                start_tls=False,
-                timeout=20,
-            )
+            await aiosmtplib.send(msg, hostname=cfg["host"], port=cfg["port"], username=cfg["login"], password=cfg["password"], use_tls=True, start_tls=False, timeout=20)
         else:
-            await aiosmtplib.send(
-                msg,
-                hostname=cfg["host"],
-                port=cfg["port"],
-                username=cfg["login"],
-                password=cfg["password"],
-                use_tls=False,
-                start_tls=True,
-                timeout=20,
-            )
+            await aiosmtplib.send(msg, hostname=cfg["host"], port=cfg["port"], username=cfg["login"], password=cfg["password"], use_tls=False, start_tls=True, timeout=20)
         logger.info(f"SMTP OK → {to} ({subject!r})")
         return True, ""
     except Exception as e:

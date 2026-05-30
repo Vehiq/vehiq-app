@@ -485,3 +485,28 @@ maxPoolSize=10, serverSelectionTimeoutMS=5000, connectTimeoutMS=10000
 - Zero regresji — istniejący kod zachowany; helper-y `fire_and_forget`, wszystkie templates (`tpl_welcome`, `tpl_password_reset`, `tpl_service_reminder`, `tpl_new_message`, `tpl_forum_reply`, `tpl_test`) niezmienione.
 
 **Production note**: Po deploy na Render Free emaile będą wychodzić bez konieczności kontaktu z supportem Brevo czy Render.
+
+---
+
+## Iter 13 — Brevo HTTP API migration (Feb 2026)
+
+**Problem**: Render Free blokuje WSZYSTKIE outbound SMTP ports (25/465/587). Jedyny działający kanał = HTTPS:443. Trzeba przejść z SMTP na HTTP API.
+
+**Zmiany w `backend/email_service.py`**:
+- Import `httpx` (już w requirements.txt 0.28.1)
+- `BREVO_API_URL = "https://api.brevo.com/v3/smtp/email"`
+- `_get_smtp_config()` — dodaje `brevo_api_key` (env `BREVO_API_KEY` ma priorytet nad DB `api_keys.brevo_api_key`).
+- `send_email()` — dwie ścieżki:
+  1. **Path 1 (priorytet)**: Brevo HTTP API, jeśli `BREVO_API_KEY` ustawiony → POST `/v3/smtp/email` z headers `api-key:`, body `{sender, to, subject, htmlContent}`. Zwraca messageId w logu.
+  2. **Path 2 (fallback)**: SMTP, jeśli brak API key. Pozostawiony dla self-hostingu / non-Render deployments.
+
+**Zmiana w `backend/routers/admin.py`**:
+- `ApiKeysIn` Pydantic model: dodano `brevo_api_key: Optional[str]` — pozwala adminowi zapisać klucz przez panel.
+
+**Weryfikacja**:
+- ✅ Path 1 z invalid key → HTTP 401 `{"message":"Key not found","code":"unauthorized"}` parsowane poprawnie
+- ✅ Path 2 (SMTP fallback) z istniejącymi creds → ok=True (lokalnie, bez Render firewall)
+- ✅ Lint Python — 0 issues
+- ✅ Backend startup OK
+
+**Wymóg po stronie usera**: Wygenerować v3 API key w Brevo Dashboard → API Keys (NIE używać SMTP password `xsmtpsib-*`, to inna kategoria). Format poprawny: `xkeysib-<64-hex-chars>-<rand>`.

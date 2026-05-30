@@ -475,6 +475,7 @@ class ApiKeysIn(BaseModel):
     smtp_password: Optional[str] = None
     smtp_from_name: Optional[str] = None
     smtp_from_email: Optional[str] = None
+    brevo_api_key: Optional[str] = None
     r2_account_id: Optional[str] = None
     r2_access_key_id: Optional[str] = None
     r2_secret_access_key: Optional[str] = None
