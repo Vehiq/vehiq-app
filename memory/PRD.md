@@ -465,3 +465,23 @@ maxPoolSize=10, serverSelectionTimeoutMS=5000, connectTimeoutMS=10000
 3. ✅ Bg image Login/Register — usunięto `bg-vehiq-bg` z wrappera (zasłaniał `-z-10`). Przeszło z `<img>` na `background-image` na pełnym divie `inset-0 z-0`, overlay `rgba(13,15,26,0.6) z-1`, content `z-2`. Zweryfikowane screenshot — obraz Unsplash widoczny z ciemną nakładką.
 4. ✅ Mileage tab — filtr usunięty, widoczny dla wszystkich pojazdów.
 5. ✅ Tabs Overview/Service/Mileage/P&L/AI — wszystkie 5 renderuje się (overview/mileage zawsze, pl tylko sold).
+
+---
+
+## Iter 12 — Brevo SMTP Port 587→465 (Render Free compat) (Feb 2026)
+
+**Problem**: Render Free blokuje port 587 (STARTTLS) na outbound. Brevo działa też na 465 (implicit TLS / SMTPS).
+
+**Zmiany**:
+- `backend/email_service.py`:
+  - `_get_smtp_config()` — default `smtp_port: 465` (było 587). Default `smtp_host: smtp-relay.brevo.com` (z fallbacka None).
+  - `send_email()` — jawny split: port 465 → `use_tls=True, start_tls=False`; pozostałe (587/25) → `use_tls=False, start_tls=True`. Eliminuje ryzyko mieszania trybów.
+- `backend/server.py` startup — jednorazowa migracja DB: `db.api_keys.update_one({id:"default", smtp_port:{$in:["587",587]}}, {$set:{smtp_port:"465"}})` z logiem.
+
+**Weryfikacja**:
+- Backend startuje OK, migracja DB potwierdzona logiem: `SMTP migration: smtp_port 587 → 465 (Render Free compat)`.
+- Test wysyłki: `send_email(test@example.com, ...)` → **ok=True** na porcie 465 z implicit TLS przez smtp-relay.brevo.com.
+- Lint Python: ✅ 0 issues.
+- Zero regresji — istniejący kod zachowany; helper-y `fire_and_forget`, wszystkie templates (`tpl_welcome`, `tpl_password_reset`, `tpl_service_reminder`, `tpl_new_message`, `tpl_forum_reply`, `tpl_test`) niezmienione.
+
+**Production note**: Po deploy na Render Free emaile będą wychodzić bez konieczności kontaktu z supportem Brevo czy Render.

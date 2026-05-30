@@ -243,6 +243,16 @@ async def on_startup():
                 await db.events.update_one({"id": e_doc["id"]}, {"$set": {"slug": new_slug}})
         except Exception as e:
             logger.warning(f"slug backfill failed: {e}")
+        # Migrate Brevo SMTP port 587 → 465 (Render Free blocks 587 outbound)
+        try:
+            res = await db.api_keys.update_one(
+                {"id": "default", "smtp_port": {"$in": ["587", 587]}},
+                {"$set": {"smtp_port": "465"}},
+            )
+            if res.modified_count:
+                logger.info("SMTP migration: smtp_port 587 → 465 (Render Free compat)")
+        except Exception as e:
+            logger.warning(f"smtp_port migration failed: {e}")
     logger.info(f"VEHIQ backend ready. version={APP_VERSION}")
 
 

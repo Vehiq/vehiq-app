@@ -14,11 +14,17 @@ APP_URL = os.environ.get("APP_URL", "https://vehiq.pl")
 
 
 async def _get_smtp_config():
+    """Load SMTP config from MongoDB (admin panel).
+
+    Brevo on Render Free: port 587 (STARTTLS) is BLOCKED on outbound by Render.
+    Default to 465 (SMTPS / implicit SSL) which Render allows.
+    Override via admin panel if your provider uses different port.
+    """
     db = get_db()
     cfg = await db.api_keys.find_one({"id": "default"}, {"_id": 0}) or {}
     return {
-        "host": cfg.get("smtp_host"),
-        "port": int(cfg.get("smtp_port") or 587),
+        "host": cfg.get("smtp_host") or "smtp-relay.brevo.com",
+        "port": int(cfg.get("smtp_port") or 465),
         "login": cfg.get("smtp_login"),
         "password": cfg.get("smtp_password"),
         "from_name": cfg.get("smtp_from_name") or "VEHIQ",
@@ -183,18 +189,30 @@ async def send_email(to: str, subject: str, html: str) -> tuple[bool, str]:
 
     logger.info(f"SMTP send → to={to} subject={subject!r} via {cfg['host']}:{cfg['port']} user={cfg['login']}")
     try:
-        use_tls = cfg["port"] == 465
-        start_tls = cfg["port"] in (587, 25)
-        await aiosmtplib.send(
-            msg,
-            hostname=cfg["host"],
-            port=cfg["port"],
-            username=cfg["login"],
-            password=cfg["password"],
-            use_tls=use_tls,
-            start_tls=start_tls if not use_tls else False,
-            timeout=20,
-        )
+        # Port 465 = implicit TLS (SMTPS, use_tls=True) — REQUIRED on Render Free
+        # Port 587/25 = STARTTLS upgrade — blocked outbound on Render Free
+        if cfg["port"] == 465:
+            await aiosmtplib.send(
+                msg,
+                hostname=cfg["host"],
+                port=cfg["port"],
+                username=cfg["login"],
+                password=cfg["password"],
+                use_tls=True,
+                start_tls=False,
+                timeout=20,
+            )
+        else:
+            await aiosmtplib.send(
+                msg,
+                hostname=cfg["host"],
+                port=cfg["port"],
+                username=cfg["login"],
+                password=cfg["password"],
+                use_tls=False,
+                start_tls=True,
+                timeout=20,
+            )
         logger.info(f"SMTP OK → {to} ({subject!r})")
         return True, ""
     except Exception as e:
