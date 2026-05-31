@@ -4,7 +4,7 @@ import adminApi from "@/lib/adminApi";
 export default function AdminMarketplace() {
   const [items, setItems] = useState([]);
   const [tab, setTab] = useState("all");
-  const reload = () => adminApi.get("/admin/listings", { params: tab === "reported" ? { reported: true } : {} }).then(r => setItems(r.data));
+  const reload = () => adminApi.get("/admin/listings", { params: tab === "reported" ? { reported: true } : {} }).then(r => setItems(r.data)).catch(() => setItems([]));
   useEffect(() => { reload(); /* eslint-disable-next-line */ }, [tab]);
 
   const feature = async (id, val) => { await adminApi.post(`/admin/listings/${id}/feature?featured=${val}`); reload(); };

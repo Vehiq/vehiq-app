@@ -4,7 +4,7 @@ import adminApi from "@/lib/adminApi";
 export default function AdminVehicles() {
   const [items, setItems] = useState([]);
   const [q, setQ] = useState("");
-  const reload = () => adminApi.get("/admin/vehicles", { params: q ? { q } : {} }).then(r => setItems(r.data));
+  const reload = () => adminApi.get("/admin/vehicles", { params: q ? { q } : {} }).then(r => setItems(r.data)).catch(() => setItems([]));
   useEffect(() => { reload(); /* eslint-disable-next-line */ }, [q]);
   const remove = async (id) => { if (!window.confirm("Delete?")) return; await adminApi.delete(`/admin/vehicles/${id}`); reload(); };
 

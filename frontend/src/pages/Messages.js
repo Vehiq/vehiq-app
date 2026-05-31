@@ -19,7 +19,7 @@ export default function Messages() {
   const [sending, setSending] = useState(false);
   const endRef = useRef(null);
 
-  const reloadThreads = () => api.get("/marketplace/messages/threads").then(r => setThreads(r.data));
+  const reloadThreads = () => api.get("/marketplace/messages/threads").then(r => setThreads(r.data || [])).catch(() => setThreads([]));
 
   useEffect(() => {
     reloadThreads();
@@ -30,9 +30,9 @@ export default function Messages() {
   useEffect(() => {
     if (!active) return;
     api.get(`/marketplace/messages/${active.listing_id}/${active.other_user_id}`).then(r => {
-      setMessages(r.data);
+      setMessages(r.data || []);
       reloadThreads(); // refresh badge counts after marking-as-read
-    });
+    }).catch(() => setMessages([]));
     api.get(`/marketplace/listings/${active.listing_id}`).then(r => setActiveListing(r.data)).catch(() => setActiveListing(null));
     api.get(`/auth/me`).then(() => {}); // no-op; user is in context
     if (threads) {

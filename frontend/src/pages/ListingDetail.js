@@ -12,11 +12,18 @@ export default function ListingDetail() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [listing, setListing] = useState(null);
+  const [error, setError] = useState(null);
   const [active, setActive] = useState(0);
   const [msg, setMsg] = useState("");
 
-  useEffect(() => { api.get(`/marketplace/listings/${id}`).then(r => setListing(r.data)); }, [id]);
+  useEffect(() => {
+    setError(null);
+    api.get(`/marketplace/listings/${id}`)
+      .then(r => setListing(r.data))
+      .catch(e => setError(e?.response?.data?.detail || e?.message || "Not found"));
+  }, [id]);
 
+  if (error) return <div className="text-red-400" data-testid="listing-error">{t("common.error")}: {error}</div>;
   if (!listing) return <div className="text-vehiq-muted">{t("common.loading")}</div>;
   const isOwner = user?.id === listing.user_id;
 

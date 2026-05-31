@@ -22,7 +22,9 @@ export default function Forum() {
     if (c && c !== "all") q.category = c;
     if (mk) q.make = mk;
     if (md) q.model = md;
-    api.get("/forum/threads", { params: q }).then(r => setThreads(r.data));
+    api.get("/forum/threads", { params: q })
+      .then(r => setThreads(r.data || []))
+      .catch(() => setThreads([])); // exit skeleton state on error
   };
 
   useEffect(() => { load(cat, make, model); /* eslint-disable-next-line */ }, []);

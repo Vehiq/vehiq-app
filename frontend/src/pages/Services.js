@@ -30,8 +30,12 @@ export default function Services() {
     if (_q) p.q = _q;
     if (_city) p.city = _city;
     if (_coords) { p.lat = _coords.lat; p.lng = _coords.lng; p.radius = opts.radius ?? radius; }
-    const { data } = await api.get("/services", { params: p });
-    setItems(data || []);
+    try {
+      const { data } = await api.get("/services", { params: p });
+      setItems(data || []);
+    } catch {
+      setItems([]); // exit loading state even on error
+    }
   };
 
   useEffect(() => { load(); /* eslint-disable-next-line */ }, []);

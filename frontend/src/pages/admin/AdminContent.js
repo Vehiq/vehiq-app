@@ -4,15 +4,21 @@ import { toast } from "sonner";
 
 export default function AdminContent() {
   const [content, setContent] = useState(null);
+  const [err, setErr] = useState(null);
 
-  useEffect(() => { adminApi.get("/cms").then(r => setContent(r.data)); }, []);
+  useEffect(() => {
+    adminApi.get("/cms")
+      .then(r => setContent(r.data))
+      .catch(e => setErr(e?.response?.data?.detail || e?.message || "Failed to load"));
+  }, []);
 
   const save = async (key) => {
     await adminApi.put(`/cms/${key}`, content[key]);
     toast.success("Saved");
   };
 
-  if (!content) return <div className="text-[#6B7090]">Loading...</div>;
+  if (err) return <div className="text-red-400" data-testid="admin-content-error">Error: {err}</div>;
+  if (!content) return <div className="text-[#6B7090]" data-testid="admin-content-loading">Loading...</div>;
 
   return (
     <div className="space-y-6" data-testid="admin-content">

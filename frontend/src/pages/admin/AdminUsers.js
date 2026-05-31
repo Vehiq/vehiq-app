@@ -6,7 +6,7 @@ export default function AdminUsers() {
   const [users, setUsers] = useState([]);
   const [q, setQ] = useState("");
 
-  const reload = () => adminApi.get("/admin/users", { params: q ? { q } : {} }).then(r => setUsers(r.data));
+  const reload = () => adminApi.get("/admin/users", { params: q ? { q } : {} }).then(r => setUsers(r.data)).catch(() => setUsers([]));
   useEffect(() => { reload(); /* eslint-disable-next-line */ }, [q]);
 
   const setRole = async (id, role) => { await adminApi.put(`/admin/users/${id}`, { role }); reload(); };

@@ -585,3 +585,19 @@ maxPoolSize=10, serverSelectionTimeoutMS=5000, connectTimeoutMS=10000
 
 - ✅ Yarn build: 7.10s, 0 errors. Lint JS: 0 issues.
 - ✅ Zero regresji.
+
+---
+
+## Iter 17 — Skeleton-forever audit (Feb 2026)
+
+**Naprawiono w 13 plikach** — wszystkie await/then bez catch które mogły powodować nieskończony loader:
+- `Forum.js`, `Events.js`, `Services.js`, `Search.js`, `Messages.js`, `ListingDetail.js`
+- `admin/AdminDashboard.js`, `AdminAnalytics.js`, `AdminContent.js`, `AdminLegal.js`, `AdminSecurity.js`
+- Resilience: `AdminUsers.js`, `AdminVehicles.js`, `AdminMarketplace.js`
+
+**Wzór defensywny:**
+1. Tabele admin (`useState([])`): `.catch(() => setX([]))` — zachowuje pusta tabela.
+2. Strony z error state: try/catch + `useState(null)` for err + komunikat błędu.
+3. Strony krytyczne: error banner z Retry button + toast.
+
+**Weryfikacja:** yarn build 6.61s, lint JS 0 issues, regression 20/20 PASS.

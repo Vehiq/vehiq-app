@@ -12,7 +12,7 @@ export default function AdminSecurity() {
     adminApi.get("/admin/profile").then((r) => setProfile(r.data)).catch(() => setProfile(null));
 
   useEffect(() => {
-    adminApi.get("/admin/login-history").then((r) => setHistory(r.data));
+    adminApi.get("/admin/login-history").then((r) => setHistory(r.data)).catch(() => setHistory([]));
     loadProfile();
   }, []);
 

@@ -40,6 +40,9 @@ export default function Search() {
       if (c) { p.lat = c.lat; p.lng = c.lng; p.radius = r; }
       const { data } = await api.get("/search", { params: p });
       setData(data);
+    } catch {
+      // Always exit loading state so empty UI shows
+      setData({ counts: {}, users: [], vehicles: [], listings: [], services: [], events: [] });
     } finally { setBusy(false); }
   }, [q, cat, coords, radius]);
 

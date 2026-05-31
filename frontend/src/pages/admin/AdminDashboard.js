@@ -12,8 +12,14 @@ const Card = ({ label, value, sub }) => (
 
 export default function AdminDashboard() {
   const [data, setData] = useState(null);
-  useEffect(() => { adminApi.get("/admin/dashboard").then(r => setData(r.data)); }, []);
-  if (!data) return <div className="text-[#6B7090]">Loading...</div>;
+  const [err, setErr] = useState(null);
+  useEffect(() => {
+    adminApi.get("/admin/dashboard")
+      .then(r => setData(r.data))
+      .catch(e => setErr(e?.response?.data?.detail || e?.message || "Failed to load"));
+  }, []);
+  if (err) return <div className="text-red-400" data-testid="admin-dashboard-error">Error: {err}</div>;
+  if (!data) return <div className="text-[#6B7090]" data-testid="admin-dashboard-loading">Loading...</div>;
 
   return (
     <div className="space-y-6" data-testid="admin-dashboard">

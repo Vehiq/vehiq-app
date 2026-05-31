@@ -7,9 +7,16 @@ const SLUGS = ["privacy-policy", "terms-of-service", "cookie-policy", "marketpla
 export default function AdminLegal() {
   const [active, setActive] = useState(SLUGS[0]);
   const [page, setPage] = useState(null);
+  const [err, setErr] = useState(null);
   const [tab, setTab] = useState("pl");
 
-  const load = (slug) => adminApi.get(`/legal/${slug}`).then(r => setPage(r.data));
+  const load = (slug) => {
+    setErr(null);
+    setPage(null);
+    adminApi.get(`/legal/${slug}`)
+      .then(r => setPage(r.data))
+      .catch(e => setErr(e?.response?.data?.detail || e?.message || "Failed to load"));
+  };
   useEffect(() => { load(active); }, [active]);
 
   const save = async () => {
@@ -19,7 +26,8 @@ export default function AdminLegal() {
     } catch { toast.error("Failed"); }
   };
 
-  if (!page) return <div className="text-[#6B7090]">Loading...</div>;
+  if (err) return <div className="text-red-400" data-testid="admin-legal-error">Error: {err}</div>;
+  if (!page) return <div className="text-[#6B7090]" data-testid="admin-legal-loading">Loading...</div>;
 
   return (
     <div className="space-y-6" data-testid="admin-legal">

@@ -23,8 +23,12 @@ export default function Events() {
     if (_type !== "all") p.type = _type;
     if (_city) p.city = _city;
     if (_coords) { p.lat = _coords.lat; p.lng = _coords.lng; }
-    const { data } = await api.get("/events", { params: p });
-    setItems(data || []);
+    try {
+      const { data } = await api.get("/events", { params: p });
+      setItems(data || []);
+    } catch {
+      setItems([]); // exit loading state even on error
+    }
   };
 
   useEffect(() => { load(); /* eslint-disable-next-line */ }, []);
