@@ -1,8 +1,9 @@
 import { useEffect, useState, useCallback } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import api from "@/lib/api";
-import { Plus, MessageCircle, Store, Search, X } from "lucide-react";
+import api, { apiErrorMessage } from "@/lib/api";
+import { toast } from "sonner";
+import { Plus, MessageCircle, Store, Search, X, AlertTriangle } from "lucide-react";
 import EmptyState from "@/components/EmptyState";
 import LazyImage from "@/components/LazyImage";
 import { SkeletonListingGrid } from "@/components/Skeleton";
@@ -36,7 +37,8 @@ export default function Marketplace() {
 
   const debouncedModel = useDebounced(model, 300);
 
-  const [data, setData] = useState(null); // { items, total, page }
+  const [data, setData] = useState(null); // { items, total, page } | null while loading
+  const [loadError, setLoadError] = useState(null);
 
   const fetchListings = useCallback(async (override) => {
     const q = override || {
@@ -47,8 +49,18 @@ export default function Marketplace() {
       ...(priceMax ? { max_price: priceMax } : {}),
       ...(location ? { location } : {}),
     };
-    const r = await api.get("/marketplace/listings", { params: q });
-    setData(r.data);
+    setLoadError(null);
+    try {
+      const r = await api.get("/marketplace/listings", { params: q, timeout: 15000 });
+      setData(r.data || { items: [], total: 0, page: 1 });
+    } catch (err) {
+      const msg = apiErrorMessage(err, "Network error");
+      console.error("Marketplace fetch failed:", msg, err);
+      // Always exit the skeleton state — even on error.
+      setData({ items: [], total: 0, page: 1 });
+      setLoadError(msg);
+      toast.error(msg);
+    }
   }, [type, make, debouncedModel, priceMin, priceMax, location]);
 
   // initial load and on URL params change
@@ -129,6 +141,17 @@ export default function Marketplace() {
           </div>
         </div>
       </div>
+
+      {loadError && data !== null && data.items.length === 0 && (
+        <div className="vehiq-card p-4 border-red-500/40 flex items-start gap-3" data-testid="mp-error">
+          <AlertTriangle size={18} className="text-red-400 mt-0.5 shrink-0"/>
+          <div className="flex-1">
+            <div className="text-sm text-vehiq-text font-medium">{t("common.error")}</div>
+            <div className="text-xs text-vehiq-muted mt-1">{loadError}</div>
+          </div>
+          <button onClick={() => fetchListings()} className="vehiq-btn-secondary !px-3 !py-1.5 text-xs" data-testid="mp-error-retry">{t("common.retry")}</button>
+        </div>
+      )}
 
       {data === null ? (
         <SkeletonListingGrid count={6} />

@@ -561,3 +561,27 @@ maxPoolSize=10, serverSelectionTimeoutMS=5000, connectTimeoutMS=10000
 - ✅ Regression: **20/20 PASS** (iter8 phase A).
 - ✅ Yarn build: 7.37s, 0 errors. Lint JS: 0 issues.
 - ✅ i18n: nowe klucze PL+EN — `vehicle.deleteTitle`, `marketplace.noPhoto`.
+
+---
+
+## Iter 16 — Marketplace skeleton-never-hides bug (Feb 2026)
+
+**Root cause**: `Marketplace.js:fetchListings()` nie miało `.catch()`. Gdy `api.get` rzucał (401 stale token, network glitch, timeout), promise odrzucany, `setData()` nigdy nie odpalał, `data` pozostawał `null` → skeleton renderowany w nieskończoność.
+
+**Fix (`pages/Marketplace.js`)**:
+- `try/catch` wokół `await api.get()` — w razie błędu `setData({items:[], total:0, page:1})` ZAWSZE odpala, eliminując nieskończony skeleton state.
+- `timeout: 15000` na request (axios automatic abort).
+- `loadError` state + banner z "Retry" button + toast.
+- Importy: `apiErrorMessage`, `toast`, `AlertTriangle`.
+
+**Nowe i18n keys** (PL+EN): `common.retry`.
+
+**Weryfikacja 3 scenariusze (Playwright E2E)**:
+| Scenariusz | Cards | Skeletons | Result |
+|-----------|-------|-----------|--------|
+| Normal load | 85 | 0 | ✅ |
+| No results (filter no-match) | 0 | 0 | ✅ empty state shown |
+| Bad token (401) | — | 0 | ✅ redirect to /login (no infinite skeleton) |
+
+- ✅ Yarn build: 7.10s, 0 errors. Lint JS: 0 issues.
+- ✅ Zero regresji.
