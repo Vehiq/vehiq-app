@@ -29,6 +29,7 @@ export default function VehicleProfile() {
   const [editing, setEditing] = useState(false);
   const [showSell, setShowSell] = useState(false);
   const [showMarkSold, setShowMarkSold] = useState(false);
+  const [showDelete, setShowDelete] = useState(false);
   const [soldResult, setSoldResult] = useState(null);
 
   const reload = () => api.get(`/vehicles/${id}`).then(r => setVehicle(r.data));
@@ -36,10 +37,15 @@ export default function VehicleProfile() {
   useEffect(() => { reload(); /* eslint-disable-next-line */ }, [id]);
 
   const remove = async () => {
-    if (!window.confirm(t("vehicle.deleteConfirm"))) return;
-    await api.delete(`/vehicles/${id}`);
-    toast.success(t("common.success"));
-    navigate("/garage");
+    try {
+      await api.delete(`/vehicles/${id}`);
+      toast.success(t("common.success"));
+      setShowDelete(false);
+      navigate("/garage");
+    } catch (err) {
+      const { apiErrorMessage } = await import("@/lib/api");
+      toast.error(apiErrorMessage(err, t("common.error")));
+    }
   };
 
   if (!vehicle) {
@@ -88,9 +94,28 @@ export default function VehicleProfile() {
           )}
           <ShareMenu vehicle={vehicle} reload={reload} />
           <button onClick={() => setEditing(true)} className="vehiq-btn-secondary inline-flex items-center gap-2" data-testid="vehicle-edit-btn"><Edit2 size={14} /> {t("common.edit")}</button>
-          <button onClick={remove} className="vehiq-btn-secondary inline-flex items-center gap-2 !border-red-500/40 !text-red-400 hover:!bg-red-500/10" data-testid="vehicle-delete-btn"><Trash2 size={14} /> {t("common.delete")}</button>
+          <button onClick={() => setShowDelete(true)} className="vehiq-btn-secondary inline-flex items-center gap-2 !border-red-500/40 !text-red-400 hover:!bg-red-500/10" data-testid="vehicle-delete-btn"><Trash2 size={14} /> {t("common.delete")}</button>
         </div>
       </div>
+
+      {showDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" data-testid="vehicle-delete-modal" onClick={() => setShowDelete(false)}>
+          <div onClick={(e) => e.stopPropagation()} className="vehiq-card max-w-md w-full p-6 space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-full bg-red-500/15 text-red-400 flex items-center justify-center"><Trash2 size={18}/></div>
+              <h2 className="vehiq-display text-2xl text-vehiq-text">{t("vehicle.deleteTitle")}</h2>
+            </div>
+            <p className="text-sm text-vehiq-muted">{t("vehicle.deleteConfirm")}</p>
+            <p className="text-xs text-vehiq-muted">
+              <strong className="text-vehiq-text">{vehicle.make} {vehicle.model} {vehicle.year || ""}</strong>
+            </p>
+            <div className="flex gap-2 justify-end pt-2">
+              <button onClick={() => setShowDelete(false)} className="vehiq-btn-secondary" data-testid="vehicle-delete-cancel">{t("common.cancel")}</button>
+              <button onClick={remove} className="vehiq-btn-primary !bg-red-500 hover:!bg-red-400 !text-white" data-testid="vehicle-delete-confirm">{t("common.delete")}</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {showSell && (
         <SellConfirmModal

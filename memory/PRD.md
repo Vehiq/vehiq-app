@@ -532,3 +532,32 @@ maxPoolSize=10, serverSelectionTimeoutMS=5000, connectTimeoutMS=10000
 - ✅ Yarn build: 7.37s, 482 kB main gzipped, 0 errors.
 - ✅ Lint JS: 0 issues. Lint Python: 5 pre-existing E741 (zmiennej `l`, nie wprowadzone tu).
 - ✅ Regression: **86/88 PASS, 2 skipped** (iter6 + iter7 + iter7b + iter8 phase A) — zero nowych regresji.
+
+---
+
+## Iter 15 — Marketplace lazy loading + Delete modal (Feb 2026)
+
+**Naprawione/dodane:**
+
+### 1. Marketplace lazy loading (Bug 1)
+- `pages/Marketplace.js`: Karty renderują TEKST najpierw (`order-2`), zdjęcie ładowane przez `LazyImage` z IntersectionObserver (`order-1` w DOM ale eager dla pierwszych 4). Placeholder = `bg-vehiq-nav animate-pulse`.
+- Grid responsive: `grid-cols-2 md:grid-cols-3 lg:grid-cols-4` (zweryfikowane: mobile 2-col `165.5px×2`, desktop `319px×4`).
+- `pages/MyListings.js`: Również używa `LazyImage` + `photoThumb()`.
+- Photos z helperem `photoThumb()` → preferuje `thumb_url` dla R2 photos, fallback do raw string dla legacy base64.
+
+### 2. R2 thumbnails 200x200 (Feat 2)
+- `storage.py:process_image()` — thumbnail mode = `ImageOps.fit((200, 200), centering=0.5)` (zaimplementowane w iter14). Garage/Marketplace/MyListings używają `photoThumb()` → automatycznie pobierają thumb.
+
+### 3. Vehicle delete fix (Bug 3)
+- `pages/VehicleProfile.js`: Zastąpiono `window.confirm()` własnym modalem (`data-testid="vehicle-delete-modal"` + cancel/confirm buttons). 
+- Try/catch z `apiErrorMessage` — pokazuje konkretny błąd zamiast cichego fail.
+- E2E test: utworzono vehicle, kliknięto Usuń, modal się otworzył, Usuń kliknięte → URL `/garage`, vehicle usunięty z DB.
+
+**Weryfikacja:**
+- ✅ Curl: `POST /api/vehicles` → `DELETE /api/vehicles/{id}` → 200 `{"ok":true}` → `GET /api/vehicles/{id}` → 404.
+- ✅ Screenshot UI: modal "Usunąć pojazd?" z PL textem, Anuluj/Usuń buttons, redirect po confirm.
+- ✅ Marketplace mobile (375px): grid 2-col, lazy placeholder dla nieobecnych zdjęć.
+- ✅ Marketplace desktop (1920px): 4 kolumny, "Brak zdjęcia" placeholder, tekst widoczny natychmiast.
+- ✅ Regression: **20/20 PASS** (iter8 phase A).
+- ✅ Yarn build: 7.37s, 0 errors. Lint JS: 0 issues.
+- ✅ i18n: nowe klucze PL+EN — `vehicle.deleteTitle`, `marketplace.noPhoto`.

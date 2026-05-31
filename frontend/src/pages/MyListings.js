@@ -4,7 +4,9 @@ import { useTranslation } from "react-i18next";
 import { Plus, Edit2, Trash2, Eye, ArrowLeft, Store } from "lucide-react";
 import api, { apiErrorMessage } from "@/lib/api";
 import EmptyState from "@/components/EmptyState";
+import LazyImage from "@/components/LazyImage";
 import { SkeletonListingGrid } from "@/components/Skeleton";
+import { photoThumb } from "@/lib/photos";
 import { toast } from "sonner";
 
 export default function MyListings() {
@@ -76,8 +78,13 @@ export default function MyListings() {
         <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-6" data-testid="my-listings-grid">
           {items.map((l) => (
             <div key={l.id} className="vehiq-card overflow-hidden flex flex-col" data-testid={`my-listing-${l.id}`}>
-              <Link to={`/marketplace/${l.id}`} className="aspect-[16/10] bg-vehiq-bg overflow-hidden block">
-                {l.photos?.[0] ? <img src={l.photos[0]} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-vehiq-muted text-xs">No photo</div>}
+              <Link to={`/marketplace/${l.id}`} className="block">
+                <LazyImage
+                  src={photoThumb(l.photos?.[0])}
+                  alt={l.title}
+                  className="aspect-[16/10] bg-vehiq-bg overflow-hidden"
+                  fallback={<div className="aspect-[16/10] bg-vehiq-bg flex items-center justify-center text-vehiq-muted text-[10px]">{t("marketplace.noPhoto")}</div>}
+                />
               </Link>
               <div className="p-3 sm:p-4 flex-1 flex flex-col">
                 <div className="flex items-start justify-between gap-2">

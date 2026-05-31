@@ -4,7 +4,9 @@ import { useTranslation } from "react-i18next";
 import api from "@/lib/api";
 import { Plus, MessageCircle, Store, Search, X } from "lucide-react";
 import EmptyState from "@/components/EmptyState";
+import LazyImage from "@/components/LazyImage";
 import { SkeletonListingGrid } from "@/components/Skeleton";
+import { photoThumb } from "@/lib/photos";
 
 const POPULAR_MAKES = [
   "Audi", "BMW", "Citroën", "Dacia", "Fiat", "Ford", "Honda", "Hyundai", "Kia",
@@ -139,23 +141,35 @@ export default function Marketplace() {
           dataTestId="mp-empty"
         />
       ) : (
-        <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-6" data-testid="mp-grid">
-          {data.items.map(l => (
-            <Link key={l.id} to={`/marketplace/${l.id}`} className="vehiq-card overflow-hidden hover:border-vehiq-gold transition-all hover:-translate-y-1" data-testid={`mp-card-${l.id}`}>
-              <div className="aspect-[16/10] bg-vehiq-bg overflow-hidden">
-                {l.photos?.[0] ? <img src={l.photos[0]} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-vehiq-muted text-xs">No photo</div>}
-              </div>
-              <div className="p-4">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-5" data-testid="mp-grid">
+          {data.items.map((l, idx) => (
+            <Link key={l.id} to={`/marketplace/${l.id}`} className="vehiq-card overflow-hidden hover:border-vehiq-gold transition-all hover:-translate-y-1 flex flex-col" data-testid={`mp-card-${l.id}`}>
+              {/* Text content first — paints instantly */}
+              <div className="p-3 sm:p-4 order-2 flex-1 flex flex-col gap-1">
                 <div className="flex items-start justify-between gap-2">
-                  <div className="vehiq-display text-xl text-vehiq-text leading-tight">{l.title}</div>
-                  {l.featured && <span className="text-[9px] uppercase tracking-widest px-2 py-0.5 rounded bg-vehiq-gold-dim text-vehiq-gold">★</span>}
+                  <div className="vehiq-display text-base sm:text-lg text-vehiq-text leading-tight line-clamp-2 flex-1">{l.title}</div>
+                  {l.featured && <span className="text-[9px] uppercase tracking-widest px-2 py-0.5 rounded bg-vehiq-gold-dim text-vehiq-gold shrink-0">★</span>}
                 </div>
-                <div className="text-vehiq-gold font-medium mt-2">{l.price?.toLocaleString("pl-PL")} PLN</div>
-                <div className="text-xs text-vehiq-muted mt-1">
-                  {l.make ? <span className="mr-2">{l.make}{l.model ? ` ${l.model}` : ""}</span> : null}
-                  {l.location || "—"} • {t(`marketplace.types.${l.type}`)}
+                <div className="text-vehiq-gold font-medium text-sm sm:text-base">{l.price?.toLocaleString("pl-PL")} PLN</div>
+                <div className="text-[11px] text-vehiq-muted mt-0.5 line-clamp-1">
+                  {l.make ? <span>{l.make}{l.model ? ` ${l.model}` : ""}{l.year ? ` · ${l.year}` : ""}</span> : null}
+                </div>
+                <div className="text-[10px] text-vehiq-muted uppercase tracking-wider line-clamp-1">
+                  {l.location || "—"} · {t(`marketplace.types.${l.type}`)}
                 </div>
               </div>
+              {/* Image lazy-loaded with placeholder — never blocks first paint */}
+              <LazyImage
+                src={photoThumb(l.photos?.[0])}
+                alt={l.title}
+                className="aspect-[16/10] bg-vehiq-bg overflow-hidden order-1"
+                eager={idx < 4}
+                fallback={
+                  <div className="aspect-[16/10] bg-vehiq-bg flex items-center justify-center text-vehiq-muted text-[10px] order-1" data-testid={`mp-card-noimg-${l.id}`}>
+                    {t("marketplace.noPhoto")}
+                  </div>
+                }
+              />
             </Link>
           ))}
         </div>

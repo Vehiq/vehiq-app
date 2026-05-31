@@ -153,6 +153,7 @@
       "ai": "AI Mechanik"
     },
     "deleteConfirm": "Czy na pewno chcesz usunąć ten pojazd? Operacji nie można cofnąć.",
+    "deleteTitle": "Usunąć pojazd?",
     "saveSuccess": "Zapisano pojazd"
   },
   "service": {
@@ -256,6 +257,7 @@
     "active": "Aktywne",
     "sold": "Sprzedane",
     "noListings": "Brak ofert",
+    "noPhoto": "Brak zdjęcia",
     "noMyListings": "Nie masz jeszcze ogłoszeń",
     "noMyListingsHint": "Wystaw pierwsze ogłoszenie i sprzedaj swoje auto lub części.",
     "myListingsSubtitle": "Zarządzaj swoimi ogłoszeniami — edytuj, oznacz jako sprzedane lub usuń.",
