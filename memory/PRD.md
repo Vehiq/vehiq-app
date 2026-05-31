@@ -510,3 +510,25 @@ maxPoolSize=10, serverSelectionTimeoutMS=5000, connectTimeoutMS=10000
 - ✅ Backend startup OK
 
 **Wymóg po stronie usera**: Wygenerować v3 API key w Brevo Dashboard → API Keys (NIE używać SMTP password `xsmtpsib-*`, to inna kategoria). Format poprawny: `xkeysib-<64-hex-chars>-<rand>`.
+
+---
+
+## Iter 14 — Marketplace bugfix + R2 thumb 200x200 (Feb 2026)
+
+**Naprawione bugi:**
+- ✅ Bug 1 (condition zapis): Backend `ListingIn` już akceptował, frontend submit już przekazuje. Bug był wizualny — `ListingDetail.js` nie wyświetlał condition. Dodano sekcję `Spec` (year/mileage/condition/steering) w detailach + i18n `marketplace.conditionLabel`.
+- ✅ Bug 2 (Moje ogłoszenia): nowy endpoint `GET /api/marketplace/listings/mine` (wszystkie statusy, sort desc), strona `MyListings.js` z view/edit/sold/relist/delete, route `/marketplace/mine`, link na Marketplace.
+- ✅ Bug 3 (redirect): po `POST /listings` redirect z `/marketplace/{id}` na `/garage`.
+- ✅ Bug 4 (mobile sidebar): Sidebar miał `hidden md:flex` które ukrywało go nawet wewnątrz drawera. Dodano prop `mobile` — kiedy true, wymusza `flex`. Layout.js przekazuje `mobile` do Sidebar w drawerze.
+- ✅ Bug 5 (grid 2 kolumny mobile): Marketplace.js `grid-cols-1 md:grid-cols-2 lg:grid-cols-3` → `grid-cols-2 md:grid-cols-2 lg:grid-cols-3`. Gap 3→6 desktop.
+
+**Nowa funkcja:**
+- ✅ Feat 6 (R2 thumb 200x200): `storage.py:process_image()` — thumbnail mode używa `ImageOps.fit((200,200), centering=0.5)` zamiast `thumbnail((400,300))`. Square center-crop dla uniform grid. Garage/Search/list już używały `_cover()` które zwraca `thumb_url`.
+
+**Weryfikacja:**
+- ✅ Curl test: stworzone ogłoszenie z condition="running" → zapisane poprawnie (id=e64ef672, condition=running, status=active).
+- ✅ GET `/marketplace/listings/mine` zwraca {total: 1, first.condition: "running"}.
+- ✅ Screenshot mobile 375px: drawer otwiera się z pełnym logo, 8 nav itemów, "Moje ogłoszenia" page renderuje grid 2-col z kartą "Test BMW E46 / 15 000 PLN / AKTYWNE".
+- ✅ Yarn build: 7.37s, 482 kB main gzipped, 0 errors.
+- ✅ Lint JS: 0 issues. Lint Python: 5 pre-existing E741 (zmiennej `l`, nie wprowadzone tu).
+- ✅ Regression: **86/88 PASS, 2 skipped** (iter6 + iter7 + iter7b + iter8 phase A) — zero nowych regresji.

@@ -63,6 +63,14 @@ export default function ListingDetail() {
             <h1 className="vehiq-display text-3xl text-vehiq-text" data-testid="listing-title">{listing.title}</h1>
             <div className="text-vehiq-gold text-2xl font-medium mt-2">{listing.price?.toLocaleString("pl-PL")} PLN</div>
             <div className="text-sm text-vehiq-muted mt-2">{listing.location || "—"} • {t(`marketplace.types.${listing.type}`)}</div>
+            {(listing.year || listing.mileage || listing.condition) && (
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mt-4 pt-4 border-t border-vehiq-border" data-testid="listing-specs">
+                {listing.year && <Spec label={t("vehicle.year")} value={listing.year} />}
+                {listing.mileage != null && <Spec label={t("vehicle.mileage")} value={`${Number(listing.mileage).toLocaleString("pl-PL")} km`} />}
+                {listing.condition && <Spec label={t("marketplace.conditionLabel")} value={t(`marketplace.conditions.${listing.condition}`, { defaultValue: listing.condition })} />}
+                {listing.steering && <Spec label={t("marketplace.steeringLabel")} value={t(`marketplace.steering.${listing.steering}`, { defaultValue: listing.steering })} />}
+              </div>
+            )}
             <div className="text-vehiq-text mt-6 whitespace-pre-wrap">{listing.description || "—"}</div>
           </div>
         </div>
@@ -98,6 +106,15 @@ export default function ListingDetail() {
           )}
         </div>
       </div>
+    </div>
+  );
+}
+
+function Spec({ label, value }) {
+  return (
+    <div>
+      <div className="text-[10px] uppercase tracking-widest text-vehiq-muted">{label}</div>
+      <div className="text-sm text-vehiq-text font-medium">{value}</div>
     </div>
   );
 }

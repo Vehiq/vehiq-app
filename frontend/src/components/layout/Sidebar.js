@@ -17,7 +17,7 @@ const NAV = [
   { to: "/profile", key: "nav.settings", Icon: Settings, testId: "sidebar-settings" },
 ];
 
-export default function Sidebar({ onNavigate }) {
+export default function Sidebar({ onNavigate, mobile = false }) {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { user, logout } = useAuth();
@@ -38,7 +38,7 @@ export default function Sidebar({ onNavigate }) {
   }, [user]);
 
   return (
-    <aside className="hidden md:flex w-64 flex-col bg-vehiq-nav border-r border-vehiq-border min-h-screen sticky top-0" data-testid="sidebar">
+    <aside className={`${mobile ? "flex" : "hidden md:flex"} w-64 flex-col bg-vehiq-nav border-r border-vehiq-border min-h-screen sticky top-0`} data-testid="sidebar">
       <div className="p-6 border-b border-vehiq-border">
         <Logo size="md" showTagline />
       </div>

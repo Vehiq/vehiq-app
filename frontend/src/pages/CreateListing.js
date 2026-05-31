@@ -95,7 +95,7 @@ export default function CreateListing() {
       };
       const { data } = await api.post("/marketplace/listings", payload);
       toast.success(t("common.success"));
-      navigate(`/marketplace/${data.id}`);
+      navigate("/garage");
     } catch (err) {
       toast.error(apiErrorMessage(err, t("common.error")));
     } finally { setBusy(false); }

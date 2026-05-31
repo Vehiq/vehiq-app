@@ -15,6 +15,7 @@ import Garage from "@/pages/Garage";
 import AddVehicle from "@/pages/AddVehicle";
 import VehicleProfile from "@/pages/VehicleProfile";
 import Marketplace from "@/pages/Marketplace";
+import MyListings from "@/pages/MyListings";
 import CreateListing from "@/pages/CreateListing";
 import ListingDetail from "@/pages/ListingDetail";
 import Messages from "@/pages/Messages";
@@ -153,6 +154,7 @@ function App() {
             <Route path="/garage/new" element={<AddVehicle />} />
             <Route path="/garage/:id" element={<VehicleProfile />} />
             <Route path="/marketplace" element={<Marketplace />} />
+            <Route path="/marketplace/mine" element={<MyListings />} />
             <Route path="/marketplace/messages" element={<Messages />} />
             <Route path="/marketplace/new" element={<CreateListing />} />
             <Route path="/marketplace/:id" element={<ListingDetail />} />

@@ -29,7 +29,7 @@ MAX_PHOTOS_PER_VEHICLE = 6
 def process_image(file_data: bytes, image_type: str = "full") -> bytes:
     """Resize + transcode to WebP. Returns optimised bytes.
 
-    image_type: 'full' (max 1920w) or 'thumbnail' (max 400x300).
+    image_type: 'full' (max 1920w) or 'thumbnail' (200x200 cropped square — for grid).
     """
     img = Image.open(io.BytesIO(file_data))
     img = ImageOps.exif_transpose(img)
@@ -40,7 +40,8 @@ def process_image(file_data: bytes, image_type: str = "full") -> bytes:
         img = img.convert("RGB")
 
     if image_type == "thumbnail":
-        img.thumbnail((400, 300), Image.LANCZOS)
+        # 200x200 square center-crop for uniform grid cards
+        img = ImageOps.fit(img, (200, 200), Image.LANCZOS, centering=(0.5, 0.5))
     else:
         if img.width > 1920:
             ratio = 1920 / img.width

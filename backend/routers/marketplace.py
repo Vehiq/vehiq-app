@@ -121,6 +121,14 @@ async def list_listings(
     return {"items": items, "total": total, "page": page, "limit": limit}
 
 
+@router.get("/listings/mine")
+async def list_my_listings(user=Depends(get_current_user)):
+    """Return current user's listings (all statuses: active/sold/archived)."""
+    db = get_db()
+    items = await db.listings.find({"user_id": user["id"]}, {"_id": 0}).sort([("created_at", -1)]).to_list(500)
+    return {"items": items, "total": len(items)}
+
+
 @router.get("/listings/{listing_id}")
 async def get_listing(listing_id: str):
     db = get_db()

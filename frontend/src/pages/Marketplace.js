@@ -79,7 +79,8 @@ export default function Marketplace() {
           <h1 className="vehiq-display text-4xl sm:text-5xl text-vehiq-text mt-1">{t("marketplace.title")}</h1>
           <p className="text-sm text-vehiq-muted mt-1">{t("marketplace.subtitle")}</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
+          <Link to="/marketplace/mine" className="vehiq-btn-secondary inline-flex items-center gap-2" data-testid="marketplace-mine-link"><Store size={14}/> {t("marketplace.myListings")}</Link>
           <Link to="/marketplace/messages" className="vehiq-btn-secondary inline-flex items-center gap-2" data-testid="marketplace-messages-link"><MessageCircle size={14}/> {t("marketplace.messages")}</Link>
           <Link to="/marketplace/new" className="vehiq-btn-primary inline-flex items-center gap-2" data-testid="marketplace-create"><Plus size={14}/> {t("marketplace.create")}</Link>
         </div>
@@ -138,7 +139,7 @@ export default function Marketplace() {
           dataTestId="mp-empty"
         />
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" data-testid="mp-grid">
+        <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-6" data-testid="mp-grid">
           {data.items.map(l => (
             <Link key={l.id} to={`/marketplace/${l.id}`} className="vehiq-card overflow-hidden hover:border-vehiq-gold transition-all hover:-translate-y-1" data-testid={`mp-card-${l.id}`}>
               <div className="aspect-[16/10] bg-vehiq-bg overflow-hidden">
