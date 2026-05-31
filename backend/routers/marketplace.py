@@ -109,7 +109,17 @@ async def list_listings(
 
     total = await db.listings.count_documents(f)
     skip = max(0, (page - 1) * limit)
-    items = await db.listings.find(f, {"_id": 0}).sort([("featured", -1), ("created_at", -1)]).skip(skip).limit(limit).to_list(limit)
+    # allow_disk_use: fallback to disk if sort exceeds 32MB RAM (e.g. when indexes
+    # aren't yet built on a fresh Atlas cluster). Indexes on featured+created_at
+    # make this path almost never hot, but the flag is a safety net.
+    items = await (
+        db.listings.find(f, {"_id": 0})
+        .sort([("featured", -1), ("created_at", -1)])
+        .allow_disk_use(True)
+        .skip(skip)
+        .limit(limit)
+        .to_list(limit)
+    )
 
     user_ids = list({i["user_id"] for i in items})
     sellers = {}
@@ -125,7 +135,12 @@ async def list_listings(
 async def list_my_listings(user=Depends(get_current_user)):
     """Return current user's listings (all statuses: active/sold/archived)."""
     db = get_db()
-    items = await db.listings.find({"user_id": user["id"]}, {"_id": 0}).sort([("created_at", -1)]).to_list(500)
+    items = await (
+        db.listings.find({"user_id": user["id"]}, {"_id": 0})
+        .sort([("created_at", -1)])
+        .allow_disk_use(True)
+        .to_list(500)
+    )
     return {"items": items, "total": len(items)}
 
 

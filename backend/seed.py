@@ -233,6 +233,12 @@ async def seed_database(db):
     await db.page_views.create_index("visited_at")
     await db.listings.create_index([("type", 1), ("status", 1)])
     await db.listings.create_index([("make", 1), ("model", 1)])
+    # Sort/filter indexes — required to avoid 32MB in-memory sort on large collections
+    await db.listings.create_index([("created_at", -1)])
+    await db.listings.create_index([("featured", -1), ("created_at", -1)])
+    await db.listings.create_index([("price", 1)])
+    await db.listings.create_index([("user_id", 1), ("created_at", -1)])
+    await db.listings.create_index("id", unique=True)
     await db.services.create_index("slug", sparse=True)
     await db.services.create_index([("location.lat", 1), ("location.lng", 1)])
     await db.events.create_index("slug", sparse=True)
