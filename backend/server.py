@@ -215,6 +215,18 @@ app.add_middleware(VisitTrackingMiddleware)
 @app.on_event("startup")
 async def on_startup():
     if db is not None:
+        # Force-create critical listings indexes BEFORE seed (so even if seed fails,
+        # production marketplace sort never blows up with "Sort exceeded memory limit").
+        try:
+            await db.listings.create_index([("created_at", -1)])
+            await db.listings.create_index([("featured", -1), ("created_at", -1)])
+            await db.listings.create_index([("price", 1)])
+            await db.listings.create_index([("user_id", 1), ("created_at", -1)])
+            await db.listings.create_index([("type", 1), ("status", 1)])
+            await db.listings.create_index([("make", 1), ("model", 1)])
+            logger.info("Listings indexes created.")
+        except Exception as e:
+            logger.warning(f"listings index creation failed (non-fatal): {e}")
         try:
             await seed_database(db)
             logger.info("seed_database completed.")
