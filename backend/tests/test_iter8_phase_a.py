@@ -68,8 +68,13 @@ def test_01_register_validation_returns_array(user_token):
 
 
 def test_02_listing_validation_422(user_token):
-    """Missing required field -> 422 with array detail."""
-    r = requests.post(f"{API}/marketplace/listings", headers=H(user_token), json={"price": 1000}, timeout=10)
+    """Backend now defaults missing title to '' for backward-compat (iter21).
+    Frontend enforces the required field. Validation arrays still come back
+    as arrays for legitimate validation errors (e.g. type mismatch).
+    """
+    # Invalid type field (number instead of string) triggers array detail
+    r = requests.post(f"{API}/marketplace/listings", headers=H(user_token), json={"price": "not-a-number"}, timeout=10)
+    # Either 400 (custom check) or 422 (validation array) — both OK
     assert r.status_code in (400, 422)
     if r.status_code == 422:
         assert isinstance(r.json()["detail"], list)

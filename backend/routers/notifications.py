@@ -20,21 +20,30 @@ class CookieConsentIn(BaseModel):
 
 @router.get("")
 async def list_notifications(user=Depends(get_current_user)):
+    """Return notifications with i18n-ready metadata.
+
+    Frontend renders the human-readable text via t(`notifications.${type}`, meta)
+    so PL/EN switching works without backend awareness of user language.
+    """
     db = get_db()
-    # build "live" notifications: upcoming reminders + unread messages + new replies
     out = []
-    today = datetime.now(timezone.utc).date().isoformat()
     async for r in db.reminders.find({"user_id": user["id"]}, {"_id": 0}):
         out.append({
             "type": "reminder",
-            "title": f"Reminder: {r.get('type')}",
+            "reminder_type": r.get("type"),     # e.g. "service" / "insurance"
             "date": r.get("due_date"),
             "vehicle_id": r.get("vehicle_id"),
             "id": r.get("id"),
+            # backward-compat — older clients still display .title; localized clients use type+reminder_type
+            "title": f"Reminder: {r.get('type')}",
         })
     unread = await db.messages.count_documents({"receiver_id": user["id"], "read": False})
     if unread:
-        out.append({"type": "messages", "title": f"You have {unread} unread messages", "count": unread})
+        out.append({
+            "type": "messages",
+            "count": unread,
+            "title": f"You have {unread} unread messages",  # backward-compat
+        })
     return out
 
 

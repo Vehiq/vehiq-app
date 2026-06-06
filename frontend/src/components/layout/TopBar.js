@@ -111,12 +111,22 @@ export default function TopBar({ onMenu }) {
                 <div className="p-3 border-b border-vehiq-border vehiq-overline">{t("nav.notifications")}</div>
                 {notifs.length === 0 ? (
                   <div className="p-4 text-sm text-vehiq-muted">{t("common.noResults")}</div>
-                ) : notifs.map((n, i) => (
-                  <div key={i} className="p-3 border-b border-vehiq-border text-sm text-vehiq-text">
-                    <div className="font-medium">{n.title}</div>
-                    {n.date && <div className="text-xs text-vehiq-muted mt-1">{n.date}</div>}
-                  </div>
-                ))}
+                ) : notifs.map((n, i) => {
+                  // Localized title; backend `n.title` kept as fallback for legacy clients
+                  let title = n.title;
+                  if (n.type === "reminder") {
+                    const subtype = t(`notifications.reminderTypes.${n.reminder_type || "default"}`, { defaultValue: n.reminder_type || t("notifications.reminderTypes.default") });
+                    title = t("notifications.reminder", { type: subtype });
+                  } else if (n.type === "messages") {
+                    title = t("notifications.messages", { count: n.count, defaultValue: n.title });
+                  }
+                  return (
+                    <div key={i} className="p-3 border-b border-vehiq-border text-sm text-vehiq-text" data-testid={`notif-item-${i}`}>
+                      <div className="font-medium">{title}</div>
+                      {n.date && <div className="text-xs text-vehiq-muted mt-1">{n.date}</div>}
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>

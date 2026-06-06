@@ -6,7 +6,7 @@ import { Plus, MapPin, Wrench, Search as SearchIcon, Crosshair, Map as MapIcon, 
 import EmptyState from "@/components/EmptyState";
 import MapView from "@/components/MapView";
 
-const CATEGORIES = ["all", "workshop", "dealer", "detailing", "tuning", "rental", "tow", "other"];
+const CATEGORIES = ["all", "workshop", "dealer", "detailing", "tuning", "rental", "tow", "track", "other"];
 const RADII = [10, 25, 50, 100];
 
 export default function Services() {

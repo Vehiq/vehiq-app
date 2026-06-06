@@ -5,7 +5,7 @@ import api from "@/lib/api";
 import { toast } from "sonner";
 import { MapPin, Loader2 } from "lucide-react";
 
-const CATEGORIES = ["workshop", "dealer", "detailing", "tuning", "rental", "tow", "other"];
+const CATEGORIES = ["workshop", "dealer", "detailing", "tuning", "rental", "tow", "track", "other"];
 const POPULAR_BRANDS = ["BMW", "Audi", "Mercedes-Benz", "Volkswagen", "Skoda", "Toyota", "Honda", "Ford", "Porsche", "Tesla"];
 
 export default function AddService() {

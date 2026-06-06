@@ -56,9 +56,15 @@ async def global_search(
     rx = {"$regex": qre, "$options": "i"} if qre else None
 
     async def _vehicles():
-        f = {"searchable": {"$ne": False}, "$or": [{"privacy.profile_visible": {"$ne": False}}, {"privacy": {"$exists": False}}]}
+        # Owner sees ALL their vehicles regardless of privacy. Others only public+searchable.
+        privacy_clause = {"$or": [
+            {"searchable": {"$ne": False}, "$or": [{"privacy.profile_visible": {"$ne": False}}, {"privacy": {"$exists": False}}]},
+        ]}
+        if viewer:
+            privacy_clause["$or"].append({"user_id": viewer["id"]})
+        f = privacy_clause
         if rx:
-            f["$and"] = [{"$or": [{"make": rx}, {"model": rx}]}]
+            f = {"$and": [privacy_clause, {"$or": [{"make": rx}, {"model": rx}]}]}
         items = await db.vehicles.find(f, {"_id": 0, "id": 1, "slug": 1, "make": 1, "model": 1, "year": 1, "user_id": 1,
                                             "photos": 1, "cover_photo_index": 1, "status": 1}).limit(limit_per).to_list(limit_per)
         owner_ids = list({v["user_id"] for v in items if v.get("user_id")})
@@ -70,6 +76,7 @@ async def global_search(
             v["cover_photo"] = _cover(v.get("photos") or [], v.get("cover_photo_index") or 0)
             v.pop("photos", None)
             v["owner"] = owners.get(v.get("user_id"))
+            v["is_own"] = bool(viewer and v.get("user_id") == viewer["id"])
         return items
 
     async def _users():
@@ -85,10 +92,10 @@ async def global_search(
             f["$or"] = [{"title": rx}, {"description": rx}]
         items = await db.listings.find(f, {"_id": 0, "id": 1, "title": 1, "price": 1, "currency": 1, "type": 1, "photos": 1,
                                             "make": 1, "model": 1, "city": 1, "location": 1}).limit(limit_per).to_list(limit_per)
-        for l in items:
-            ph = l.get("photos") or []
-            l["cover_photo"] = _photo_thumb(ph[0]) if ph else None
-            l.pop("photos", None)
+        for it in items:
+            ph = it.get("photos") or []
+            it["cover_photo"] = _photo_thumb(ph[0]) if ph else None
+            it.pop("photos", None)
         return _attach_distance(items, lat, lng, radius, loc_path="location")
 
     async def _services():

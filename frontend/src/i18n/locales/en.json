@@ -264,6 +264,7 @@
     "sold": "Sold",
     "noListings": "No listings",
     "noPhoto": "No photo",
+    "titleRequired": "Please enter a listing title",
     "noMyListings": "You have no listings yet",
     "noMyListingsHint": "Create your first listing to sell a car or parts.",
     "myListingsSubtitle": "Manage your listings — edit, mark as sold or delete.",
@@ -591,6 +592,26 @@
     "priceRequired": "Enter sale price",
     "congratsTitle": "Congrats! You sold the {{vehicle}}",
     "yourResult": "Your result"
+  },
+  "notifications": {
+    "reminder": "Reminder: {{type}}",
+    "messages": "You have {{count}} unread messages",
+    "reminderTypes": {
+      "service": "service",
+      "insurance": "insurance",
+      "inspection": "inspection",
+      "oil_change": "oil change",
+      "tire_change": "tyre change",
+      "registration": "registration",
+      "warranty": "warranty",
+      "default": "reminder"
+    },
+    "noNew": "No new notifications",
+    "newMessage": "New message from {{name}}",
+    "newReply": "New reply in thread",
+    "listingMatch": "New listing matching your criteria",
+    "serviceReview": "New service review",
+    "eventComment": "New comment on event"
   },
   "errors": {
     "notFound": "Not found",

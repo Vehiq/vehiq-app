@@ -22,9 +22,9 @@ class DesiredSwap(BaseModel):
 
 
 class ListingIn(BaseModel):
-    type: str  # car | parts | swap | full_parts | project | rental
-    title: str
-    description: Optional[str] = None
+    type: str = "car"  # car | parts | swap | full_parts | project | rental
+    title: str = ""
+    description: Optional[str] = ""
     price: float = 0
     location: Optional[str] = None
     photos: Optional[List[str]] = []

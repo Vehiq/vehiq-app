@@ -601,3 +601,37 @@ maxPoolSize=10, serverSelectionTimeoutMS=5000, connectTimeoutMS=10000
 3. Strony krytyczne: error banner z Retry button + toast.
 
 **Weryfikacja:** yarn build 6.61s, lint JS 0 issues, regression 20/20 PASS.
+
+---
+
+## Iter 21 — Phase A (4 z 8 zadań, Feb 2026)
+
+**Task 1 — listing "input should be a valid string"**: 
+- Frontend `CreateListing.js:submit`: jawny string-sanitize helper `s(v)`, każde pole tekstowe zawsze wysyła string lub null (nigdy undefined). Title required → blocked client-side z toast.
+- Backend `marketplace.py:ListingIn`: `title: str = ""`, `description: Optional[str] = ""` → default values, brak 422 dla pustego payload.
+
+**Task 2 — Polskie powiadomienia**:
+- Backend `notifications.py`: zamiast wbudowanego stringa `"Reminder: {type}"`, zwraca metadata (`type`, `reminder_type`, `count`). `title` zachowany jako backward-compat.
+- Frontend `TopBar.js`: renderuje przez `t("notifications.reminder", {type})` i `t("notifications.messages", {count})`.
+- i18n PL+EN: `notifications.{reminder, messages, reminderTypes.*, noNew, newMessage, newReply, listingMatch, serviceReview, eventComment}`.
+
+**Task 3 — Kategorie usług**:
+- Frontend `Services.js`: dodano `"track"` do CATEGORIES (lista filtra).
+- Frontend `AddService.js`: dodano `"track"` do dropdownu kategorii.
+- PL: `services.cats.track`: "Tor" → "Tory wyścigowe". EN bez zmian ("Race track").
+
+**Task 4 — Wyszukiwarka pokazuje SWOJE pojazdy**:
+- Backend `search.py:_vehicles`: `$or` clause — `[{public+searchable}, {user_id: viewer.id}]`. Owner widzi swoje niezależnie od privacy.
+- Każdy zwrócony vehicle dostaje pole `is_own: bool` (true tylko gdy zalogowany = owner).
+- Naprawiono pre-existing E741 (zmienna `l`) — refactor na `it`.
+
+**Testy backend (`backend/tests/test_iter21_phase_a.py`)**:
+- 12 nowych testów PASS: listing create (no undef error), null optionals, empty title, notifications shape, services track+other, search privacy (owner sees own private, anon sees public, is_own flag, category filter).
+- Iter8 test 02 zaktualizowany żeby pasował do nowego zachowania (puste pole nie 422).
+- **Regression: 32/32 PASS** (iter8: 20 + iter21: 12).
+
+**Phase B (następna iteracja)**:
+- Task 5 Jednostki km/mile + PLN/EUR/GBP
+- Task 7 OG meta tagi via FastAPI prerendered HTML dla bot User-Agent
+- Task 8 Short URLs `/v/{8-char-id}` + 301 redirect
+- (Task 6 audit wydajności — odłożony na potem)

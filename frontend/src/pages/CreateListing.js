@@ -83,16 +83,37 @@ export default function CreateListing() {
     e.preventDefault();
     setBusy(true);
     try {
+      // Sanitize ALL string fields: never send undefined/null, send "" instead.
+      // Pydantic rejects undefined for non-Optional string fields with
+      // "input should be a valid string" — this is the root cause of issue #1.
+      const s = (v) => (v == null ? "" : String(v));
       const payload = {
-        ...form,
+        type: s(form.type) || "car",
+        title: s(form.title),
+        description: s(form.description),
+        location: s(form.location),
+        make: s(form.make),
+        model: s(form.model),
+        steering: form.steering || null,
+        condition: form.condition || null,
+        parts_category: form.parts_category || null,
+        parts_subcategory: form.parts_subcategory || null,
+        vehicle_id: form.vehicle_id || null,
+        photos: Array.isArray(form.photos) ? form.photos.filter(Boolean) : [],
+        desired_swaps: Array.isArray(form.desired_swaps) ? form.desired_swaps : [],
         price: parseFloat(form.price) || 0,
         mileage: form.mileage ? parseInt(form.mileage) : null,
         year: form.year ? parseInt(form.year) : null,
-        // Drop fields not relevant for current type
-        ...(form.type === "parts" ? {} : { parts_category: null, parts_subcategory: null }),
-        ...(form.type === "swap" ? {} : { desired_swaps: [] }),
-        ...(["car", "project", "rental", "full_parts"].includes(form.type) ? {} : { condition: null, steering: null }),
       };
+      // Drop fields not relevant for current type — but ALWAYS send valid types
+      if (payload.type !== "parts") { payload.parts_category = null; payload.parts_subcategory = null; }
+      if (payload.type !== "swap") { payload.desired_swaps = []; }
+      if (!["car", "project", "rental", "full_parts"].includes(payload.type)) {
+        payload.condition = null;
+        payload.steering = null;
+      }
+      // Title is required by backend — block empty submission early
+      if (!payload.title.trim()) { toast.error(t("marketplace.titleRequired")); return; }
       const { data } = await api.post("/marketplace/listings", payload);
       toast.success(t("common.success"));
       navigate("/garage");

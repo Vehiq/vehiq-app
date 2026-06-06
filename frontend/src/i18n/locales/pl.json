@@ -264,6 +264,7 @@
     "sold": "Sprzedane",
     "noListings": "Brak ofert",
     "noPhoto": "Brak zdjęcia",
+    "titleRequired": "Podaj tytuł ogłoszenia",
     "noMyListings": "Nie masz jeszcze ogłoszeń",
     "noMyListingsHint": "Wystaw pierwsze ogłoszenie i sprzedaj swoje auto lub części.",
     "myListingsSubtitle": "Zarządzaj swoimi ogłoszeniami — edytuj, oznacz jako sprzedane lub usuń.",
@@ -406,7 +407,7 @@
       "tuning": "Tuning",
       "rental": "Wynajem",
       "tow": "Pomoc drogowa",
-      "track": "Tor",
+      "track": "Tory wyścigowe",
       "other": "Inne"
     }
   },
@@ -591,6 +592,26 @@
     "priceRequired": "Podaj cenę sprzedaży",
     "congratsTitle": "Gratulacje! Sprzedałeś {{vehicle}}",
     "yourResult": "Twój wynik"
+  },
+  "notifications": {
+    "reminder": "Przypomnienie: {{type}}",
+    "messages": "Masz {{count}} nieprzeczytanych wiadomości",
+    "reminderTypes": {
+      "service": "serwis",
+      "insurance": "ubezpieczenie",
+      "inspection": "przegląd",
+      "oil_change": "wymiana oleju",
+      "tire_change": "wymiana opon",
+      "registration": "rejestracja",
+      "warranty": "gwarancja",
+      "default": "przypomnienie"
+    },
+    "noNew": "Brak nowych powiadomień",
+    "newMessage": "Nowa wiadomość od {{name}}",
+    "newReply": "Nowa odpowiedź w wątku",
+    "listingMatch": "Nowe ogłoszenie pasujące do Twoich kryteriów",
+    "serviceReview": "Nowa opinia o serwisie",
+    "eventComment": "Nowy komentarz pod wydarzeniem"
   },
   "errors": {
     "notFound": "Nie znaleziono",
