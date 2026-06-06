@@ -38,7 +38,18 @@
     "open": "Otwórz",
     "noResults": "Brak wyników",
     "comingSoon": "Wkrótce",
-    "clear": "Wyczyść"
+    "clear": "Wyczyść",
+    "loadMore": "Załaduj więcej",
+    "showing": "Pokazano",
+    "of": "z"
+  },
+  "units": {
+    "title": "Jednostki",
+    "hint": "Wybierz preferowane jednostki wyświetlania. Twoje dane są zawsze zapisywane w PLN i kilometrach.",
+    "distance": "Jednostka odległości",
+    "currency": "Waluta",
+    "km": "Kilometry (km)",
+    "mile": "Mile (mi)"
   },
   "nav": {
     "garage": "Garaż",
@@ -553,7 +564,11 @@
     "openPrivate": "Edytuj w garażu",
     "servicePublicNote": "Widok publiczny — ukryte koszty",
     "notFoundTitle": "Pojazd nie znaleziony",
-    "notFoundDesc": "Ten pojazd jest prywatny lub nie istnieje."
+    "notFoundDesc": "Ten pojazd jest prywatny lub nie istnieje.",
+    "shortUrl": "Krótki link",
+    "qrCode": "Kod QR",
+    "qrHint": "Zeskanuj telefonem, aby otworzyć profil pojazdu",
+    "downloadQr": "Pobierz QR"
   },
   "privacy": {
     "title": "Prywatność",

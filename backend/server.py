@@ -85,6 +85,7 @@ from routers import users as users_router
 from routers import services as services_router
 from routers import events as events_router
 from routers import search as search_router
+from routers import public_share as public_share_router
 from seed import seed_database
 
 app = FastAPI(title="VEHIQ API", version=APP_VERSION)
@@ -174,6 +175,7 @@ api_router.include_router(users_router.router)
 api_router.include_router(services_router.router)
 api_router.include_router(events_router.router)
 api_router.include_router(search_router.router)
+api_router.include_router(public_share_router.router)
 
 app.include_router(api_router)
 

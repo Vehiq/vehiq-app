@@ -46,6 +46,7 @@ class UpdateProfileIn(BaseModel):
     tooltips_seen: Optional[bool] = None
     bio: Optional[str] = None
     privacy_settings: Optional[dict] = None  # {profile_public, show_total_km, show_forum, show_listings, show_garage_card, searchable}
+    units: Optional[dict] = None  # {distance: "km"|"mile", currency: "PLN"|"EUR"|"GBP"}
 
 
 def _public_user(u: dict) -> dict:
@@ -65,6 +66,7 @@ def _public_user(u: dict) -> dict:
         "last_active": u.get("last_active"),
         "slug": u.get("slug"),
         "privacy_settings": u.get("privacy_settings") or DEFAULT_PRIVACY,
+        "units": u.get("units") or {"distance": "km", "currency": "PLN"},
     }
 
 

@@ -4,7 +4,7 @@ import { Link } from "react-router-dom";
 import api from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
-import { Eye, ExternalLink } from "lucide-react";
+import { Eye, ExternalLink, Ruler } from "lucide-react";
 
 const DEFAULT_PRIVACY = {
   profile_public: true,
@@ -15,17 +15,22 @@ const DEFAULT_PRIVACY = {
   searchable: true,
 };
 
+const DEFAULT_UNITS = { distance: "km", currency: "PLN" };
+
 export default function Profile() {
   const { t, i18n } = useTranslation();
   const { user, updateProfile } = useAuth();
   const [form, setForm] = useState({ name: "", location: "", language: "pl", bio: "" });
   const [privacy, setPrivacy] = useState({ ...DEFAULT_PRIVACY });
+  const [units, setUnits] = useState({ ...DEFAULT_UNITS });
   const [stats, setStats] = useState(null);
 
   useEffect(() => {
     if (user) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setForm({ name: user.name || "", location: user.location || "", language: user.language || "pl", bio: user.bio || "" });
       setPrivacy({ ...DEFAULT_PRIVACY, ...(user.privacy_settings || {}) });
+      setUnits({ ...DEFAULT_UNITS, ...(user.units || {}) });
     }
     api.get("/analytics/me").then(r => setStats(r.data)).catch(() => {});
   }, [user]);
@@ -45,6 +50,15 @@ export default function Profile() {
     setPrivacy(next);
     try {
       await updateProfile({ privacy_settings: next });
+      toast.success(t("common.success"));
+    } catch { toast.error(t("common.error")); }
+  };
+
+  const updateUnits = async (key, value) => {
+    const next = { ...units, [key]: value };
+    setUnits(next);
+    try {
+      await updateProfile({ units: next });
       toast.success(t("common.success"));
     } catch { toast.error(t("common.error")); }
   };
@@ -97,6 +111,39 @@ export default function Profile() {
         {Object.keys(DEFAULT_PRIVACY).map(k => (
           <PrivacyRow key={k} id={k} checked={privacy[k] !== false} onChange={() => togglePrivacy(k)} label={t(`privacy.profileSettings.${k}`)} />
         ))}
+      </div>
+
+      {/* Units (distance + currency) */}
+      <div className="vehiq-card p-6 space-y-4" data-testid="profile-units">
+        <div className="vehiq-overline inline-flex items-center gap-2"><Ruler size={12}/> {t("units.title")}</div>
+        <p className="text-xs text-vehiq-muted">{t("units.hint")}</p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label className="vehiq-overline mb-2 block">{t("units.distance")}</label>
+            <select
+              value={units.distance}
+              onChange={(e) => updateUnits("distance", e.target.value)}
+              className="vehiq-input"
+              data-testid="profile-units-distance"
+            >
+              <option value="km">{t("units.km")}</option>
+              <option value="mile">{t("units.mile")}</option>
+            </select>
+          </div>
+          <div>
+            <label className="vehiq-overline mb-2 block">{t("units.currency")}</label>
+            <select
+              value={units.currency}
+              onChange={(e) => updateUnits("currency", e.target.value)}
+              className="vehiq-input"
+              data-testid="profile-units-currency"
+            >
+              <option value="PLN">PLN — Polski złoty</option>
+              <option value="EUR">EUR — Euro</option>
+              <option value="GBP">GBP — British pound</option>
+            </select>
+          </div>
+        </div>
       </div>
 
       {stats && (

@@ -34,6 +34,7 @@ import AddEvent from "@/pages/AddEvent";
 import PublicProfile from "@/pages/PublicProfile";
 import LegalPage from "@/pages/LegalPage";
 import PublicVehicle from "@/pages/PublicVehicle";
+import VehicleShort from "@/pages/VehicleShort";
 import NotFound from "@/pages/NotFound";
 
 import AdminLogin from "@/pages/admin/AdminLogin";
@@ -128,6 +129,7 @@ function App() {
 
           {/* Public vehicle profile (shareable) */}
           <Route path="/vehicles/:slug" element={<PublicVehicle />} />
+          <Route path="/v/:shortId" element={<VehicleShort />} />
           <Route path="/u/:slug" element={<PublicProfile />} />
 
           {/* Admin (separate, no Layout) */}

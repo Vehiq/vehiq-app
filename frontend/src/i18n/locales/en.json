@@ -38,7 +38,18 @@
     "open": "Open",
     "noResults": "No results",
     "comingSoon": "Coming soon",
-    "clear": "Clear"
+    "clear": "Clear",
+    "loadMore": "Load more",
+    "showing": "Showing",
+    "of": "of"
+  },
+  "units": {
+    "title": "Units",
+    "hint": "Choose your preferred display units. Your data is always stored in PLN and kilometers.",
+    "distance": "Distance unit",
+    "currency": "Currency",
+    "km": "Kilometers (km)",
+    "mile": "Miles (mi)"
   },
   "nav": {
     "garage": "Garage",
@@ -553,7 +564,11 @@
     "openPrivate": "Open in garage",
     "servicePublicNote": "Public view — costs hidden",
     "notFoundTitle": "Vehicle not found",
-    "notFoundDesc": "This vehicle is private or doesn't exist."
+    "notFoundDesc": "This vehicle is private or doesn't exist.",
+    "shortUrl": "Short link",
+    "qrCode": "QR code",
+    "qrHint": "Scan with phone to open vehicle profile",
+    "downloadQr": "Download QR"
   },
   "privacy": {
     "title": "Privacy",

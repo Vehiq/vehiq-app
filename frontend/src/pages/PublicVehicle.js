@@ -5,10 +5,15 @@ import api from "@/lib/api";
 import { toast } from "sonner";
 import { Car as CarIcon, ArrowLeft, Share2, Check, Calendar, Gauge, Fuel, Palette, Wrench } from "lucide-react";
 import SocialShare from "@/components/SocialShare";
+import VehicleQr from "@/components/VehicleQr";
 import { photoUrl, photoThumb } from "@/lib/photos";
+import { useAuth } from "@/contexts/AuthContext";
+import { fmtDistance, fmtPrice, getUnits } from "@/lib/units";
 
 export default function PublicVehicle() {
   const { t, i18n } = useTranslation();
+  const { user } = useAuth();
+  const units = getUnits(user);
   const { slug } = useParams();
   const navigate = useNavigate();
   const [v, setV] = useState(null);
@@ -55,11 +60,13 @@ export default function PublicVehicle() {
 
   const copy = async () => {
     try {
-      await navigator.clipboard.writeText(window.location.href);
+      const shortId = v?.id ? v.id.slice(0, 8) : null;
+      const link = shortId ? `${window.location.origin}/v/${shortId}` : window.location.href;
+      await navigator.clipboard.writeText(link);
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
       toast.success(t("share.copied"));
-    } catch {}
+    } catch { /* clipboard unavailable */ }
   };
 
   if (error === "not-found") {
@@ -81,6 +88,11 @@ export default function PublicVehicle() {
   const photos = v.photos || [];
   const cover = photoUrl(photos[activePhoto]) || v.cover_photo;
   const fmt = (n) => (typeof n === "number" ? n.toLocaleString(lang === "en" ? "en-US" : "pl-PL") : n);
+  // Short shareable URL — falls back to current page if id missing.
+  const shortId = v.id ? v.id.slice(0, 8) : null;
+  const shareUrl = shortId
+    ? `${window.location.origin}/v/${shortId}`
+    : window.location.href;
 
   return (
     <div className="min-h-screen bg-vehiq-bg text-vehiq-text" data-testid="public-vehicle">
@@ -138,7 +150,7 @@ export default function PublicVehicle() {
 
             <ul className="grid grid-cols-2 gap-3 mt-6">
               <Spec Icon={Calendar} label={t("vehicle.year")} value={v.year || "—"} />
-              <Spec Icon={Gauge} label={t("vehicle.mileage")} value={v.mileage_current ? `${fmt(v.mileage_current)} km` : "—"} />
+              <Spec Icon={Gauge} label={t("vehicle.mileage")} value={v.mileage_current != null ? fmtDistance(v.mileage_current, units) : "—"} />
               <Spec Icon={Fuel} label={t("vehicle.fuel")} value={v.fuel || "—"} />
               <Spec Icon={Palette} label={t("vehicle.color")} value={v.color || "—"} />
             </ul>
@@ -149,7 +161,7 @@ export default function PublicVehicle() {
                   <div className="vehiq-overline">{t("share.forSale")}</div>
                   <div className="text-vehiq-text font-medium">{v.active_listing.title}</div>
                 </div>
-                <div className="vehiq-display text-2xl text-vehiq-gold">{fmt(v.active_listing.price)} PLN</div>
+                <div className="vehiq-display text-2xl text-vehiq-gold">{fmtPrice(v.active_listing.price, units)}</div>
               </Link>
             )}
 
@@ -159,8 +171,19 @@ export default function PublicVehicle() {
               )}
             </div>
 
-            <div className="mt-6 pt-6 border-t border-vehiq-border">
-              <SocialShare vehicle={v} url={window.location.href} />
+            <div className="mt-6 pt-6 border-t border-vehiq-border space-y-4">
+              <SocialShare vehicle={v} url={shareUrl} />
+              {shortId && (
+                <div className="flex items-start gap-4 flex-wrap">
+                  <div className="flex-1 min-w-[200px]">
+                    <div className="text-[10px] uppercase tracking-widest text-vehiq-muted mb-2">{t("share.shortUrl")}</div>
+                    <code className="text-xs text-vehiq-text bg-vehiq-bg border border-vehiq-border rounded px-2 py-1 inline-block break-all" data-testid="vehicle-short-link">
+                      /v/{shortId}
+                    </code>
+                  </div>
+                  <VehicleQr vehicleId={v.id} shortId={shortId} />
+                </div>
+              )}
             </div>
           </div>
         </section>
@@ -178,7 +201,7 @@ export default function PublicVehicle() {
                 <li key={i} className="py-2 flex items-center gap-3 text-sm" data-testid={`public-service-${i}`}>
                   <span className="text-vehiq-muted text-xs min-w-[90px]">{s.date}</span>
                   <span className="text-vehiq-text flex-1 truncate">{t(`service.types.${s.type}`, s.type)}</span>
-                  {v.is_owner && s.cost ? <span className="text-vehiq-gold text-xs">{fmt(s.cost)} PLN</span> : null}
+                  {v.is_owner && s.cost ? <span className="text-vehiq-gold text-xs">{fmtPrice(s.cost, units)}</span> : null}
                 </li>
               ))}
             </ul>

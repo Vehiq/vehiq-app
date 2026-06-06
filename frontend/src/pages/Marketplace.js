@@ -3,11 +3,13 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import api, { apiErrorMessage } from "@/lib/api";
 import { toast } from "sonner";
-import { Plus, MessageCircle, Store, Search, X, AlertTriangle } from "lucide-react";
+import { Plus, MessageCircle, Store, Search, X, AlertTriangle, Loader2 } from "lucide-react";
 import EmptyState from "@/components/EmptyState";
 import LazyImage from "@/components/LazyImage";
 import { SkeletonListingGrid } from "@/components/Skeleton";
 import { photoThumb } from "@/lib/photos";
+import { useAuth } from "@/contexts/AuthContext";
+import { fmtPrice, getUnits } from "@/lib/units";
 
 const POPULAR_MAKES = [
   "Audi", "BMW", "Citroën", "Dacia", "Fiat", "Ford", "Honda", "Hyundai", "Kia",
@@ -25,6 +27,8 @@ function useDebounced(value, ms = 300) {
 
 export default function Marketplace() {
   const { t } = useTranslation();
+  const { user } = useAuth();
+  const units = getUnits(user);
   const [params, setParams] = useSearchParams();
 
   // Form state (from URL params)
@@ -37,8 +41,9 @@ export default function Marketplace() {
 
   const debouncedModel = useDebounced(model, 300);
 
-  const [data, setData] = useState(null); // { items, total, page } | null while loading
+  const [data, setData] = useState(null); // { items, total, page, limit } | null while loading
   const [loadError, setLoadError] = useState(null);
+  const [loadingMore, setLoadingMore] = useState(false);
 
   const fetchListings = useCallback(async (override) => {
     const q = override || {
@@ -52,22 +57,53 @@ export default function Marketplace() {
     setLoadError(null);
     try {
       const r = await api.get("/marketplace/listings", { params: q, timeout: 30000 });
-      setData(r.data || { items: [], total: 0, page: 1 });
+      setData(r.data || { items: [], total: 0, page: 1, limit: 10 });
     } catch (err) {
       const msg = apiErrorMessage(err, "Network error");
       console.error("Marketplace fetch failed:", msg, err);
       // Always exit the skeleton state — even on error.
-      setData({ items: [], total: 0, page: 1 });
+      setData({ items: [], total: 0, page: 1, limit: 10 });
       setLoadError(msg);
       toast.error(msg);
     }
   }, [type, make, debouncedModel, priceMin, priceMax, location]);
 
+  const loadMore = useCallback(async () => {
+    if (!data || loadingMore) return;
+    setLoadingMore(true);
+    const nextPage = (data.page || 1) + 1;
+    const q = {
+      page: nextPage,
+      ...(type !== "all" ? { type } : {}),
+      ...(make ? { make } : {}),
+      ...(debouncedModel ? { model: debouncedModel } : {}),
+      ...(priceMin ? { min_price: priceMin } : {}),
+      ...(priceMax ? { max_price: priceMax } : {}),
+      ...(location ? { location } : {}),
+    };
+    try {
+      const r = await api.get("/marketplace/listings", { params: q, timeout: 30000 });
+      const incoming = r.data || { items: [], total: 0, page: nextPage, limit: 10 };
+      setData((prev) => ({
+        items: [...(prev?.items || []), ...(incoming.items || [])],
+        total: incoming.total ?? prev?.total ?? 0,
+        page: incoming.page || nextPage,
+        limit: incoming.limit || prev?.limit || 10,
+      }));
+    } catch (err) {
+      toast.error(apiErrorMessage(err, "Network error"));
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [data, loadingMore, type, make, debouncedModel, priceMin, priceMax, location]);
+
   // initial load and on URL params change
-  useEffect(() => { fetchListings(); /* eslint-disable-next-line */ }, [params]);
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => { fetchListings(); }, [params]);
 
   // live filter on model debounce
-  useEffect(() => { fetchListings(); /* eslint-disable-next-line */ }, [debouncedModel]);
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => { fetchListings(); }, [debouncedModel]);
 
   const search = () => {
     const next = {};
@@ -164,38 +200,59 @@ export default function Marketplace() {
           dataTestId="mp-empty"
         />
       ) : (
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-5" data-testid="mp-grid">
-          {data.items.map((l, idx) => (
-            <Link key={l.id} to={`/marketplace/${l.id}`} className="vehiq-card overflow-hidden hover:border-vehiq-gold transition-all hover:-translate-y-1 flex flex-col" data-testid={`mp-card-${l.id}`}>
-              {/* Text content first — paints instantly */}
-              <div className="p-3 sm:p-4 order-2 flex-1 flex flex-col gap-1">
-                <div className="flex items-start justify-between gap-2">
-                  <div className="vehiq-display text-base sm:text-lg text-vehiq-text leading-tight line-clamp-2 flex-1">{l.title}</div>
-                  {l.featured && <span className="text-[9px] uppercase tracking-widest px-2 py-0.5 rounded bg-vehiq-gold-dim text-vehiq-gold shrink-0">★</span>}
-                </div>
-                <div className="text-vehiq-gold font-medium text-sm sm:text-base">{l.price?.toLocaleString("pl-PL")} PLN</div>
-                <div className="text-[11px] text-vehiq-muted mt-0.5 line-clamp-1">
-                  {l.make ? <span>{l.make}{l.model ? ` ${l.model}` : ""}{l.year ? ` · ${l.year}` : ""}</span> : null}
-                </div>
-                <div className="text-[10px] text-vehiq-muted uppercase tracking-wider line-clamp-1">
-                  {l.location || "—"} · {t(`marketplace.types.${l.type}`)}
-                </div>
-              </div>
-              {/* Image lazy-loaded with placeholder — never blocks first paint */}
-              <LazyImage
-                src={photoThumb(l.photos?.[0])}
-                alt={l.title}
-                className="aspect-[16/10] bg-vehiq-bg overflow-hidden order-1"
-                eager={idx < 4}
-                fallback={
-                  <div className="aspect-[16/10] bg-vehiq-bg flex items-center justify-center text-vehiq-muted text-[10px] order-1" data-testid={`mp-card-noimg-${l.id}`}>
-                    {t("marketplace.noPhoto")}
+        <>
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-5" data-testid="mp-grid">
+            {data.items.map((l, idx) => (
+              <Link key={l.id} to={`/marketplace/${l.id}`} className="vehiq-card overflow-hidden hover:border-vehiq-gold transition-all hover:-translate-y-1 flex flex-col" data-testid={`mp-card-${l.id}`}>
+                {/* Text content first — paints instantly */}
+                <div className="p-3 sm:p-4 order-2 flex-1 flex flex-col gap-1">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="vehiq-display text-base sm:text-lg text-vehiq-text leading-tight line-clamp-2 flex-1">{l.title}</div>
+                    {l.featured && <span className="text-[9px] uppercase tracking-widest px-2 py-0.5 rounded bg-vehiq-gold-dim text-vehiq-gold shrink-0">★</span>}
                   </div>
-                }
-              />
-            </Link>
-          ))}
-        </div>
+                  <div className="text-vehiq-gold font-medium text-sm sm:text-base">{fmtPrice(l.price, units)}</div>
+                  <div className="text-[11px] text-vehiq-muted mt-0.5 line-clamp-1">
+                    {l.make ? <span>{l.make}{l.model ? ` ${l.model}` : ""}{l.year ? ` · ${l.year}` : ""}</span> : null}
+                  </div>
+                  <div className="text-[10px] text-vehiq-muted uppercase tracking-wider line-clamp-1">
+                    {l.location || "—"} · {t(`marketplace.types.${l.type}`)}
+                  </div>
+                </div>
+                {/* Image lazy-loaded with placeholder — never blocks first paint */}
+                <LazyImage
+                  src={photoThumb(l.photos?.[0])}
+                  alt={l.title}
+                  className="aspect-[16/10] bg-vehiq-bg overflow-hidden order-1"
+                  eager={idx < 4}
+                  fallback={
+                    <div className="aspect-[16/10] bg-vehiq-bg flex items-center justify-center text-vehiq-muted text-[10px] order-1" data-testid={`mp-card-noimg-${l.id}`}>
+                      {t("marketplace.noPhoto")}
+                    </div>
+                  }
+                />
+              </Link>
+            ))}
+          </div>
+
+          {/* Pagination — Load More */}
+          <div className="flex flex-col items-center gap-2 pt-2 pb-6" data-testid="mp-pagination">
+            <div className="text-xs text-vehiq-muted">
+              {t("common.showing")} {data.items.length} {t("common.of")} {data.total}
+            </div>
+            {data.items.length < data.total && (
+              <button
+                type="button"
+                onClick={loadMore}
+                disabled={loadingMore}
+                className="vehiq-btn-secondary inline-flex items-center gap-2 disabled:opacity-50"
+                data-testid="mp-load-more"
+              >
+                {loadingMore ? <Loader2 size={14} className="animate-spin"/> : <Plus size={14}/>}
+                {t("common.loadMore")}
+              </button>
+            )}
+          </div>
+        </>
       )}
     </div>
   );
