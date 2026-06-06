@@ -635,3 +635,46 @@ maxPoolSize=10, serverSelectionTimeoutMS=5000, connectTimeoutMS=10000
 - Task 7 OG meta tagi via FastAPI prerendered HTML dla bot User-Agent
 - Task 8 Short URLs `/v/{8-char-id}` + 301 redirect
 - (Task 6 audit wydajności — odłożony na potem)
+
+
+---
+
+## Iter 22 — Phase B: Units + Short URLs + QR + Marketplace pagination (Feb 2026, fork-agent)
+
+**Cel**: dokończenie Phase B — bardziej shareowalne pojazdy, lokalizowane jednostki, Marketplace bez limitu 10 sztuk.
+
+**Zaimplementowane**:
+- ✅ Profile `/profile`: nowa sekcja `[data-testid=profile-units]` ze selectami `profile-units-distance` (km/mile) i `profile-units-currency` (PLN/EUR/GBP). Zmiana wywołuje `updateProfile({units})` i toast.
+- ✅ Backend `PUT /api/auth/me` przyjmuje `units: {distance, currency}`; domyślnie nowi userzy dostają `{km, PLN}` z `_public_user`. Już istniało, zweryfikowane curl.
+- ✅ Nowy plik `/lib/units.js` (już istniał z poprzedniej sesji) — helpery `fmtDistance(km, units)` i `fmtPrice(pln, units)` z FX (PLN=1.0, EUR=0.23, GBP=0.20). Stosowane w Marketplace cards (cena) i PublicVehicle (mileage + active listing price + service costs).
+- ✅ Krótkie URL-e `/v/{8-char-id}`: nowy route w `App.js`, nowa strona `VehicleShort.js` — fetchuje `/api/vehicles/short/{id}` i robi `navigate(/vehicles/{slug}, {replace:true})`. Niepoprawny short_id → strona 404 `vehicle-short-404`.
+- ✅ QR kody: nowy komponent `components/VehicleQr.js` — przycisk "Kod QR" rozwija panel z `<img src="/api/vehicles/{id}/qr">` + download link. Backend zwraca 200x200 PNG (~2.3kB) z cache 1 dzień.
+- ✅ Public vehicle profile: w sekcji udostępniania nowy `[data-testid=vehicle-short-link]` pokazujący skrócony URL + przycisk QR. Funkcja copy używa shortUrl zamiast pełnego linka, SocialShare otrzymuje shortUrl jako prop `url`.
+- ✅ Marketplace pagination: dodano `loadMore()` callback i przycisk `[data-testid=mp-load-more]` z `<Loader2>` w stanie ładowania. Sekcja `[data-testid=mp-pagination]` pokazuje "Pokazano X z Y". Items appendowane (bez duplikatów), `page` inkrementowane. Default backend: 10/page, max 20/page.
+- ✅ i18n PL/EN: dodane `units.*` (title/hint/distance/currency/km/mile), `common.loadMore/showing/of`, `share.shortUrl/qrCode/qrHint/downloadQr`.
+
+**Pliki**:
+- NEW: `frontend/src/components/VehicleQr.js`
+- NEW: `frontend/src/pages/VehicleShort.js`
+- MOD: `frontend/src/pages/Profile.js`, `Marketplace.js`, `PublicVehicle.js`, `App.js`
+- MOD: `frontend/src/i18n/locales/pl.json`, `en.json`
+
+**Weryfikacja (testing_agent_v3_fork iteration_9.json)**:
+- Backend: 8/9 pytest PASS (1 minor — ingress nadpisuje Cache-Control, nie jest to bug kodu).
+- Frontend: 10/10 acceptance criteria PASS:
+  - Units persisted via PUT /api/auth/me, toast success
+  - EUR/GBP/PLN formatowanie w Marketplace działa
+  - Load More: 10 → 20 → 30 ... do 54, bez duplikatów
+  - QR PNG ładuje się (naturalWidth=410), short link widoczny jako `/v/f9d17048`
+  - Redirect z `/v/f9d17048` → `/vehicles/test-public-2020`; `/v/zzzzzzzz` → 404 page
+- Lint JS: 0 issues po fix dla react-hooks/set-state-in-effect.
+
+**Backlog następnej iteracji**:
+- P1 Stripe payments (deferred)
+- P1 GPS Geolocation dla mileage tracking
+- P1 Push notifications (web push)
+- P1 Project Mode — taby Budget, Notes, Parts list
+- P2 Admin `/api/admin/db/slow-queries` (MongoDB profiling)
+- P2 Facebook OAuth (czeka na klucze)
+- P2 Admin System Health widget
+- P2 Refactor: rozbić długie komponenty `Marketplace.js`/`PublicVehicle.js` na mniejsze, przenieść FX rates do `/api/fx` endpointu
