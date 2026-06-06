@@ -51,7 +51,7 @@ export default function Marketplace() {
     };
     setLoadError(null);
     try {
-      const r = await api.get("/marketplace/listings", { params: q, timeout: 15000 });
+      const r = await api.get("/marketplace/listings", { params: q, timeout: 30000 });
       setData(r.data || { items: [], total: 0, page: 1 });
     } catch (err) {
       const msg = apiErrorMessage(err, "Network error");

@@ -70,7 +70,7 @@ async def list_listings(
     max_mileage: Optional[int] = None,
     status: str = "active",
     page: int = 1,
-    limit: int = 60,
+    limit: int = 10,
     user=Depends(get_optional_user),
 ):
     db = get_db()
@@ -108,12 +108,27 @@ async def list_listings(
         f.setdefault("mileage", {})["$lte"] = max_mileage
 
     total = await db.listings.count_documents(f)
+    # Cap limit to prevent huge payloads — default 10, max 20 per page.
+    limit = max(1, min(int(limit), 20))
     skip = max(0, (page - 1) * limit)
+    # Projection: only fields needed by Marketplace card. Skips heavy `description`,
+    # full photo arrays (only first photo used in grid), service_history, etc.
+    # `user_id` MUST be included — used below to attach seller info.
+    projection = {
+        "_id": 0,
+        "id": 1, "title": 1, "price": 1,
+        "make": 1, "model": 1, "year": 1, "mileage": 1,
+        "type": 1, "status": 1, "condition": 1,
+        "photos": {"$slice": 1},  # only first photo for card thumbnail
+        "location": 1, "city": 1,
+        "created_at": 1, "featured": 1,
+        "user_id": 1,
+    }
     # allow_disk_use: fallback to disk if sort exceeds 32MB RAM (e.g. when indexes
     # aren't yet built on a fresh Atlas cluster). Indexes on featured+created_at
     # make this path almost never hot, but the flag is a safety net.
     items = await (
-        db.listings.find(f, {"_id": 0})
+        db.listings.find(f, projection)
         .sort([("featured", -1), ("created_at", -1)])
         .allow_disk_use(True)
         .skip(skip)
