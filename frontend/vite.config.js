@@ -17,6 +17,11 @@ export default defineConfig(({ mode }) => {
         include: /\.(js|jsx|ts|tsx)$/,
       }),
     ],
+    // Static assets that must be served VERBATIM (no transform, no bundling, no
+    // hashing). Files dropped in /public end up at the root of `build/` and are
+    // served by the host before any SPA fallback. This is the canonical place
+    // for `robots.txt`, `sitemap.xml`, `manifest.json`, `favicon.ico`, etc.
+    publicDir: path.resolve(__dirname, 'public'),
     resolve: {
       alias: {
         '@': path.resolve(__dirname, './src'),
@@ -36,6 +41,9 @@ export default defineConfig(({ mode }) => {
     build: {
       outDir: 'build',
       sourcemap: false,
+      // Ensure files from /public are copied as-is to outDir root.
+      // (Default Vite behavior — set explicitly here as defensive intent.)
+      copyPublicDir: true,
     },
     server: {
       host: '0.0.0.0',
