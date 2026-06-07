@@ -91,22 +91,24 @@ export default function PublicVehicle() {
   }, [v, lang]);
 
   const copy = async () => {
+    const shortId = v?.id ? v.id.slice(0, 8) : null;
+    const link = shortId ? `${window.location.origin}/v/${shortId}` : window.location.href;
+    // Fire share-count bump independently — never blocked by clipboard permission.
+    setShareCount((c) => c + 1);
+    api
+      .post(`/vehicles/public/${slug}/share`)
+      .then((r) => {
+        if (r.data?.share_count != null) setShareCount(r.data.share_count);
+      })
+      .catch(() => {});
     try {
-      const shortId = v?.id ? v.id.slice(0, 8) : null;
-      const link = shortId ? `${window.location.origin}/v/${shortId}` : window.location.href;
       await navigator.clipboard.writeText(link);
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
       toast.success(t("share.copied"));
-      // Track share + bump counter optimistically.
-      setShareCount((c) => c + 1);
-      api
-        .post(`/vehicles/public/${slug}/share`)
-        .then((r) => {
-          if (r.data?.share_count != null) setShareCount(r.data.share_count);
-        })
-        .catch(() => {});
-    } catch { /* clipboard unavailable */ }
+    } catch {
+      toast.error(t("share.copyFailed") || "Nie udało się skopiować linku");
+    }
   };
 
   if (error === "not-found") {

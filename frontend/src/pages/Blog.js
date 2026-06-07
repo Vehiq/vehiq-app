@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { Helmet } from "react-helmet-async";
 import { Calendar, Tag, ArrowRight, BookOpen } from "lucide-react";
 import api from "@/lib/api";
 import EmptyState from "@/components/EmptyState";
+import useDocumentHead from "@/lib/useDocumentHead";
 
 const PAGE_SIZE = 12;
 
@@ -65,18 +65,15 @@ export default function Blog() {
 
   const hasMore = data && data.items.length < (data.total || 0);
 
+  useDocumentHead({
+    title: "Blog VEHIQ — porady, historie i nowości",
+    description: "Blog VEHIQ — porady dla właścicieli pojazdów, historie z garażu, nowości o platformie.",
+    canonical: "https://vehiq.pl/blog",
+    ogType: "website",
+  });
+
   return (
     <div className="min-h-screen bg-vehiq-bg text-vehiq-text" data-testid="blog-page">
-      <Helmet>
-        <title>Blog VEHIQ — porady, historie i nowości</title>
-        <meta name="description" content="Blog VEHIQ — porady dla właścicieli pojazdów, historie z garażu, nowości o platformie." />
-        <link rel="canonical" href="https://vehiq.pl/blog" />
-        <meta property="og:title" content="Blog VEHIQ" />
-        <meta property="og:description" content="Porady, historie i nowości dla właścicieli pojazdów." />
-        <meta property="og:url" content="https://vehiq.pl/blog" />
-        <meta property="og:type" content="website" />
-      </Helmet>
-
       <header className="border-b border-vehiq-border bg-vehiq-bg/90 backdrop-blur sticky top-0 z-20">
         <div className="max-w-5xl mx-auto px-4 md:px-6 py-3 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-2" data-testid="blog-home-link">

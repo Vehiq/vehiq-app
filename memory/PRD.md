@@ -678,3 +678,74 @@ maxPoolSize=10, serverSelectionTimeoutMS=5000, connectTimeoutMS=10000
 - P2 Facebook OAuth (czeka na klucze)
 - P2 Admin System Health widget
 - P2 Refactor: rozbić długie komponenty `Marketplace.js`/`PublicVehicle.js` na mniejsze, przenieść FX rates do `/api/fx` endpointu
+
+
+---
+
+## Iter 23 — Blog CMS + Vehicle View/Share Counters (Feb 2026)
+
+**Cel**: dodać kompletny moduł blogowy do VEHIQ + liczniki wyświetleń/udostępnień na publicznym profilu pojazdu.
+
+### MODUŁ 1: BLOG
+**Backend (`/app/backend/routers/blog.py`)**:
+- Model `blog_posts` (id/slug unikalne): title, slug, excerpt (max 300), content (Markdown), cover_image, author=`"Zespół VEHIQ"`, tags, published, published_at, created_at, updated_at, meta_title, meta_description.
+- Publiczne: `GET /api/blog` (paginacja limit/skip, tag-filter), `GET /api/blog/{slug}`, `GET /api/blog/sitemap`.
+- Admin: `POST /api/admin/blog`, `PUT /api/admin/blog/{id}`, `DELETE /api/admin/blog/{id}`, `PATCH /api/admin/blog/{id}/publish` (toggle), `GET /api/admin/blog`.
+- Slug auto-generuje się z tytułu (z transliteracją PL znaków), `_unique_slug` zapewnia unikalność.
+- Indeksy: `id` unique, `slug` unique, `(published, published_at)` compound.
+
+**Frontend**:
+- `/blog` — lista postów z kartami (cover/tytuł/excerpt/data/tagi), paginacja "Załaduj więcej", canonical `https://vehiq.pl/blog`.
+- `/blog/:slug` — render Markdown (react-markdown@9 + remark-gfm@4), czas czytania (200wpm), share copy-link, CTA `Załóż darmowe konto` → `/register`. Dynamiczne `<title>`, `<meta description/og:*/twitter:*>`, `<link rel=canonical>` przez nowy hook `useDocumentHead`.
+- `/gv91-admin/blog` — CMS dla admina: lista wszystkich postów (draft+published), edytor z 7 polami + split-view live Markdown preview, "Zapisz jako draft" / "Opublikuj" / "Schowaj" / "Usuń", link `[admin-nav-blog]` w sidebarze.
+- Wszystkie teksty PL, responsywne.
+
+### MODUŁ 2: VEHICLE VIEW + SHARE COUNTERS
+**Backend (`/app/backend/routers/vehicles.py`)**:
+- `POST /api/vehicles/public/{slug}/view` z `{session_id}` — inkrementuje `view_count` raz na sesję/dzień (collection `vehicle_views` z unique index `(vehicle_slug, session_id, date)`).
+- `POST /api/vehicles/public/{slug}/share` — inkrementuje `share_count` bez dedupe.
+- Endpoint `GET /api/vehicles/public/by-slug/{slug}` zwraca `view_count` + `share_count`.
+- Zabezpieczenie: 404 dla pojazdów `public=false` lub `privacy.profile_visible=false`.
+
+**Frontend (`PublicVehicle.js`)**:
+- Automatyczny POST `/view` przy montowaniu strony (z `localStorage.vehiq_session` jako session_id).
+- UI: `[data-testid=public-vehicle-stats]` z `[public-vehicle-views]` (ikona Eye + count + "wyświetleń") i `[public-vehicle-shares]` (ikona Share2 + count + "udostępnień").
+- Właściciel widzi dodatkowo `[public-vehicle-owner-stats]`: "Twój pojazd zobaczyło X osób".
+- Przycisk Share teraz wywołuje `/share` API NIEZALEŻNIE od `navigator.clipboard.writeText` (był warunkowy — fix z testów).
+
+### Naprawa znalezionych issues:
+- ✅ **MEDIUM** — Helmet@2 nie działał w pełni na React 19 (canonical/og:* nie były propagowane). Zastąpiono własnym hookiem `/lib/useDocumentHead.js`, który mutuje `document.head` imperatywnie. Statyczny `<link rel=canonical>` usunięty z `index.html`. Zweryfikowane Playwright: canonical na `/blog` = `https://vehiq.pl/blog`, na `/blog/{slug}` = `https://vehiq.pl/blog/{slug}`.
+- ✅ **LOW** — Share count NIE był inkrementowany gdy `navigator.clipboard.writeText` zawodzi. Teraz API `/share` jest wywoływane przed clipboard, niezależnie od jego sukcesu.
+
+### Pliki:
+**NEW**: 
+- `backend/routers/blog.py`
+- `frontend/src/pages/Blog.js`, `BlogPost.js`, `admin/AdminBlog.js`
+- `frontend/src/lib/useDocumentHead.js`
+- `backend/tests/test_iter10_blog_views.py` (17 testów, all green)
+
+**MOD**:
+- `backend/server.py` (rejestracja blog router), `seed.py` (indeksy blog_posts + vehicle_views)
+- `backend/routers/vehicles.py` (+ `/public/{slug}/view` i `/share`, +view_count/share_count w by-slug response)
+- `frontend/src/App.js` (+ routes `/blog`, `/blog/:slug`, `/gv91-admin/blog`, + HelmetProvider — pozostawiony jako noop, nie wymaga usunięcia)
+- `frontend/src/pages/PublicVehicle.js` (view tracking + share counter + share-fire-independent-of-clipboard)
+- `frontend/src/pages/admin/AdminLayout.js` (+ `BookOpen` Blog w nav)
+- `frontend/src/index.css` (+ `.blog-markdown` styling — typography dla rendered Markdown)
+- `frontend/index.html` (- statyczny canonical link)
+- `frontend/package.json` (+ react-markdown@9.0.1, remark-gfm@4.0.0, react-helmet-async@2.0.5)
+
+### Weryfikacja:
+- **Backend pytest**: 17/17 PASS (`test_iter10_blog_views.py`).
+- **E2E (testing_agent_v3_fork iter10)**: 100% backend + ~90% frontend (2 minor issues, oba naprawione w follow-up).
+- **Final smoke**: canonical/og:* tags propagują się poprawnie na obu stronach blogu.
+
+### Backlog następnej iteracji:
+- 🔴 Push na main / Force push — **wymaga akcji użytkownika**: kliknij **"Save to GitHub"** w UI Emergent (agent nie ma uprawnień do `git push --force`).
+- 🔴 P1 Stripe payments
+- 🔴 P1 GPS Geolocation dla mileage tracking
+- 🔴 P1 Push notifications (web push)
+- 🔴 P1 Project Mode — taby Budget / Notes / Parts list
+- 🟡 P2 Admin slow-queries endpoint + System Health widget
+- 🟡 P2 Facebook OAuth (czeka na klucze)
+- 🟣 Refactor: rozbić długie komponenty, FX rates → `/api/fx`
+- 🟣 Mini-cleanup: rozważyć usunięcie `react-helmet-async` z deps (po refactorze zastąpione hookiem) — opcjonalne.

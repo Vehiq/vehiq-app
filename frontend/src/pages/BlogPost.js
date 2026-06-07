@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { Helmet } from "react-helmet-async";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { toast } from "sonner";
@@ -14,6 +13,7 @@ import {
   BookOpen,
 } from "lucide-react";
 import api from "@/lib/api";
+import useDocumentHead from "@/lib/useDocumentHead";
 
 const WORDS_PER_MINUTE = 200;
 
@@ -75,6 +75,23 @@ export default function BlogPost() {
     }
   };
 
+  // Build head metadata (safe when post is null — hook is always called).
+  const metaTitle = post
+    ? post.meta_title || `${post.title} — Blog VEHIQ`
+    : "Blog VEHIQ";
+  const metaDesc = post
+    ? post.meta_description || post.excerpt || ""
+    : "";
+  const canonical = `https://vehiq.pl/blog/${slug}`;
+  useDocumentHead({
+    title: metaTitle,
+    description: metaDesc,
+    canonical,
+    ogUrl: canonical,
+    ogType: "article",
+    ogImage: post?.cover_image || undefined,
+  });
+
   if (error === "not-found") {
     return (
       <div className="min-h-screen flex items-center justify-center bg-vehiq-bg text-center px-4" data-testid="blog-post-404">
@@ -97,26 +114,9 @@ export default function BlogPost() {
   }
 
   const minutes = readingTime(post.content);
-  const canonical = `https://vehiq.pl/blog/${post.slug}`;
-  const metaTitle = post.meta_title || `${post.title} — Blog VEHIQ`;
-  const metaDesc = post.meta_description || post.excerpt || "";
 
   return (
     <div className="min-h-screen bg-vehiq-bg text-vehiq-text" data-testid="blog-post-page">
-      <Helmet>
-        <title>{metaTitle}</title>
-        <meta name="description" content={metaDesc} />
-        <link rel="canonical" href={canonical} />
-        <meta property="og:title" content={metaTitle} />
-        <meta property="og:description" content={metaDesc} />
-        <meta property="og:url" content={canonical} />
-        <meta property="og:type" content="article" />
-        {post.cover_image && <meta property="og:image" content={post.cover_image} />}
-        <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:title" content={metaTitle} />
-        <meta name="twitter:description" content={metaDesc} />
-        {post.cover_image && <meta name="twitter:image" content={post.cover_image} />}
-      </Helmet>
 
       <header className="sticky top-0 z-20 bg-vehiq-bg/95 backdrop-blur border-b border-vehiq-border">
         <div className="max-w-3xl mx-auto px-4 md:px-6 py-3 flex items-center justify-between gap-3">
