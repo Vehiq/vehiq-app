@@ -741,6 +741,7 @@ maxPoolSize=10, serverSelectionTimeoutMS=5000, connectTimeoutMS=10000
 
 ### Backlog następnej iteracji:
 - 🔴 Push na main / Force push — **wymaga akcji użytkownika**: kliknij **"Save to GitHub"** w UI Emergent (agent nie ma uprawnień do `git push --force`).
+- ✅ **Iter 23.1 — RSS feed**: `GET /api/blog/feed.xml` — RSS 2.0 z `<channel>` (VEHIQ Blog, https://vehiq.pl, pl-PL) i wszystkimi opublikowanymi postami (title, link, guid, description=excerpt, author, dc:creator, pubDate w RFC-2822, opcjonalnie enclosure z cover_image). Content-Type: `application/rss+xml; charset=utf-8`, cache 10 min. Walidacja przez `xml.etree.ElementTree` — parsuje się bez błędu.
 - 🔴 P1 Stripe payments
 - 🔴 P1 GPS Geolocation dla mileage tracking
 - 🔴 P1 Push notifications (web push)

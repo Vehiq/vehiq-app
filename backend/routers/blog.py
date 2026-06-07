@@ -14,9 +14,12 @@ Routes:
 import re
 import uuid
 from datetime import datetime, timezone
+from email.utils import format_datetime
 from typing import List, Optional
+from xml.sax.saxutils import escape as xml_escape
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import Response
 from pydantic import BaseModel, Field
 
 from auth_utils import get_admin
@@ -120,6 +123,81 @@ async def blog_sitemap():
     )
     docs = await cursor.to_list(2000)
     return {"items": docs, "total": len(docs)}
+
+
+def _rfc2822(iso: Optional[str]) -> str:
+    """RFC-2822 date string for RSS <pubDate>. Falls back to now() on parse fail."""
+    if not iso:
+        dt = datetime.now(timezone.utc)
+    else:
+        try:
+            dt = datetime.fromisoformat(iso.replace("Z", "+00:00"))
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=timezone.utc)
+        except Exception:
+            dt = datetime.now(timezone.utc)
+    return format_datetime(dt)
+
+
+@public_router.get("/feed.xml")
+async def blog_rss_feed():
+    """RSS 2.0 feed of all published blog posts. Sorted newest first."""
+    db = get_db()
+    cursor = (
+        db.blog_posts.find(
+            {"published": True},
+            {
+                "_id": 0,
+                "slug": 1,
+                "title": 1,
+                "excerpt": 1,
+                "author": 1,
+                "published_at": 1,
+                "cover_image": 1,
+            },
+        )
+        .sort("published_at", -1)
+        .limit(100)
+    )
+    posts = await cursor.to_list(100)
+
+    now_rfc = format_datetime(datetime.now(timezone.utc))
+    items_xml: List[str] = []
+    for p in posts:
+        link = f"https://vehiq.pl/blog/{p.get('slug', '')}"
+        author = p.get("author") or "Zespół VEHIQ"
+        item = f"""    <item>
+      <title>{xml_escape(p.get('title') or '')}</title>
+      <link>{xml_escape(link)}</link>
+      <guid isPermaLink="true">{xml_escape(link)}</guid>
+      <description>{xml_escape(p.get('excerpt') or '')}</description>
+      <author>noreply@vehiq.pl ({xml_escape(author)})</author>
+      <dc:creator>{xml_escape(author)}</dc:creator>
+      <pubDate>{_rfc2822(p.get('published_at'))}</pubDate>"""
+        cover = p.get("cover_image")
+        if cover:
+            item += f'\n      <enclosure url="{xml_escape(cover)}" type="image/jpeg" />'
+        item += "\n    </item>"
+        items_xml.append(item)
+
+    body = f"""<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:dc="http://purl.org/dc/elements/1.1/">
+  <channel>
+    <title>VEHIQ Blog</title>
+    <link>https://vehiq.pl</link>
+    <description>Porady, historie i nowości dla właścicieli pojazdów — od zespołu VEHIQ.</description>
+    <language>pl-PL</language>
+    <lastBuildDate>{now_rfc}</lastBuildDate>
+    <atom:link href="https://vehiq.pl/api/blog/feed.xml" rel="self" type="application/rss+xml" />
+{chr(10).join(items_xml)}
+  </channel>
+</rss>
+"""
+    return Response(
+        content=body,
+        media_type="application/rss+xml; charset=utf-8",
+        headers={"Cache-Control": "public, max-age=600"},
+    )
 
 
 @public_router.get("")
