@@ -18,7 +18,11 @@ export default function SocialShare({ vehicle, url, compact = false }) {
   const lang = i18n.language?.startsWith("en") ? "en" : "pl";
 
   const track = (platform) => {
-    try { api.post(`/vehicles/${vehicle.id}/share`, { platform }).catch(() => {}); } catch {}
+    try { api.post(`/vehicles/${vehicle.id}/share`, { platform }).catch(() => {}); } catch { /* noop */ }
+    // Also bump the public share_count when a slug is available.
+    if (vehicle?.slug) {
+      try { api.post(`/vehicles/public/${vehicle.slug}/share`).catch(() => {}); } catch { /* noop */ }
+    }
   };
 
   const copy = async () => {

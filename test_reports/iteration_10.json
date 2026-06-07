@@ -1,0 +1,58 @@
+{
+  "summary": "iter10 — VEHIQ Blog CMS + Vehicle view/share counters E2E testing. BACKEND: 17/17 pytest PASS (Blog public list/sitemap/by-slug/404, admin auth-required 401, admin CRUD create+list-incl-drafts+update+publish-toggle+slug-dedupe+delete, vehicle view auto-increment with session-id dedupe, share increment, by-slug returns view_count/share_count). FRONTEND: /blog renders [blog-page]+[blog-grid] with 1 card + 'Załóż garaż' header CTA + Polish doc.title 'Blog VEHIQ — porady, historie i nowości'. Click card → /blog/pierwszy-wpis-na-blogu-vehiq renders [blog-post-page]+[blog-post-title]+[blog-post-content] (Markdown headings/bold rendered correctly)+[blog-post-share]+[blog-post-cta] with [blog-post-cta-register] href=/register text='Załóż darmowe konto'. /blog/nonexistent-slug-xyz renders [blog-post-404]. Admin /gv91-admin login → /gv91-admin/blog: [admin-nav-blog]+[admin-blog]+[admin-blog-list]+[admin-blog-new]+[admin-blog-editor] with all 7 inputs (title/slug/excerpt/content/cover/tags/author) + [admin-blog-preview] live Markdown rendering ('Test'+'Bold' rendered) + [admin-blog-save-draft] creates draft post (toast 'Utworzono draft') + [admin-blog-publish] also present. /vehicles/test-public-2020 renders [public-vehicle]+[public-vehicle-stats]+[public-vehicle-views] (Eye icon + count + 'views'/'wyświetleń') + [public-vehicle-shares] (Share2 icon + count + 'shares'/'udostępnień'). View auto-incremented on first mount (5→6 across sessions), stayed same on reload (dedupe via session_id+date works). Owner login (smoke-test-vehiq) sees [public-vehicle-owner-stats] line 'Twój pojazd zobaczyło 6 osób' — anonymous users do NOT see this line.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "BlogPost.js Helmet canonical",
+        "issue": "document.querySelector('link[rel=canonical]') on /blog/<slug> returns 'https://vehiq.pl/' (root) instead of the per-post canonical 'https://vehiq.pl/blog/<slug>'. document.title IS updated correctly via Helmet, but the canonical <link> from /index.html is not being replaced by the Helmet canonical. Likely root cause: react-helmet-async only updates Helmet-managed nodes — the static <link rel=\"canonical\" href=\"https://vehiq.pl\"> in /app/frontend/index.html stays in <head> and is the only canonical at runtime. Fix options: (a) remove the static canonical from /app/frontend/index.html so Helmet's becomes authoritative, OR (b) add a top-level Helmet (e.g. in App.js / public layout) that sets a default canonical and is then overridden per-route. Affects Blog list (https://vehiq.pl/blog) AND BlogPost (per slug) — both currently appear as canonical = https://vehiq.pl/ in DOM.",
+        "selector": "link[rel=canonical]",
+        "priority": "MEDIUM"
+      },
+      {
+        "component": "PublicVehicle.js copy()",
+        "issue": "Share counter increment is gated on navigator.clipboard.writeText() success. If clipboard write throws (denied permission / non-secure context / headless test env) the catch silently returns and the POST /api/vehicles/public/<slug>/share is never called, so share_count does not increment. UX-wise: a user who clicks Share intending to share but clipboard fails would also not register a share. Recommend: fire the share API regardless (best-effort) OR before the clipboard attempt, then handle clipboard errors separately. Tested manually: backend share endpoint works fine via direct POST.",
+        "selector": "[data-testid=public-share-btn]",
+        "priority": "LOW"
+      }
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {
+        "screen": "PublicVehicle stats line (anonymous)",
+        "issues": ["Eye/Share2 icons and number sit too close to the units label, e.g. '5views' / '3shares' have no space between digit and label in the DOM text content. Likely a missing space/whitespace span between number and the translated unit. Looks fine visually due to flex gaps but copy/paste/screen-reader output is unfriendly."]
+      }
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter10_blog_views.py",
+    "/app/test_reports/pytest/iter10_results.xml"
+  ],
+  "action_items": [
+    "Fix canonical override: remove static <link rel=canonical> from /app/frontend/index.html or set default Helmet canonical in App.js so per-page Helmet can override it (currently /blog and /blog/:slug both show canonical=https://vehiq.pl/).",
+    "Make POST /api/vehicles/public/<slug>/share fire independently of clipboard success in PublicVehicle.js copy() (avoid losing share counts when clipboard denied)."
+  ],
+  "critical_code_review_comments": [
+    "routers/blog.py _unique_slug correctly dedupes by appending -N suffix; uses exclude_id on update so renaming a post back to its own slug works. Good.",
+    "routers/blog.py admin_create accepts payload.published flag and stamps published_at — clean. admin_update only stamps published_at the FIRST time published flips to true (keeps original publish date on re-publish). Good behavior.",
+    "routers/blog.py public list_published projects {_id:0, content:0} but then sets content='' in _public_post wrapper — efficient, but the wrapper hard-codes content key in returned dict; consider a separate _list_post serializer to make the contract explicit.",
+    "routers/vehicles.py track_public_view uses unique index on (vehicle_slug, session_id, date) — DuplicateKeyError is caught and dedupe works as designed. RC: privacy.profile_visible==false returns 404 (good). However the bare `except Exception:` swallows ALL errors silently — a real DB outage would look like a successful counted=false. Consider catching only pymongo.errors.DuplicateKeyError.",
+    "routers/vehicles.py track_public_share has no dedupe — per spec (anonymous-safe, raw count). Idempotency on share is acceptable per requirement.",
+    "Frontend BlogPost.js readingTime() only counts plaintext words via /\\s+/.split — does not strip Markdown punctuation; minor inaccuracy on heavily-formatted posts (cosmetic).",
+    "Frontend AdminBlog.js (not viewed in depth) — assume editor wires save-draft to POST /api/admin/blog with published:false and publish to POST/PATCH. Verified via UI test toast 'Utworzono draft'.",
+    "Frontend PublicVehicle.js uses optimistic share count bump (setShareCount(c=>c+1)) before API resolves — fine for UX but combined with the clipboard-failure issue above means user may see an incremented number locally while backend was never called (no — actually, the optimistic bump is INSIDE the try block AFTER navigator.clipboard.writeText, so it only runs when clipboard succeeds; correct).",
+    "Helmet integration: index.html has a static canonical that is not removed by react-helmet-async. Document this as a known limitation: Helmet appends nodes but does NOT clean static head tags."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter10_blog_views.py (NEW — 17 tests, all pass)",
+    "/app/test_reports/pytest/iter10_results.xml (NEW)",
+    "/app/test_reports/iteration_10.json (NEW)"
+  ],
+  "success_rate": { "backend": "100% (17/17)", "frontend": "90% — 2 frontend issues found (canonical override, share-count gated on clipboard); all required testids and primary flows pass" },
+  "test_credentials": "Admin: kontakt@vehiq.pl / VehiqAdmin2026#Temp! (verified). User: smoke-test-vehiq@example.com / SmokePass123! (verified, owns test-public-2020).",
+  "seed_data_creation": "Created and deleted 1 TEST_iter10 admin blog draft via UI. Cleaned up all TEST_ prefixed posts via admin DELETE API. Vehicle view_count went 5→6, share_count stayed at 3 (UI clipboard denied so share API not called); pytest separately bumped share_count multiple times (delta resolved by direct API).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Blog backend + vehicle view/share counters fully validated. Seed blog post slug='pierwszy-wpis-na-blogu-vehiq' (published, empty content + tags=['welcome','vehiq']). Public vehicle slug='test-public-2020', id starts with f9d17048. view_count auto-deduped per session_id+date via unique index. Outstanding minor frontend fixes are: (1) canonical link override from index.html (action_items[0]), (2) share-count gated on clipboard success (action_items[1]). All other testids confirmed: [blog-page], [blog-grid], [blog-card-<slug>], [blog-post-page], [blog-post-title], [blog-post-content], [blog-post-share], [blog-post-cta], [blog-post-cta-register], [blog-post-404], [admin-nav-blog], [admin-blog], [admin-blog-list], [admin-blog-new], [admin-blog-editor], [admin-blog-input-{title,slug,excerpt,content,cover,tags,author}], [admin-blog-preview], [admin-blog-save-draft], [admin-blog-publish], [public-vehicle], [public-vehicle-stats], [public-vehicle-views], [public-vehicle-shares], [public-share-btn], [public-vehicle-owner-stats].",
+  "rca of the issue": "Canonical override: index.html ships a static <link rel=canonical href=\"https://vehiq.pl\">. react-helmet-async appends Helmet-managed nodes but does not always remove static head links with the same rel. Net result: at runtime the canonical link DOM element is still the one from index.html, so document.querySelector('link[rel=canonical]').href === 'https://vehiq.pl/' regardless of Helmet's per-page setting. Fix: delete the static canonical from /app/frontend/index.html (or set a Helmet defaultProps in App.js with a placeholder canonical that Helmet can subsequently override per-page)."
+}

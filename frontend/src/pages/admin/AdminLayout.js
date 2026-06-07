@@ -1,6 +1,6 @@
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useEffect } from "react";
-import { LayoutDashboard, Users, Car, Store, MessagesSquare, FileText, Edit3, Settings, Shield, BarChart3, KeyRound, LogOut } from "lucide-react";
+import { LayoutDashboard, Users, Car, Store, MessagesSquare, FileText, Edit3, Settings, Shield, BarChart3, KeyRound, LogOut, BookOpen } from "lucide-react";
 
 const SECTIONS = [
   { to: "dashboard", icon: LayoutDashboard, label: "Dashboard" },
@@ -8,6 +8,7 @@ const SECTIONS = [
   { to: "vehicles", icon: Car, label: "Vehicles" },
   { to: "marketplace", icon: Store, label: "Marketplace" },
   { to: "forum", icon: MessagesSquare, label: "Forum" },
+  { to: "blog", icon: BookOpen, label: "Blog" },
   { to: "legal", icon: FileText, label: "Legal Pages" },
   { to: "content", icon: Edit3, label: "Content CMS" },
   { to: "api-keys", icon: KeyRound, label: "API Keys & SMTP" },

@@ -3,6 +3,7 @@ import "@/App.css";
 import "@/i18n";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { Toaster } from "sonner";
+import { HelmetProvider } from "react-helmet-async";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import Layout from "@/components/layout/Layout";
 import CookieBanner from "@/components/CookieBanner";
@@ -35,6 +36,8 @@ import PublicProfile from "@/pages/PublicProfile";
 import LegalPage from "@/pages/LegalPage";
 import PublicVehicle from "@/pages/PublicVehicle";
 import VehicleShort from "@/pages/VehicleShort";
+import Blog from "@/pages/Blog";
+import BlogPost from "@/pages/BlogPost";
 import NotFound from "@/pages/NotFound";
 
 import AdminLogin from "@/pages/admin/AdminLogin";
@@ -52,6 +55,7 @@ import AdminSettings from "@/pages/admin/AdminSettings";
 import AdminSecurity from "@/pages/admin/AdminSecurity";
 import AdminApiKeys from "@/pages/admin/AdminApiKeys";
 import AdminAnalytics from "@/pages/admin/AdminAnalytics";
+import AdminBlog from "@/pages/admin/AdminBlog";
 
 import api from "@/lib/api";
 import { useTranslation } from "react-i18next";
@@ -106,13 +110,14 @@ function LangSync() {
 
 function App() {
   return (
-    <BrowserRouter>
-      <AuthProvider>
-        <ErrorBoundary>
-          <LangSync />
-          <PageTracker />
-          <Toaster theme="dark" position="top-right" toastOptions={{ style: { background: "#161829", border: "1px solid rgba(201,168,76,0.2)", color: "#F4F1EC" } }} />
-          <CookieBanner />
+    <HelmetProvider>
+      <BrowserRouter>
+        <AuthProvider>
+          <ErrorBoundary>
+            <LangSync />
+            <PageTracker />
+            <Toaster theme="dark" position="top-right" toastOptions={{ style: { background: "#161829", border: "1px solid rgba(201,168,76,0.2)", color: "#F4F1EC" } }} />
+            <CookieBanner />
 
         <Routes>
           {/* Public auth */}
@@ -132,6 +137,10 @@ function App() {
           <Route path="/v/:shortId" element={<VehicleShort />} />
           <Route path="/u/:slug" element={<PublicProfile />} />
 
+          {/* Blog (public) */}
+          <Route path="/blog" element={<Blog />} />
+          <Route path="/blog/:slug" element={<BlogPost />} />
+
           {/* Admin (separate, no Layout) */}
           <Route path="/gv91-admin" element={<AdminLogin />} />
           <Route path="/gv91-admin/reset-password" element={<AdminResetPassword />} />
@@ -148,6 +157,7 @@ function App() {
             <Route path="security" element={<AdminSecurity />} />
             <Route path="api-keys" element={<AdminApiKeys />} />
             <Route path="analytics" element={<AdminAnalytics />} />
+            <Route path="blog" element={<AdminBlog />} />
           </Route>
 
           {/* Authenticated app */}
@@ -179,6 +189,7 @@ function App() {
         </ErrorBoundary>
       </AuthProvider>
     </BrowserRouter>
+    </HelmetProvider>
   );
 }
 

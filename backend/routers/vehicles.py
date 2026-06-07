@@ -381,6 +381,8 @@ async def get_public_vehicle(slug: str, user=Depends(get_optional_user)):
         "privacy": privacy if is_owner else None,
         "owner": owner,
         "active_listing": listing,
+        "view_count": int(v.get("view_count") or 0),
+        "share_count": int(v.get("share_count") or 0),
     }
     show_service = is_owner or (v.get("public_show_service") and privacy.get("show_service", True))
     show_costs = is_owner or privacy.get("show_costs", False)
@@ -439,6 +441,83 @@ async def track_share(vehicle_id: str, payload: ShareIn, user=Depends(get_option
         "shared_at": datetime.now(timezone.utc).isoformat(),
     })
     return {"ok": True}
+
+
+class VehicleViewIn(BaseModel):
+    session_id: Optional[str] = None
+
+
+@router.post("/public/{slug}/view")
+async def track_public_view(slug: str, payload: VehicleViewIn):
+    """Increment view_count for a public vehicle, deduped per session_id per UTC day.
+
+    Anonymous-safe. Throttling uses a unique index on
+    (vehicle_slug, session_id, date) — duplicates raise DuplicateKeyError and we
+    return the existing count without incrementing.
+    """
+    db = get_db()
+    v = await db.vehicles.find_one(
+        {"slug": slug},
+        {"_id": 0, "id": 1, "public": 1, "view_count": 1, "share_count": 1, "privacy": 1},
+    )
+    if not v or not v.get("public"):
+        raise HTTPException(status_code=404, detail="Vehicle not found")
+    privacy = v.get("privacy") or {}
+    if privacy.get("profile_visible") is False:
+        raise HTTPException(status_code=404, detail="Vehicle not found")
+
+    session_id = (payload.session_id or "").strip() or str(uuid.uuid4())
+    day = datetime.now(timezone.utc).date().isoformat()
+    counted = False
+    try:
+        await db.vehicle_views.insert_one({
+            "vehicle_slug": slug,
+            "vehicle_id": v["id"],
+            "session_id": session_id,
+            "date": day,
+            "ts": datetime.now(timezone.utc).isoformat(),
+        })
+        # New unique row — bump the counter on the vehicle doc.
+        await db.vehicles.update_one({"id": v["id"]}, {"$inc": {"view_count": 1}})
+        counted = True
+    except Exception:
+        # Duplicate session/day combo — silently no-op.
+        pass
+
+    fresh = await db.vehicles.find_one(
+        {"id": v["id"]}, {"_id": 0, "view_count": 1, "share_count": 1}
+    ) or {}
+    return {
+        "ok": True,
+        "counted": counted,
+        "view_count": int(fresh.get("view_count") or 0),
+        "share_count": int(fresh.get("share_count") or 0),
+    }
+
+
+@router.post("/public/{slug}/share")
+async def track_public_share(slug: str):
+    """Increment share_count for a public vehicle. Anonymous-safe, no dedupe."""
+    db = get_db()
+    v = await db.vehicles.find_one(
+        {"slug": slug}, {"_id": 0, "id": 1, "public": 1, "privacy": 1}
+    )
+    if not v or not v.get("public"):
+        raise HTTPException(status_code=404, detail="Vehicle not found")
+    privacy = v.get("privacy") or {}
+    if privacy.get("profile_visible") is False:
+        raise HTTPException(status_code=404, detail="Vehicle not found")
+    await db.vehicles.update_one({"id": v["id"]}, {"$inc": {"share_count": 1}})
+    fresh = await db.vehicles.find_one(
+        {"id": v["id"]}, {"_id": 0, "view_count": 1, "share_count": 1}
+    ) or {}
+    return {
+        "ok": True,
+        "view_count": int(fresh.get("view_count") or 0),
+        "share_count": int(fresh.get("share_count") or 0),
+    }
+
+
 
 
 class MarkSoldIn(BaseModel):

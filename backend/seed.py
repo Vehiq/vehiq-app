@@ -251,6 +251,24 @@ async def seed_database(db):
         await db.service_reviews.create_index([("service_id", 1), ("user_id", 1)], unique=True)
     except Exception:
         pass
+    # Blog
+    try:
+        await db.blog_posts.create_index("id", unique=True)
+    except Exception:
+        pass
+    try:
+        await db.blog_posts.create_index("slug", unique=True)
+    except Exception:
+        pass
+    await db.blog_posts.create_index([("published", 1), ("published_at", -1)])
+    # Vehicle views — unique index for per-day-per-session throttling.
+    try:
+        await db.vehicle_views.create_index(
+            [("vehicle_slug", 1), ("session_id", 1), ("date", 1)],
+            unique=True,
+        )
+    except Exception:
+        pass
 
     # Backfill: ensure all profiles have a slug + default privacy_settings
     import re as _re

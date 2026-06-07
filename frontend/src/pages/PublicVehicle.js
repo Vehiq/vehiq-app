@@ -3,12 +3,21 @@ import { useParams, useNavigate, Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import api from "@/lib/api";
 import { toast } from "sonner";
-import { Car as CarIcon, ArrowLeft, Share2, Check, Calendar, Gauge, Fuel, Palette, Wrench } from "lucide-react";
+import { Car as CarIcon, ArrowLeft, Share2, Check, Calendar, Gauge, Fuel, Palette, Wrench, Eye } from "lucide-react";
 import SocialShare from "@/components/SocialShare";
 import VehicleQr from "@/components/VehicleQr";
 import { photoUrl, photoThumb } from "@/lib/photos";
 import { useAuth } from "@/contexts/AuthContext";
 import { fmtDistance, fmtPrice, getUnits } from "@/lib/units";
+
+function getOrCreateSessionId() {
+  let sid = localStorage.getItem("vehiq_session");
+  if (!sid) {
+    sid = crypto.randomUUID();
+    localStorage.setItem("vehiq_session", sid);
+  }
+  return sid;
+}
 
 export default function PublicVehicle() {
   const { t, i18n } = useTranslation();
@@ -20,13 +29,36 @@ export default function PublicVehicle() {
   const [error, setError] = useState(null);
   const [activePhoto, setActivePhoto] = useState(0);
   const [copied, setCopied] = useState(false);
+  const [viewCount, setViewCount] = useState(0);
+  const [shareCount, setShareCount] = useState(0);
   const lang = i18n.language?.startsWith("en") ? "en" : "pl";
 
   useEffect(() => {
+    let cancelled = false;
     api
       .get(`/vehicles/public/by-slug/${slug}`)
-      .then((r) => setV(r.data))
-      .catch((err) => setError(err?.response?.status === 404 ? "not-found" : "error"));
+      .then((r) => {
+        if (cancelled) return;
+        setV(r.data);
+        setViewCount(r.data?.view_count || 0);
+        setShareCount(r.data?.share_count || 0);
+        // Fire-and-forget view tracking (de-duped server-side per session/day).
+        api
+          .post(`/vehicles/public/${slug}/view`, { session_id: getOrCreateSessionId() })
+          .then((vr) => {
+            if (cancelled) return;
+            if (vr.data?.view_count != null) setViewCount(vr.data.view_count);
+            if (vr.data?.share_count != null) setShareCount(vr.data.share_count);
+          })
+          .catch(() => {});
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        setError(err?.response?.status === 404 ? "not-found" : "error");
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [slug]);
 
   // Set OG-style document meta dynamically
@@ -66,6 +98,14 @@ export default function PublicVehicle() {
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
       toast.success(t("share.copied"));
+      // Track share + bump counter optimistically.
+      setShareCount((c) => c + 1);
+      api
+        .post(`/vehicles/public/${slug}/share`)
+        .then((r) => {
+          if (r.data?.share_count != null) setShareCount(r.data.share_count);
+        })
+        .catch(() => {});
     } catch { /* clipboard unavailable */ }
   };
 
@@ -145,6 +185,27 @@ export default function PublicVehicle() {
               <div className="text-xs text-vehiq-muted mt-3">
                 {t("share.owner")}: <span className="text-vehiq-text">{v.owner.name}</span>
                 {v.owner.location ? <span> · {v.owner.location}</span> : null}
+              </div>
+            )}
+
+            {/* View + share counters */}
+            <div className="flex items-center gap-4 mt-4 text-xs text-vehiq-muted" data-testid="public-vehicle-stats">
+              <span className="inline-flex items-center gap-1.5" data-testid="public-vehicle-views">
+                <Eye size={14} className="text-vehiq-gold" />
+                <span className="text-vehiq-text font-medium">{viewCount.toLocaleString(lang === "en" ? "en-US" : "pl-PL")}</span>
+                <span>{lang === "en" ? "views" : "wyświetleń"}</span>
+              </span>
+              <span className="inline-flex items-center gap-1.5" data-testid="public-vehicle-shares">
+                <Share2 size={14} className="text-vehiq-gold" />
+                <span className="text-vehiq-text font-medium">{shareCount.toLocaleString(lang === "en" ? "en-US" : "pl-PL")}</span>
+                <span>{lang === "en" ? "shares" : "udostępnień"}</span>
+              </span>
+            </div>
+            {v.is_owner && (
+              <div className="text-[11px] text-vehiq-gold mt-2" data-testid="public-vehicle-owner-stats">
+                {lang === "en"
+                  ? `Your vehicle was viewed by ${viewCount.toLocaleString("en-US")} people`
+                  : `Twój pojazd zobaczyło ${viewCount.toLocaleString("pl-PL")} osób`}
               </div>
             )}
 
