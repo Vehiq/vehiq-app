@@ -70,6 +70,8 @@ export default function Blog() {
     description: "Blog VEHIQ — porady dla właścicieli pojazdów, historie z garażu, nowości o platformie.",
     canonical: "https://vehiq.pl/blog",
     ogType: "website",
+    rssFeed: "https://vehiq.pl/api/blog/feed.xml",
+    rssTitle: "VEHIQ Blog",
   });
 
   return (

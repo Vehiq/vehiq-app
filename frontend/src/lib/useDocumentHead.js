@@ -63,6 +63,8 @@ export default function useDocumentHead({
   ogUrl,
   ogType = "website",
   twitterCard = "summary_large_image",
+  rssFeed,
+  rssTitle,
 } = {}) {
   useEffect(() => {
     if (title) document.title = title;
@@ -77,5 +79,27 @@ export default function useDocumentHead({
     if (ogTitle || title) upsertMeta("name", "twitter:title", ogTitle || title);
     if (ogDescription || description) upsertMeta("name", "twitter:description", ogDescription || description);
     if (ogImage) upsertMeta("name", "twitter:image", ogImage);
-  }, [title, description, canonical, ogTitle, ogDescription, ogImage, ogUrl, ogType, twitterCard]);
+
+    // RSS auto-discovery — scoped to the page that provides `rssFeed`.
+    // Removed on cleanup so other routes don't leak a stale feed link.
+    let rssEl = null;
+    if (rssFeed) {
+      rssEl = document.head.querySelector('link[data-vehiq-rss="true"]');
+      if (!rssEl) {
+        rssEl = document.createElement("link");
+        rssEl.setAttribute("rel", "alternate");
+        rssEl.setAttribute("type", "application/rss+xml");
+        rssEl.setAttribute("data-vehiq-rss", "true");
+        document.head.appendChild(rssEl);
+      }
+      rssEl.setAttribute("href", rssFeed);
+      rssEl.setAttribute("title", rssTitle || "RSS");
+    }
+
+    return () => {
+      if (rssEl && rssEl.parentNode) {
+        rssEl.parentNode.removeChild(rssEl);
+      }
+    };
+  }, [title, description, canonical, ogTitle, ogDescription, ogImage, ogUrl, ogType, twitterCard, rssFeed, rssTitle]);
 }
