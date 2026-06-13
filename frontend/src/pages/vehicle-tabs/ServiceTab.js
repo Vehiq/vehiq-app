@@ -107,11 +107,11 @@ export default function ServiceTab({ vehicle }) {
             <div className="vehiq-overline mb-2">{t("service.monthlyChart")}</div>
             <ResponsiveContainer width="100%" height="80%">
               <BarChart data={stats.monthly}>
-                <CartesianGrid stroke="#1E2035" strokeDasharray="3 3" />
-                <XAxis dataKey="period" stroke="#6B7090" tick={{ fontSize: 10 }} />
-                <YAxis stroke="#6B7090" tick={{ fontSize: 10 }} />
-                <Tooltip contentStyle={{ background: "#161829", border: "1px solid rgba(201,168,76,0.3)", borderRadius: 6 }} labelStyle={{ color: "#F4F1EC" }} />
-                <Bar dataKey="cost" fill="#C9A84C" radius={[3, 3, 0, 0]} />
+                <CartesianGrid stroke="#111D2E" strokeDasharray="3 3" />
+                <XAxis dataKey="period" stroke="#A0B4C8" tick={{ fontSize: 10 }} />
+                <YAxis stroke="#A0B4C8" tick={{ fontSize: 10 }} />
+                <Tooltip contentStyle={{ background: "#162035", border: "1px solid rgba(43,127,232,0.3)", borderRadius: 6 }} labelStyle={{ color: "#FFFFFF" }} />
+                <Bar dataKey="cost" fill="#2B7FE8" radius={[3, 3, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>

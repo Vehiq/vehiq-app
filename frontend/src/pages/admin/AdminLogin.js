@@ -47,36 +47,36 @@ export default function AdminLogin() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#0a0b13] p-4" data-testid="admin-login">
-      <div className="w-full max-w-sm bg-[#161829] border border-[#222540] rounded-md p-8">
-        <div className="text-xs uppercase tracking-[0.4em] text-[#6B7090] mb-4">Restricted</div>
-        <h1 className="text-2xl text-[#F4F1EC] font-medium mb-6">{forgotMode ? "Reset password" : "Admin Access"}</h1>
+    <div className="min-h-screen flex items-center justify-center bg-[#0A1220] p-4" data-testid="admin-login">
+      <div className="w-full max-w-sm bg-[#162035] border border-[#1E2A42] rounded-md p-8">
+        <div className="text-xs uppercase tracking-[0.4em] text-[#A0B4C8] mb-4">Restricted</div>
+        <h1 className="text-2xl text-[#FFFFFF] font-medium mb-6">{forgotMode ? "Reset password" : "Admin Access"}</h1>
 
         {forgotMode ? (
           <form onSubmit={sendReset} className="space-y-3" data-testid="admin-forgot-form">
             <p className="text-xs text-[#9CA1C2]">Enter the admin email and we'll send a one-time reset link valid for 15 minutes.</p>
             <input type="email" required value={adminEmail} onChange={(e) => setAdminEmail(e.target.value)}
-              className="w-full bg-[#0a0b13] border border-[#222540] text-[#F4F1EC] rounded px-3 py-2 text-sm"
+              className="w-full bg-[#0A1220] border border-[#1E2A42] text-[#FFFFFF] rounded px-3 py-2 text-sm"
               data-testid="admin-forgot-email" />
-            <button type="submit" disabled={busy} className="w-full bg-[#C9A84C] text-[#0D0F1A] font-medium py-2 rounded hover:bg-[#E8C96A]" data-testid="admin-forgot-submit">
+            <button type="submit" disabled={busy} className="w-full bg-[#2B7FE8] text-[#0D1626] font-medium py-2 rounded hover:bg-[#4A95F0]" data-testid="admin-forgot-submit">
               {busy ? "..." : "Send reset link"}
             </button>
-            <button type="button" onClick={() => setForgotMode(false)} className="w-full text-xs text-[#9CA1C2] hover:text-[#C9A84C]" data-testid="admin-forgot-back">
+            <button type="button" onClick={() => setForgotMode(false)} className="w-full text-xs text-[#9CA1C2] hover:text-[#2B7FE8]" data-testid="admin-forgot-back">
               ← Back to login
             </button>
           </form>
         ) : (
           <form onSubmit={login} className="space-y-3">
             <input type="email" value={adminEmail} onChange={(e) => setAdminEmail(e.target.value)} autoComplete="email" required placeholder="admin email"
-              className="w-full bg-[#0a0b13] border border-[#222540] text-[#F4F1EC] rounded px-3 py-2 text-sm"
+              className="w-full bg-[#0A1220] border border-[#1E2A42] text-[#FFFFFF] rounded px-3 py-2 text-sm"
               data-testid="admin-login-email" />
             <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Password" autoComplete="current-password" required
-              className="w-full bg-[#0a0b13] border border-[#222540] text-[#F4F1EC] rounded px-3 py-2 text-sm"
+              className="w-full bg-[#0A1220] border border-[#1E2A42] text-[#FFFFFF] rounded px-3 py-2 text-sm"
               data-testid="admin-login-password" />
-            <button type="submit" disabled={busy} className="w-full bg-[#C9A84C] text-[#0D0F1A] font-medium py-2 rounded hover:bg-[#E8C96A]" data-testid="admin-login-submit">
+            <button type="submit" disabled={busy} className="w-full bg-[#2B7FE8] text-[#0D1626] font-medium py-2 rounded hover:bg-[#4A95F0]" data-testid="admin-login-submit">
               {busy ? "..." : "Login"}
             </button>
-            <button type="button" onClick={() => setForgotMode(true)} className="w-full text-xs text-[#9CA1C2] hover:text-[#C9A84C] pt-1" data-testid="admin-forgot-link">
+            <button type="button" onClick={() => setForgotMode(true)} className="w-full text-xs text-[#9CA1C2] hover:text-[#2B7FE8] pt-1" data-testid="admin-forgot-link">
               Forgot password?
             </button>
           </form>

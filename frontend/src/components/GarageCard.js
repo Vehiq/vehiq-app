@@ -44,7 +44,7 @@ export default function GarageCard({ card, variant = "full", actions = true, onM
   }
 
   return (
-    <div className="bg-[#161829] border border-[#222540] rounded-lg p-5 space-y-4 hover:border-vehiq-gold/40 transition-colors" data-testid={`garage-card-${user.id}`}>
+    <div className="bg-[#162035] border border-[#1E2A42] rounded-lg p-5 space-y-4 hover:border-vehiq-gold/40 transition-colors" data-testid={`garage-card-${user.id}`}>
       <div className="flex items-start gap-4">
         {user.avatar ? (
           <img src={user.avatar} alt={user.name} className="h-16 w-16 rounded-full object-cover ring-2 ring-vehiq-gold/30" />

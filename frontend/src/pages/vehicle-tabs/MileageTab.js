@@ -79,11 +79,11 @@ export default function MileageTab({ vehicle }) {
           <div className="vehiq-overline mb-2">Trend</div>
           <ResponsiveContainer width="100%" height="80%">
             <LineChart data={logs}>
-              <CartesianGrid stroke="#1E2035" strokeDasharray="3 3" />
-              <XAxis dataKey="date" stroke="#6B7090" tick={{fontSize:10}} tickFormatter={(d) => d?.slice(5,10)} />
-              <YAxis stroke="#6B7090" tick={{fontSize:10}} />
-              <Tooltip contentStyle={{ background:"#161829", border:"1px solid rgba(201,168,76,0.3)", borderRadius:6 }} />
-              <Line type="monotone" dataKey="odometer" stroke="#C9A84C" strokeWidth={2} dot={{ fill:"#C9A84C" }} />
+              <CartesianGrid stroke="#111D2E" strokeDasharray="3 3" />
+              <XAxis dataKey="date" stroke="#A0B4C8" tick={{fontSize:10}} tickFormatter={(d) => d?.slice(5,10)} />
+              <YAxis stroke="#A0B4C8" tick={{fontSize:10}} />
+              <Tooltip contentStyle={{ background:"#162035", border:"1px solid rgba(43,127,232,0.3)", borderRadius:6 }} />
+              <Line type="monotone" dataKey="odometer" stroke="#2B7FE8" strokeWidth={2} dot={{ fill:"#2B7FE8" }} />
             </LineChart>
           </ResponsiveContainer>
         </div>

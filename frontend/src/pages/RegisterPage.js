@@ -35,7 +35,7 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col relative" data-testid="register-page" style={{ backgroundColor: "#0D0F1A" }}>
+    <div className="min-h-screen flex flex-col relative" data-testid="register-page" style={{ backgroundColor: "#0D1626" }}>
       <div
         className="absolute inset-0 bg-cover bg-center"
         style={{

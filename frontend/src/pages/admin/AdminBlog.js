@@ -174,7 +174,7 @@ export default function AdminBlog() {
         <h1 className="text-2xl font-semibold">Blog</h1>
         <button
           onClick={() => openEditor(null)}
-          className="bg-[#C9A84C] text-[#0D0F1A] px-4 py-2 rounded text-sm font-medium hover:bg-[#E8C96A] inline-flex items-center gap-2"
+          className="bg-[#2B7FE8] text-[#0D1626] px-4 py-2 rounded text-sm font-medium hover:bg-[#4A95F0] inline-flex items-center gap-2"
           data-testid="admin-blog-new"
         >
           <Plus size={14} /> Nowy wpis
@@ -182,18 +182,18 @@ export default function AdminBlog() {
       </div>
 
       {posts === null ? (
-        <div className="text-[#6B7090]" data-testid="admin-blog-loading">
+        <div className="text-[#A0B4C8]" data-testid="admin-blog-loading">
           Ładowanie...
         </div>
       ) : posts.length === 0 ? (
-        <div className="bg-[#161829] border border-[#222540] rounded p-8 text-center" data-testid="admin-blog-empty">
+        <div className="bg-[#162035] border border-[#1E2A42] rounded p-8 text-center" data-testid="admin-blog-empty">
           <p className="text-[#9CA1C2]">Brak wpisów. Stwórz pierwszy artykuł.</p>
         </div>
       ) : (
-        <div className="bg-[#161829] border border-[#222540] rounded overflow-hidden" data-testid="admin-blog-list">
+        <div className="bg-[#162035] border border-[#1E2A42] rounded overflow-hidden" data-testid="admin-blog-list">
           <table className="w-full text-sm">
-            <thead className="bg-[#0F1120] border-b border-[#222540]">
-              <tr className="text-[10px] uppercase tracking-widest text-[#6B7090]">
+            <thead className="bg-[#0A1220] border-b border-[#1E2A42]">
+              <tr className="text-[10px] uppercase tracking-widest text-[#A0B4C8]">
                 <th className="text-left px-4 py-3">Tytuł</th>
                 <th className="text-left px-4 py-3 hidden md:table-cell">Slug</th>
                 <th className="text-left px-4 py-3">Status</th>
@@ -203,16 +203,16 @@ export default function AdminBlog() {
             </thead>
             <tbody>
               {posts.map((p) => (
-                <tr key={p.id} className="border-b border-[#222540] last:border-0" data-testid={`admin-blog-row-${p.id}`}>
+                <tr key={p.id} className="border-b border-[#1E2A42] last:border-0" data-testid={`admin-blog-row-${p.id}`}>
                   <td className="px-4 py-3">
-                    <button onClick={() => openEditor(p)} className="text-[#F4F1EC] hover:text-[#C9A84C] text-left">{p.title}</button>
+                    <button onClick={() => openEditor(p)} className="text-[#FFFFFF] hover:text-[#2B7FE8] text-left">{p.title}</button>
                   </td>
                   <td className="px-4 py-3 text-[#9CA1C2] text-xs hidden md:table-cell">{p.slug}</td>
                   <td className="px-4 py-3">
                     {p.published ? (
-                      <span className="text-[10px] uppercase tracking-widest px-2 py-1 rounded bg-[#C9A84C]/20 text-[#C9A84C]">Opublikowany</span>
+                      <span className="text-[10px] uppercase tracking-widest px-2 py-1 rounded bg-[#2B7FE8]/20 text-[#2B7FE8]">Opublikowany</span>
                     ) : (
-                      <span className="text-[10px] uppercase tracking-widest px-2 py-1 rounded bg-[#222540] text-[#9CA1C2]">Draft</span>
+                      <span className="text-[10px] uppercase tracking-widest px-2 py-1 rounded bg-[#1E2A42] text-[#9CA1C2]">Draft</span>
                     )}
                   </td>
                   <td className="px-4 py-3 text-[#9CA1C2] text-xs hidden lg:table-cell">
@@ -221,7 +221,7 @@ export default function AdminBlog() {
                   <td className="px-4 py-3 text-right space-x-1">
                     <button
                       onClick={() => togglePublish(p)}
-                      className="px-2 py-1 text-xs text-[#9CA1C2] hover:text-[#C9A84C]"
+                      className="px-2 py-1 text-xs text-[#9CA1C2] hover:text-[#2B7FE8]"
                       title={p.published ? "Schowaj jako draft" : "Opublikuj"}
                       data-testid={`admin-blog-toggle-${p.id}`}
                     >
@@ -232,7 +232,7 @@ export default function AdminBlog() {
                         href={`/blog/${p.slug}`}
                         target="_blank"
                         rel="noreferrer"
-                        className="px-2 py-1 text-xs text-[#9CA1C2] hover:text-[#C9A84C] inline-block"
+                        className="px-2 py-1 text-xs text-[#9CA1C2] hover:text-[#2B7FE8] inline-block"
                         title="Otwórz publiczny widok"
                       >
                         <ExternalLink size={14} />
@@ -240,7 +240,7 @@ export default function AdminBlog() {
                     )}
                     <button
                       onClick={() => openEditor(p)}
-                      className="px-2 py-1 text-xs text-[#C9A84C] hover:underline"
+                      className="px-2 py-1 text-xs text-[#2B7FE8] hover:underline"
                       data-testid={`admin-blog-edit-${p.id}`}
                     >
                       Edytuj
@@ -283,7 +283,7 @@ function BlogEditor({
         <div className="flex items-center gap-3">
           <button
             onClick={onClose}
-            className="text-sm text-[#9CA1C2] hover:text-[#C9A84C] inline-flex items-center gap-1"
+            className="text-sm text-[#9CA1C2] hover:text-[#2B7FE8] inline-flex items-center gap-1"
             data-testid="admin-blog-back"
           >
             <ArrowLeft size={14} /> Wróć
@@ -293,14 +293,14 @@ function BlogEditor({
         <div className="flex gap-2">
           <button
             onClick={onSaveDraft}
-            className="bg-[#222540] hover:bg-[#2a2e4d] text-[#F4F1EC] px-4 py-2 rounded text-sm inline-flex items-center gap-2"
+            className="bg-[#1E2A42] hover:bg-[#1E2A42] text-[#FFFFFF] px-4 py-2 rounded text-sm inline-flex items-center gap-2"
             data-testid="admin-blog-save-draft"
           >
             <Save size={14} /> Zapisz jako draft
           </button>
           <button
             onClick={onPublish}
-            className="bg-[#C9A84C] hover:bg-[#E8C96A] text-[#0D0F1A] px-4 py-2 rounded text-sm font-medium inline-flex items-center gap-2"
+            className="bg-[#2B7FE8] hover:bg-[#4A95F0] text-[#0D1626] px-4 py-2 rounded text-sm font-medium inline-flex items-center gap-2"
             data-testid="admin-blog-publish"
           >
             <Send size={14} /> {post.published ? "Aktualizuj publikację" : "Opublikuj"}
@@ -310,22 +310,22 @@ function BlogEditor({
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
         {/* Form */}
-        <div className="bg-[#161829] border border-[#222540] rounded p-5 space-y-4">
+        <div className="bg-[#162035] border border-[#1E2A42] rounded p-5 space-y-4">
           <Field label="Tytuł *">
             <input
               value={post.title}
               onChange={(e) => onTitleChange(e.target.value)}
-              className="w-full bg-[#0a0b13] border border-[#222540] rounded px-3 py-2 text-sm"
+              className="w-full bg-[#0A1220] border border-[#1E2A42] rounded px-3 py-2 text-sm"
               data-testid="admin-blog-input-title"
             />
           </Field>
           <Field label="Slug (URL)">
             <div className="flex items-center gap-2">
-              <span className="text-xs text-[#6B7090]">/blog/</span>
+              <span className="text-xs text-[#A0B4C8]">/blog/</span>
               <input
                 value={post.slug}
                 onChange={(e) => onSlugChange(e.target.value)}
-                className="flex-1 bg-[#0a0b13] border border-[#222540] rounded px-3 py-2 text-sm"
+                className="flex-1 bg-[#0A1220] border border-[#1E2A42] rounded px-3 py-2 text-sm"
                 placeholder="auto z tytułu"
                 data-testid="admin-blog-input-slug"
               />
@@ -337,17 +337,17 @@ function BlogEditor({
               maxLength={300}
               onChange={(e) => setPost({ ...post, excerpt: e.target.value })}
               rows={3}
-              className="w-full bg-[#0a0b13] border border-[#222540] rounded px-3 py-2 text-sm"
+              className="w-full bg-[#0A1220] border border-[#1E2A42] rounded px-3 py-2 text-sm"
               data-testid="admin-blog-input-excerpt"
             />
-            <div className="text-[10px] text-[#6B7090] text-right mt-1">{post.excerpt?.length || 0}/300</div>
+            <div className="text-[10px] text-[#A0B4C8] text-right mt-1">{post.excerpt?.length || 0}/300</div>
           </Field>
           <Field label="Treść (Markdown)">
             <textarea
               value={post.content}
               onChange={(e) => setPost({ ...post, content: e.target.value })}
               rows={14}
-              className="w-full bg-[#0a0b13] border border-[#222540] rounded px-3 py-2 text-sm font-mono"
+              className="w-full bg-[#0A1220] border border-[#1E2A42] rounded px-3 py-2 text-sm font-mono"
               data-testid="admin-blog-input-content"
               placeholder="# Nagłówek&#10;&#10;**Pogrubienie**, *kursywa*, [link](https://sharago.pl), listy, tabele itp."
             />
@@ -357,7 +357,7 @@ function BlogEditor({
               value={post.cover_image || ""}
               onChange={(e) => setPost({ ...post, cover_image: e.target.value })}
               placeholder="https://..."
-              className="w-full bg-[#0a0b13] border border-[#222540] rounded px-3 py-2 text-sm"
+              className="w-full bg-[#0A1220] border border-[#1E2A42] rounded px-3 py-2 text-sm"
               data-testid="admin-blog-input-cover"
             />
           </Field>
@@ -366,7 +366,7 @@ function BlogEditor({
               value={tagsInput}
               onChange={(e) => setTagsInput(e.target.value)}
               placeholder="np. serwis, eksploatacja, BMW"
-              className="w-full bg-[#0a0b13] border border-[#222540] rounded px-3 py-2 text-sm"
+              className="w-full bg-[#0A1220] border border-[#1E2A42] rounded px-3 py-2 text-sm"
               data-testid="admin-blog-input-tags"
             />
           </Field>
@@ -374,7 +374,7 @@ function BlogEditor({
             <input
               value={post.author}
               onChange={(e) => setPost({ ...post, author: e.target.value })}
-              className="w-full bg-[#0a0b13] border border-[#222540] rounded px-3 py-2 text-sm"
+              className="w-full bg-[#0A1220] border border-[#1E2A42] rounded px-3 py-2 text-sm"
               data-testid="admin-blog-input-author"
             />
           </Field>
@@ -383,7 +383,7 @@ function BlogEditor({
               value={post.meta_title || ""}
               onChange={(e) => setPost({ ...post, meta_title: e.target.value })}
               placeholder="Domyślnie używamy tytułu"
-              className="w-full bg-[#0a0b13] border border-[#222540] rounded px-3 py-2 text-sm"
+              className="w-full bg-[#0A1220] border border-[#1E2A42] rounded px-3 py-2 text-sm"
               data-testid="admin-blog-input-meta-title"
             />
           </Field>
@@ -394,17 +394,17 @@ function BlogEditor({
               onChange={(e) => setPost({ ...post, meta_description: e.target.value })}
               rows={2}
               placeholder="Domyślnie używamy zajawki"
-              className="w-full bg-[#0a0b13] border border-[#222540] rounded px-3 py-2 text-sm"
+              className="w-full bg-[#0A1220] border border-[#1E2A42] rounded px-3 py-2 text-sm"
               data-testid="admin-blog-input-meta-description"
             />
           </Field>
         </div>
 
         {/* Live preview */}
-        <div className="bg-[#161829] border border-[#222540] rounded p-5">
-          <div className="text-xs uppercase tracking-widest text-[#6B7090] mb-4">Podgląd Markdown</div>
+        <div className="bg-[#162035] border border-[#1E2A42] rounded p-5">
+          <div className="text-xs uppercase tracking-widest text-[#A0B4C8] mb-4">Podgląd Markdown</div>
           <div className="blog-markdown prose-vehiq" data-testid="admin-blog-preview">
-            <h1 className="text-2xl font-semibold text-[#F4F1EC] mb-2">{post.title || "Tytuł wpisu"}</h1>
+            <h1 className="text-2xl font-semibold text-[#FFFFFF] mb-2">{post.title || "Tytuł wpisu"}</h1>
             {post.excerpt && (
               <p className="text-[#9CA1C2] text-sm mb-4">{post.excerpt}</p>
             )}
@@ -424,7 +424,7 @@ function BlogEditor({
 function Field({ label, children }) {
   return (
     <div>
-      <label className="text-xs uppercase tracking-widest text-[#6B7090] block mb-1">{label}</label>
+      <label className="text-xs uppercase tracking-widest text-[#A0B4C8] block mb-1">{label}</label>
       {children}
     </div>
   );

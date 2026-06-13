@@ -11,40 +11,40 @@ export default function AdminAnalytics() {
       .catch(e => setErr(e?.response?.data?.detail || e?.message || "Failed to load"));
   }, []);
   if (err) return <div className="text-red-400" data-testid="admin-analytics-error">Error: {err}</div>;
-  if (!data) return <div className="text-[#6B7090]" data-testid="admin-analytics-loading">Loading...</div>;
+  if (!data) return <div className="text-[#A0B4C8]" data-testid="admin-analytics-loading">Loading...</div>;
 
   return (
     <div className="space-y-6" data-testid="admin-analytics">
       <h1 className="text-2xl font-semibold">Analytics</h1>
 
-      <div className="bg-[#161829] border border-[#222540] rounded p-5 h-72">
-        <div className="text-sm text-[#F4F1EC] mb-3">Visits trend (30d)</div>
+      <div className="bg-[#162035] border border-[#1E2A42] rounded p-5 h-72">
+        <div className="text-sm text-[#FFFFFF] mb-3">Visits trend (30d)</div>
         <ResponsiveContainer width="100%" height="85%">
           <LineChart data={data.daily_visits}>
-            <CartesianGrid stroke="#222540" strokeDasharray="3 3" />
-            <XAxis dataKey="date" stroke="#6B7090" tick={{fontSize:10}} tickFormatter={(d) => d?.slice(5)} />
-            <YAxis stroke="#6B7090" tick={{fontSize:10}} />
-            <Tooltip contentStyle={{ background:"#0F1120", border:"1px solid #222540" }} />
-            <Line type="monotone" dataKey="count" stroke="#C9A84C" strokeWidth={2} dot={false} />
+            <CartesianGrid stroke="#1E2A42" strokeDasharray="3 3" />
+            <XAxis dataKey="date" stroke="#A0B4C8" tick={{fontSize:10}} tickFormatter={(d) => d?.slice(5)} />
+            <YAxis stroke="#A0B4C8" tick={{fontSize:10}} />
+            <Tooltip contentStyle={{ background:"#0A1220", border:"1px solid #1E2A42" }} />
+            <Line type="monotone" dataKey="count" stroke="#2B7FE8" strokeWidth={2} dot={false} />
           </LineChart>
         </ResponsiveContainer>
       </div>
 
-      <div className="bg-[#161829] border border-[#222540] rounded p-5">
-        <div className="text-sm text-[#F4F1EC] mb-3">Top pages</div>
+      <div className="bg-[#162035] border border-[#1E2A42] rounded p-5">
+        <div className="text-sm text-[#FFFFFF] mb-3">Top pages</div>
         <table className="w-full text-sm">
           <tbody>
             {data.top_pages.map((p, i) => (
-              <tr key={i} className="border-t border-[#222540]">
-                <td className="py-2 text-[#F4F1EC]">{p.path}</td>
-                <td className="py-2 text-right text-[#C9A84C]">{p.count}</td>
+              <tr key={i} className="border-t border-[#1E2A42]">
+                <td className="py-2 text-[#FFFFFF]">{p.path}</td>
+                <td className="py-2 text-right text-[#2B7FE8]">{p.count}</td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
 
-      <a href={`${process.env.REACT_APP_BACKEND_URL}/api/admin/dashboard`} className="text-xs text-[#C9A84C] hover:underline">Raw data JSON</a>
+      <a href={`${process.env.REACT_APP_BACKEND_URL}/api/admin/dashboard`} className="text-xs text-[#2B7FE8] hover:underline">Raw data JSON</a>
     </div>
   );
 }

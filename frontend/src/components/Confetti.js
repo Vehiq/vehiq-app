@@ -21,7 +21,7 @@ export default function Confetti({ active = true, duration = 2200 }) {
     canvas.style.height = h + "px";
     ctx.scale(dpr, dpr);
 
-    const colors = ["#C9A84C", "#E8C96A", "#F4F1EC", "#9CA1C2"];
+    const colors = ["#2B7FE8", "#4A95F0", "#FFFFFF", "#9CA1C2"];
     const count = 140;
     const particles = Array.from({ length: count }, () => ({
       x: w / 2 + (Math.random() - 0.5) * 60,

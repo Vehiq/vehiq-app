@@ -21,12 +21,12 @@ const COLORS = {
   tow: "#f97316",
   track: "#ef4444",
   other: "#9ca3af",
-  meet: "#C9A84C",
+  meet: "#2B7FE8",
   show: "#a855f7",
   rally: "#ef4444",
 };
 
-const goldIcon = (color = "#C9A84C") =>
+const goldIcon = (color = "#2B7FE8") =>
   L.divIcon({
     className: "vehiq-pin",
     html: `<div style="background:${color};width:18px;height:18px;border-radius:50%;border:2px solid #fff;box-shadow:0 2px 4px rgba(0,0,0,0.4);"></div>`,
@@ -60,7 +60,7 @@ export default function MapView({ items = [], linkPrefix = "/services", center =
   const mapCenter = viewerCoords ? [viewerCoords.lat, viewerCoords.lng] : center;
   return (
     <div className="rounded-lg overflow-hidden border border-vehiq-border" style={{ height }} data-testid="map-view">
-      <MapContainer center={mapCenter} zoom={viewerCoords ? 11 : zoom} style={{ height: "100%", width: "100%", background: "#0D0F1A" }} scrollWheelZoom>
+      <MapContainer center={mapCenter} zoom={viewerCoords ? 11 : zoom} style={{ height: "100%", width: "100%", background: "#0D1626" }} scrollWheelZoom>
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -83,7 +83,7 @@ export default function MapView({ items = [], linkPrefix = "/services", center =
                   {typeof it.rating_avg === "number" && it.rating_avg > 0 && (
                     <div style={{ fontSize: 12, marginTop: 4 }}>⭐ {it.rating_avg.toFixed(1)} ({it.rating_count || 0})</div>
                   )}
-                  <Link to={`${linkPrefix}/${it.slug || it.id}`} style={{ display: "inline-block", marginTop: 8, color: "#C9A84C", fontWeight: 600, fontSize: 12 }} data-testid={`map-popup-link-${it.id}`}>
+                  <Link to={`${linkPrefix}/${it.slug || it.id}`} style={{ display: "inline-block", marginTop: 8, color: "#2B7FE8", fontWeight: 600, fontSize: 12 }} data-testid={`map-popup-link-${it.id}`}>
                     Zobacz →
                   </Link>
                 </div>

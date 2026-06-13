@@ -59,13 +59,13 @@ export default function LegalPage() {
       <Footer />
 
       <style>{`
-        .legal-content h2 { font-family: "Cormorant Garamond", serif; font-size: 1.875rem; color: #F4F1EC; margin: 2rem 0 1rem; }
-        .legal-content h3 { font-family: "Cormorant Garamond", serif; font-size: 1.375rem; color: #C9A84C; margin: 1.5rem 0 0.75rem; }
-        .legal-content p { color: #F4F1EC; line-height: 1.7; margin: 0.75rem 0; }
-        .legal-content ul { color: #F4F1EC; padding-left: 1.5rem; list-style: disc; margin: 0.75rem 0; }
+        .legal-content h2 { font-family: "Cormorant Garamond", serif; font-size: 1.875rem; color: #FFFFFF; margin: 2rem 0 1rem; }
+        .legal-content h3 { font-family: "Cormorant Garamond", serif; font-size: 1.375rem; color: #2B7FE8; margin: 1.5rem 0 0.75rem; }
+        .legal-content p { color: #FFFFFF; line-height: 1.7; margin: 0.75rem 0; }
+        .legal-content ul { color: #FFFFFF; padding-left: 1.5rem; list-style: disc; margin: 0.75rem 0; }
         .legal-content li { margin: 0.5rem 0; }
-        .legal-content a { color: #C9A84C; text-decoration: underline; }
-        .legal-content strong { color: #F4F1EC; }
+        .legal-content a { color: #2B7FE8; text-decoration: underline; }
+        .legal-content strong { color: #FFFFFF; }
       `}</style>
     </div>
   );

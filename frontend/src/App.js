@@ -117,7 +117,7 @@ function App() {
           <ErrorBoundary>
             <LangSync />
             <PageTracker />
-            <Toaster theme="dark" position="top-right" toastOptions={{ style: { background: "#161829", border: "1px solid rgba(201,168,76,0.2)", color: "#F4F1EC" } }} />
+            <Toaster theme="dark" position="top-right" toastOptions={{ style: { background: "#162035", border: "1px solid rgba(43,127,232,0.2)", color: "#FFFFFF" } }} />
             <CookieBanner />
 
         <Routes>

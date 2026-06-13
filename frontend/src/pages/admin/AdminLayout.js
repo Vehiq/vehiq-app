@@ -30,23 +30,23 @@ export default function AdminLayout() {
   };
 
   return (
-    <div className="min-h-screen flex bg-[#0a0b13] text-[#F4F1EC]" data-testid="admin-layout">
-      <aside className="w-60 bg-[#0F1120] border-r border-[#222540] flex flex-col">
-        <div className="p-4 border-b border-[#222540]">
-          <div className="text-xs uppercase tracking-[0.3em] text-[#C9A84C]">Sharago Admin</div>
+    <div className="min-h-screen flex bg-[#0A1220] text-[#FFFFFF]" data-testid="admin-layout">
+      <aside className="w-60 bg-[#0A1220] border-r border-[#1E2A42] flex flex-col">
+        <div className="p-4 border-b border-[#1E2A42]">
+          <div className="text-xs uppercase tracking-[0.3em] text-[#2B7FE8]">Sharago Admin</div>
         </div>
         <nav className="flex-1 p-3 space-y-1">
           {SECTIONS.map(({ to, icon: Icon, label }) => (
             <NavLink key={to} to={`/gv91-admin/${to}`} data-testid={`admin-nav-${to}`}
               className={({ isActive }) =>
                 `flex items-center gap-2 px-3 py-2 rounded text-sm transition ${
-                  isActive ? "bg-[#C9A84C] text-[#0D0F1A]" : "text-[#9CA1C2] hover:bg-[#161829] hover:text-[#F4F1EC]"
+                  isActive ? "bg-[#2B7FE8] text-[#0D1626]" : "text-[#9CA1C2] hover:bg-[#162035] hover:text-[#FFFFFF]"
                 }`}>
               <Icon size={16}/> <span>{label}</span>
             </NavLink>
           ))}
         </nav>
-        <button onClick={logout} className="m-3 flex items-center gap-2 px-3 py-2 rounded text-sm text-[#9CA1C2] hover:bg-[#161829]" data-testid="admin-logout">
+        <button onClick={logout} className="m-3 flex items-center gap-2 px-3 py-2 rounded text-sm text-[#9CA1C2] hover:bg-[#162035]" data-testid="admin-logout">
           <LogOut size={16}/> Logout
         </button>
       </aside>

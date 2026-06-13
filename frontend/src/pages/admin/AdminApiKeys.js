@@ -97,11 +97,11 @@ export default function AdminApiKeys() {
   return (
     <div className="space-y-6" data-testid="admin-api-keys">
       <h1 className="text-2xl font-semibold">API Keys & SMTP</h1>
-      <p className="text-sm text-[#6B7090]">Stored encrypted in MongoDB Atlas. Saved values appear masked below each field — leave blank to keep existing value.</p>
-      <div className="bg-[#161829] border border-[#222540] rounded p-5 space-y-3">
+      <p className="text-sm text-[#A0B4C8]">Stored encrypted in MongoDB Atlas. Saved values appear masked below each field — leave blank to keep existing value.</p>
+      <div className="bg-[#162035] border border-[#1E2A42] rounded p-5 space-y-3">
         {FIELDS.map(f => (
           <div key={f.key} className="grid grid-cols-1 md:grid-cols-3 gap-2 items-start">
-            <label className="text-sm text-[#F4F1EC] pt-2">{f.label}</label>
+            <label className="text-sm text-[#FFFFFF] pt-2">{f.label}</label>
             <div className="md:col-span-2 flex flex-col gap-1">
               <div className="flex gap-2">
                 <input
@@ -109,7 +109,7 @@ export default function AdminApiKeys() {
                   placeholder={masked[f.key] ? "•••••• (saved — leave blank to keep)" : "not set"}
                   value={edit[f.key] || ""}
                   onChange={(e) => setEdit({...edit, [f.key]: e.target.value})}
-                  className="flex-1 bg-[#0a0b13] border border-[#222540] rounded px-3 py-2 text-sm"
+                  className="flex-1 bg-[#0A1220] border border-[#1E2A42] rounded px-3 py-2 text-sm"
                   data-testid={`api-key-${f.key}`}
                 />
                 <button type="button" onClick={() => setReveal({...reveal, [f.key]: !reveal[f.key]})} className="p-2 text-[#9CA1C2]">
@@ -118,33 +118,33 @@ export default function AdminApiKeys() {
               </div>
               {masked[f.key] ? (
                 <div className="text-[11px] text-emerald-400" data-testid={`api-key-${f.key}-saved`}>
-                  ✓ Saved: <span className="font-mono text-[#C9A84C]">{masked[f.key]}</span>
+                  ✓ Saved: <span className="font-mono text-[#2B7FE8]">{masked[f.key]}</span>
                 </div>
               ) : (
-                <div className="text-[11px] text-[#6B7090]" data-testid={`api-key-${f.key}-empty`}>Not configured</div>
+                <div className="text-[11px] text-[#A0B4C8]" data-testid={`api-key-${f.key}-empty`}>Not configured</div>
               )}
             </div>
           </div>
         ))}
-        <button onClick={save} className="bg-[#C9A84C] text-[#0D0F1A] px-4 py-2 rounded text-sm font-medium" data-testid="api-keys-save">Save Changes</button>
+        <button onClick={save} className="bg-[#2B7FE8] text-[#0D1626] px-4 py-2 rounded text-sm font-medium" data-testid="api-keys-save">Save Changes</button>
       </div>
 
-      <div className="bg-[#161829] border border-[#222540] rounded p-5 space-y-3">
-        <div className="text-sm text-[#F4F1EC]">Send test email</div>
-        <p className="text-xs text-[#6B7090]">Verifies your SMTP configuration end-to-end. Make sure to save SMTP settings above first.</p>
+      <div className="bg-[#162035] border border-[#1E2A42] rounded p-5 space-y-3">
+        <div className="text-sm text-[#FFFFFF]">Send test email</div>
+        <p className="text-xs text-[#A0B4C8]">Verifies your SMTP configuration end-to-end. Make sure to save SMTP settings above first.</p>
         <div className="flex gap-2">
           <input
             type="email"
             value={testEmail}
             onChange={(e) => setTestEmail(e.target.value)}
             placeholder="recipient@example.com"
-            className="flex-1 bg-[#0a0b13] border border-[#222540] rounded px-3 py-2 text-sm"
+            className="flex-1 bg-[#0A1220] border border-[#1E2A42] rounded px-3 py-2 text-sm"
             data-testid="smtp-test-email"
           />
           <button
             onClick={sendTest}
             disabled={testBusy}
-            className="bg-[#C9A84C] text-[#0D0F1A] px-4 py-2 rounded text-sm font-medium inline-flex items-center gap-2"
+            className="bg-[#2B7FE8] text-[#0D1626] px-4 py-2 rounded text-sm font-medium inline-flex items-center gap-2"
             data-testid="smtp-test-send"
           >
             <Send size={14} /> {testBusy ? "Sending..." : "Send test"}
@@ -153,21 +153,21 @@ export default function AdminApiKeys() {
       </div>
 
       {/* ---------- Cloudflare R2 storage ---------- */}
-      <div className="bg-[#161829] border border-[#222540] rounded p-5 space-y-4" data-testid="admin-storage-section">
+      <div className="bg-[#162035] border border-[#1E2A42] rounded p-5 space-y-4" data-testid="admin-storage-section">
         <div className="flex items-center justify-between gap-3 flex-wrap">
-          <h2 className="text-base text-[#F4F1EC] inline-flex items-center gap-2"><Cloud size={16} className="text-[#C9A84C]"/> Storage (Cloudflare R2)</h2>
-          <div className={`text-xs px-2 py-1 rounded ${storageStatus?.configured ? "bg-emerald-500/15 text-emerald-400" : "bg-[#222540] text-[#9CA1C2]"}`} data-testid="storage-status-badge">
+          <h2 className="text-base text-[#FFFFFF] inline-flex items-center gap-2"><Cloud size={16} className="text-[#2B7FE8]"/> Storage (Cloudflare R2)</h2>
+          <div className={`text-xs px-2 py-1 rounded ${storageStatus?.configured ? "bg-emerald-500/15 text-emerald-400" : "bg-[#1E2A42] text-[#9CA1C2]"}`} data-testid="storage-status-badge">
             {storageStatus?.configured ? "Configured" : "Not configured"}
           </div>
         </div>
-        <p className="text-xs text-[#6B7090]">
+        <p className="text-xs text-[#A0B4C8]">
           Configure Cloudflare R2 to migrate photos from MongoDB base64 (16 MB document limit) to a global object store with free egress.
-          Get credentials at <a href="https://dash.cloudflare.com/?to=/:account/r2" className="text-[#C9A84C] underline" target="_blank" rel="noreferrer">Cloudflare R2 dashboard</a>.
+          Get credentials at <a href="https://dash.cloudflare.com/?to=/:account/r2" className="text-[#2B7FE8] underline" target="_blank" rel="noreferrer">Cloudflare R2 dashboard</a>.
         </p>
         <div className="space-y-2">
           {R2_FIELDS.map(f => (
             <div key={f.key} className="grid grid-cols-1 md:grid-cols-3 gap-2 items-start">
-              <label className="text-sm text-[#F4F1EC] pt-2">{f.label}</label>
+              <label className="text-sm text-[#FFFFFF] pt-2">{f.label}</label>
               <div className="md:col-span-2 flex flex-col gap-1">
                 <div className="flex gap-2">
                   <input
@@ -175,7 +175,7 @@ export default function AdminApiKeys() {
                     placeholder={masked[f.key] ? "•••••• (saved — leave blank to keep)" : (f.placeholder || "not set")}
                     value={edit[f.key] || ""}
                     onChange={(e) => setEdit({...edit, [f.key]: e.target.value})}
-                    className="flex-1 bg-[#0a0b13] border border-[#222540] rounded px-3 py-2 text-sm"
+                    className="flex-1 bg-[#0A1220] border border-[#1E2A42] rounded px-3 py-2 text-sm"
                     data-testid={`api-key-${f.key}`}
                   />
                   <button type="button" onClick={() => setReveal({...reveal, [f.key]: !reveal[f.key]})} className="p-2 text-[#9CA1C2]">
@@ -184,44 +184,44 @@ export default function AdminApiKeys() {
                 </div>
                 {masked[f.key] ? (
                   <div className="text-[11px] text-emerald-400" data-testid={`api-key-${f.key}-saved`}>
-                    ✓ Saved: <span className="font-mono text-[#C9A84C]">{masked[f.key]}</span>
+                    ✓ Saved: <span className="font-mono text-[#2B7FE8]">{masked[f.key]}</span>
                   </div>
                 ) : (
-                  <div className="text-[11px] text-[#6B7090]" data-testid={`api-key-${f.key}-empty`}>Not configured</div>
+                  <div className="text-[11px] text-[#A0B4C8]" data-testid={`api-key-${f.key}-empty`}>Not configured</div>
                 )}
               </div>
             </div>
           ))}
         </div>
         <div className="flex flex-wrap gap-2 pt-1">
-          <button onClick={save} className="bg-[#C9A84C] text-[#0D0F1A] px-4 py-2 rounded text-sm font-medium" data-testid="r2-save">Save R2 Config</button>
-          <button onClick={testStorage} disabled={storageBusy || !storageStatus?.configured} className="border border-[#C9A84C] text-[#C9A84C] px-4 py-2 rounded text-sm font-medium hover:bg-[#C9A84C]/10 disabled:opacity-40" data-testid="r2-test">
+          <button onClick={save} className="bg-[#2B7FE8] text-[#0D1626] px-4 py-2 rounded text-sm font-medium" data-testid="r2-save">Save R2 Config</button>
+          <button onClick={testStorage} disabled={storageBusy || !storageStatus?.configured} className="border border-[#2B7FE8] text-[#2B7FE8] px-4 py-2 rounded text-sm font-medium hover:bg-[#2B7FE8]/10 disabled:opacity-40" data-testid="r2-test">
             {storageBusy ? "Testing..." : "Test R2 connection"}
           </button>
-          <button onClick={reloadStorage} className="text-xs text-[#9CA1C2] hover:text-[#C9A84C] inline-flex items-center gap-1 px-2"><RefreshCw size={12}/> Refresh status</button>
+          <button onClick={reloadStorage} className="text-xs text-[#9CA1C2] hover:text-[#2B7FE8] inline-flex items-center gap-1 px-2"><RefreshCw size={12}/> Refresh status</button>
         </div>
       </div>
 
       {/* ---------- Migration ---------- */}
-      <div className="bg-[#161829] border border-[#222540] rounded p-5 space-y-3" data-testid="admin-migration-section">
-        <h2 className="text-base text-[#F4F1EC] inline-flex items-center gap-2"><HardDrive size={16} className="text-[#C9A84C]"/> Photo migration: Base64 → R2</h2>
+      <div className="bg-[#162035] border border-[#1E2A42] rounded p-5 space-y-3" data-testid="admin-migration-section">
+        <h2 className="text-base text-[#FFFFFF] inline-flex items-center gap-2"><HardDrive size={16} className="text-[#2B7FE8]"/> Photo migration: Base64 → R2</h2>
         {storageStatus ? (
           <div className="grid grid-cols-3 gap-3 text-sm">
-            <div className="bg-[#0a0b13] border border-[#222540] rounded p-3">
-              <div className="text-[10px] uppercase tracking-widest text-[#6B7090]">Base64 vehicles</div>
-              <div className="text-2xl text-[#F4F1EC] mt-1" data-testid="migrate-base64-vehicles">{storageStatus.base64_vehicles}</div>
+            <div className="bg-[#0A1220] border border-[#1E2A42] rounded p-3">
+              <div className="text-[10px] uppercase tracking-widest text-[#A0B4C8]">Base64 vehicles</div>
+              <div className="text-2xl text-[#FFFFFF] mt-1" data-testid="migrate-base64-vehicles">{storageStatus.base64_vehicles}</div>
             </div>
-            <div className="bg-[#0a0b13] border border-[#222540] rounded p-3">
-              <div className="text-[10px] uppercase tracking-widest text-[#6B7090]">Base64 photos</div>
-              <div className="text-2xl text-[#F4F1EC] mt-1" data-testid="migrate-base64-photos">{storageStatus.base64_photos_total}</div>
+            <div className="bg-[#0A1220] border border-[#1E2A42] rounded p-3">
+              <div className="text-[10px] uppercase tracking-widest text-[#A0B4C8]">Base64 photos</div>
+              <div className="text-2xl text-[#FFFFFF] mt-1" data-testid="migrate-base64-photos">{storageStatus.base64_photos_total}</div>
             </div>
-            <div className="bg-[#0a0b13] border border-[#222540] rounded p-3">
-              <div className="text-[10px] uppercase tracking-widest text-[#6B7090]">R2 photos</div>
-              <div className="text-2xl text-[#C9A84C] mt-1" data-testid="migrate-r2-photos">{storageStatus.r2_photos_total}</div>
+            <div className="bg-[#0A1220] border border-[#1E2A42] rounded p-3">
+              <div className="text-[10px] uppercase tracking-widest text-[#A0B4C8]">R2 photos</div>
+              <div className="text-2xl text-[#2B7FE8] mt-1" data-testid="migrate-r2-photos">{storageStatus.r2_photos_total}</div>
             </div>
           </div>
         ) : null}
-        <p className="text-xs text-[#6B7090]">Idempotent — already-migrated photos are skipped. Original base64 stays as fallback if upload fails.</p>
+        <p className="text-xs text-[#A0B4C8]">Idempotent — already-migrated photos are skipped. Original base64 stays as fallback if upload fails.</p>
         <button
           onClick={runMigration}
           disabled={migrateBusy || !storageStatus?.configured || (storageStatus?.base64_photos_total || 0) === 0}
@@ -231,7 +231,7 @@ export default function AdminApiKeys() {
           {migrateBusy ? "Migrating…" : (storageStatus?.base64_photos_total || 0) === 0 ? "Nothing to migrate" : `Migrate ${storageStatus?.base64_photos_total || 0} photos`}
         </button>
         {migrateReport && (
-          <div className="bg-[#0a0b13] border border-[#222540] rounded p-3 text-xs text-[#F4F1EC]" data-testid="migrate-report">
+          <div className="bg-[#0A1220] border border-[#1E2A42] rounded p-3 text-xs text-[#FFFFFF]" data-testid="migrate-report">
             <div>✅ Migrated: <span className="text-emerald-400">{migrateReport.migrated}</span></div>
             <div>❌ Failed: <span className="text-red-400">{migrateReport.failed}</span></div>
             <div>⏱ Duration: {migrateReport.duration_seconds}s</div>

@@ -11,18 +11,18 @@ export default function AdminForum() {
   return (
     <div className="space-y-6" data-testid="admin-forum">
       <h1 className="text-2xl font-semibold">Forum</h1>
-      <div className="bg-[#161829] border border-[#222540] rounded overflow-x-auto">
+      <div className="bg-[#162035] border border-[#1E2A42] rounded overflow-x-auto">
         <table className="w-full text-sm">
-          <thead><tr className="text-[#6B7090] text-left text-xs uppercase tracking-wider border-b border-[#222540]"><th className="p-3">Title</th><th className="p-3">Category</th><th className="p-3">Pinned</th><th className="p-3">Created</th><th className="p-3">Actions</th></tr></thead>
+          <thead><tr className="text-[#A0B4C8] text-left text-xs uppercase tracking-wider border-b border-[#1E2A42]"><th className="p-3">Title</th><th className="p-3">Category</th><th className="p-3">Pinned</th><th className="p-3">Created</th><th className="p-3">Actions</th></tr></thead>
           <tbody>
             {items.map(t => (
-              <tr key={t.id} className="border-b border-[#222540] last:border-0">
-                <td className="p-3 text-[#F4F1EC]">{t.title}</td>
+              <tr key={t.id} className="border-b border-[#1E2A42] last:border-0">
+                <td className="p-3 text-[#FFFFFF]">{t.title}</td>
                 <td className="p-3 text-[#9CA1C2]">{t.category}</td>
-                <td className="p-3 text-[#C9A84C]">{t.pinned ? "📌" : ""}</td>
+                <td className="p-3 text-[#2B7FE8]">{t.pinned ? "📌" : ""}</td>
                 <td className="p-3 text-[#9CA1C2]">{t.created_at?.slice(0,10)}</td>
                 <td className="p-3 space-x-2">
-                  <button onClick={() => pin(t.id, !t.pinned)} className="text-xs text-[#C9A84C] hover:underline">{t.pinned ? "Unpin" : "Pin"}</button>
+                  <button onClick={() => pin(t.id, !t.pinned)} className="text-xs text-[#2B7FE8] hover:underline">{t.pinned ? "Unpin" : "Pin"}</button>
                   <button onClick={() => remove(t.id)} className="text-xs text-red-400 hover:underline">Delete</button>
                 </td>
               </tr>

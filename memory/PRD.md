@@ -800,3 +800,75 @@ maxPoolSize=10, serverSelectionTimeoutMS=5000, connectTimeoutMS=10000
 - 🟡 P2 Admin slow-queries, System Health widget, Facebook OAuth, dodać mapę Leaflet z pinami na /wynajem (spec wspominała).
 - 🟣 P3 Po-rebrand cleanup: usunąć `react-helmet-async` z deps (zastąpione przez useDocumentHead), opcjonalnie zmigrować pozostałe identyfikatory `vehiq_*` po fade-out window.
 
+
+---
+
+## Iter 25 — Nowe logo Sharago + niebieska paleta + mapa Leaflet na /wynajem (Feb 2026)
+
+### CZĘŚĆ 1 — Logo + paleta granatowo-niebieska
+**Logo**: `frontend/public/logo.png` (879 KB Sharago PNG: ikona garażu+samochodu + wordmark "Sharago" + tagline "WIRTUALNY GARAŻ"). `favicon.png` (32×32), `favicon-128.png` wygenerowane przez Pillow z central crop logo.
+
+**Paleta** (zamiana w `tailwind.config.js` + `index.css` + ~25 plików JS):
+| Stary | Nowy | Rola |
+|---|---|---|
+| `#C9A84C` (gold) | `#2B7FE8` (blue) | primary accent |
+| `#E8C96A` | `#4A95F0` | hover state |
+| `#0D0F1A` | `#0D1626` | bg-primary |
+| `#161829` | `#162035` | card bg |
+| `#1E2035` | `#111D2E` | nav bg |
+| `#F4F1EC` | `#FFFFFF` | text-primary |
+| `#6B7090` | `#A0B4C8` | text-muted |
+| `rgba(201,168,76,*)` | `rgba(43,127,232,*)` | borders/badges |
+| `#222540` | `#1E2A42` | shadcn input border |
+| `#0F1120` / `#0a0b13` | `#0A1220` | dark surfaces |
+
+Tailwind class names `vehiq-*` **niezmienione** (zgodnie z decyzją w iter24) — utility tokens, tylko wartości kolorów wymienione. shadcn HSL tokens przemapowane: `--primary: 213 80% 54%`, `--accent: 213 80% 54%`, `--background: 220 47% 10%`, `--card: 219 41% 14%`.
+
+**Logo.js**: zwraca `<img src="/logo.png" alt="Sharago">` z size variants sm/md/lg/xl. Stare "V box + Sharago text" w Blog/BlogPost/PublicVehicle/Footer/LegalPage zastąpione tym img'em. Sidebar używa size="xl" (h-20) bez tagline (tagline jest już w PNG).
+
+**index.html**: `<link rel="icon" type="image/png" href="/favicon.png">`, `<link rel="apple-touch-icon" href="/favicon-128.png">`, `theme-color="#0D1626"`, `og:image=https://sharago.pl/logo.png`, `twitter:image=https://sharago.pl/logo.png`.
+
+### CZĘŚĆ 2 — Mapa Leaflet/OpenStreetMap na /wynajem
+**Backend**: BEZ ZMIAN — to czysto UI iteracja.
+
+**Frontend**:
+- `frontend/src/lib/geocode.js` — Nominatim wrapper z rate-limit (1100ms gap) + localStorage cache `sharago_geocode_cache_v1` (TTL 30 dni). `geocode(addr)` zwraca `{lat, lon} | null`. `geocodeBatch([addrs])` sekwencyjnie.
+- `frontend/src/components/RentalsMap.js` — komponent Leaflet z:
+  - `MapContainer` na OSM tiles, center Warszawa (52.2297, 21.0122).
+  - Pin variants: rental_car (filled niebieski + ikona auta), rental_garage (outlined niebieski + ikona domku/garażu). Active pin powiększony do 38px z świetlistym ringiem.
+  - Popup z miniaturą, tytułem, ceną/doba, linkiem "Zobacz ogłoszenie →".
+  - `CenterOnSelected` (useMap → flyTo) + `FitToPoints` (fitBounds przy multi-pin).
+  - Loading overlay [rentals-map-geocoding] dopóki addresy są geokodowane.
+- `frontend/src/pages/Rentals.js` — split layout:
+  - Desktop (lg+): `lg:col-span-2` (lista) + `lg:col-span-3` (mapa sticky).
+  - Mobile: toggle `[rentals-mobile-list/-map]` przełącza widoczność (`hidden lg:block` na obu kolumnach).
+  - `RentalCard`: nowe propsy `selected` + `onSelect`; hover karty → `data-selected="true"` + flyTo mapy; klik pinu na mapie → `onSelect(id)` highlightuje kartę.
+
+### Cleanup follow-up (po raportach iter12 testing agent):
+- Mass-sed migrating `#C9A84C / #E8C96A / rgba(201,168,76,*)` na nową paletę w **25 plikach**: cały moduł `pages/admin/*`, `components/MapView.js`, `components/Confetti.js`, `pages/vehicle-tabs/MileageTab.js + ServiceTab.js`, `LoginPage/RegisterPage`, `App.js`. **0 referencji gold pozostało w `/app/frontend/src`**.
+
+### Pliki:
+- **NEW**: `frontend/public/logo.png`, `favicon.png`, `favicon-128.png`, `favicon-64.png`, `frontend/src/lib/geocode.js`, `frontend/src/components/RentalsMap.js`
+- **MOD (główne)**: `Logo.js`, `tailwind.config.js`, `index.css`, `index.html`, `Rentals.js`, plus 25 plików color cleanup
+
+### Weryfikacja (testing_agent_v3_fork iteration_12.json):
+- **Frontend: 100% PASS** — wszystkie spec items zaliczone.
+- Logo PNG/favicon HTTP 200 image/png ✓
+- `button[type=submit]` bg = `rgb(43,127,232)` ✓
+- Body bg na /login + /garage = `rgb(13,22,38)` ✓
+- ZERO widocznych pixeli #C9A84C na /, /garage, /marketplace, /wynajem ✓
+- Mapa: 1 pin rendered po Nominatim geocoding (Warszawa Centrum → 52.231, 21.01) ✓
+- Popup: tytuł + cena + link → /marketplace/{id} ✓
+- Hover karty → `data-selected="true"` + flyTo mapy ✓
+- Mobile toggle: klik "Mapa" ukrywa listę ✓
+- Geocode cache HIT na 2. wizycie (0 Nominatim requests) ✓
+- Regression: /marketplace bez zmian, title="Sharago — Twój wirtualny garaż" ✓
+
+### Backlog następnej iteracji:
+- 🔴 **Push na main z Force Push** — kliknij **"Save to GitHub"** w UI Emergent (agent nie ma uprawnień do `git push --force`).
+- 🟡 Po weryfikacji domeny sharago.pl w Brevo → zmień `from_email` w `email_service.py` + `backend/.env`.
+- 🔴 P1 Stripe payments / GPS Geolocation / Push notifications / Project Mode (Budget/Notes/Parts).
+- 🟡 P2 Filter "do X km od mojej lokalizacji" na /wynajem (geolokalizacja przeglądarki + radius filter).
+- 🟡 P2 Admin slow-queries, System Health, Facebook OAuth.
+- 🟣 P3 Rename Tailwind token `vehiq-gold` → `vehiq-primary` (kosmetyczne — testing agent zaznaczył jako confusing w code reviews).
+
