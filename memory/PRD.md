@@ -872,3 +872,61 @@ Tailwind class names `vehiq-*` **niezmienione** (zgodnie z decyzją w iter24) �
 - 🟡 P2 Admin slow-queries, System Health, Facebook OAuth.
 - 🟣 P3 Rename Tailwind token `vehiq-gold` → `vehiq-primary` (kosmetyczne — testing agent zaznaczył jako confusing w code reviews).
 
+
+---
+
+## Iter 26 — Sharago-owned Google OAuth (zamiana auth.emergentagent.com) (Feb 2026)
+
+### Problem
+Przycisk "Continue with Google" przekierowywał przez `auth.emergentagent.com` — użytkownicy widzieli ToS/Privacy Emergent zamiast Sharago. Niedopuszczalne dla produkcji.
+
+### Rozwiązanie
+Standardowy OAuth 2.0 Authorization Code flow z własnym Google Cloud projektem.
+
+**Backend (`backend/routers/auth.py`)**:
+- `POST /api/auth/google/session` — legacy → **410 Gone** (clean cut, prevents silent fallback).
+- `GET /api/auth/google?next=<path>` — generuje signed CSRF state token (HMAC-SHA256 z `SECRET_KEY`, TTL 10 min, nonce + ts + safe `next_path`), redirect na `accounts.google.com/o/oauth2/v2/auth` z `scope=openid email profile`, `access_type=offline`, `prompt=consent`, `include_granted_scopes=true`.
+- `GET /api/auth/google/callback?code=...&state=...` — verify state (HMAC + TTL), wymienia `code` na access_token przez `oauth2.googleapis.com/token`, pobiera userinfo z `googleapis.com/oauth2/v2/userinfo`, upsert profile (unique slug, zapisuje `google_id`, `auth_provider="google"`, `avatar`, `verified_email` check). Brak emaila / nieweryfikowany → redirect z `?error=no_email|email_unverified`. Generuje JWT przez istniejący `create_access_token({"sub": user_id})`, redirect do `${FRONTEND_URL}/auth/callback?token=<jwt>&next=<safe_path>`.
+- Konfiguracja: env `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI`, `FRONTEND_URL`. Bez ich ustawienia endpoint zwraca 503 "not configured" — fail fast.
+
+**Frontend**:
+- `LoginPage.js`: `googleLogin()` → `${REACT_APP_BACKEND_URL}/api/auth/google?next=/garage`. Komentarz "REMINDER: DO NOT HARDCODE..." per playbook.
+- `pages/AuthCallback.js` przepisany — czyta `?token=<jwt>&next=<path>` z query, woła `adoptToken(token)` → persistuje w `localStorage.sharago_token`, fetchuje `/auth/me`, navigate do `next`. Fallback dla `?error=<code>` → toast + redirect na `/login?error=`. Backward-compat: nadal obsługuje `#session_id=` z legacy flow (rozpadnie się gdy cached bundles wygasną — można usunąć w iter27).
+- `contexts/AuthContext.js`: nowa metoda `adoptToken(token)` exposed.
+
+### Bezpieczeństwo
+- ✅ **CSRF state** — HMAC-podpisany, timestamped, sprawdzany `hmac.compare_digest`. State expired (>10 min) → 400 + redirect z `?error=state_invalid`.
+- ✅ `verified_email=False` z Google → odrzucone (`?error=email_unverified`).
+- ✅ `account_suspended` → blokada.
+- ✅ Token JWT wraca **przez query param przy redirect** (302) — standard dla SPA flows. Nie jest w cookie (przeglądarka i tak nie wyśle cross-site, mielibyśmy CORS issue).
+- ✅ `next_path` walidowany: musi zaczynać się od `/` (no open redirect).
+- ⚠️ JWT w URL przy callback — pojawi się w server access logs Render/Vercel. To akceptowalne ryzyko (standard dla OAuth-SPA), ale dla ekstra paranoi można w iter27 zmienić na cookie z `SameSite=Lax` po dodaniu CSRF token na frontendzie.
+
+### Pliki:
+- **MOD**: `backend/routers/auth.py` (+~170 linii — full OAuth flow), `backend/.env` (+4 env vars), `frontend/src/pages/LoginPage.js`, `frontend/src/pages/AuthCallback.js` (przepisane), `frontend/src/contexts/AuthContext.js` (+ `adoptToken`)
+- `memory/test_credentials.md` zaktualizowane z instrukcją dla testing agent.
+
+### Weryfikacja (manual curl):
+- `/api/auth/google` bez env → **503** "not configured" ✓
+- `/api/auth/google` z env → **307** → `accounts.google.com/o/oauth2/v2/auth?...&state=<signed>` ✓
+- `/api/auth/google/callback` bez code → **307** → `vehiq.pl/login?error=missing_code` ✓
+- `/api/auth/google/callback` z invalid state → **307** → `?error=state_invalid` ✓
+- Legacy `POST /api/auth/google/session` → **410 Gone** ✓
+- Email/password login bez zmian ✓
+- Lint (Python + JS): clean.
+
+### Do skonfigurowania przez użytkownika (Render Environment):
+```
+GOOGLE_CLIENT_ID=<your-client-id>.apps.googleusercontent.com
+GOOGLE_CLIENT_SECRET=GOCSPX-<your-secret>
+GOOGLE_REDIRECT_URI=https://vehiq.pl/api/auth/google/callback
+FRONTEND_URL=https://vehiq.pl
+```
+Po przeniesieniu na sharago.pl: zmień `GOOGLE_REDIRECT_URI` + `FRONTEND_URL` + dodaj `https://sharago.pl/api/auth/google/callback` w Google Cloud Console → Authorized redirect URIs.
+
+### Backlog następnej iteracji:
+- 🔴 **Push na main / Force push** — kliknij **"Save to GitHub"** w UI Emergent.
+- 🟡 Test E2E na production po dodaniu prawdziwego `GOOGLE_CLIENT_ID` w Render.
+- 🟣 Iter 27 cleanup: usunąć legacy `loginWithGoogleSession` + 410 endpoint po fade-out (~30 dni).
+- 🔴 P1 Stripe, GPS, Push notifications, Project Mode, Facebook OAuth (analogiczna implementacja jak Google).
+

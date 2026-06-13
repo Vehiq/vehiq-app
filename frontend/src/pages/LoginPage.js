@@ -29,8 +29,10 @@ export default function LoginPage() {
   };
 
   const googleLogin = () => {
-    const redirect = `${window.location.origin}/auth/callback`;
-    window.location.href = `https://auth.emergentagent.com/?redirect=${encodeURIComponent(redirect)}`;
+    // REMINDER: DO NOT HARDCODE THE URL, OR ADD ANY FALLBACKS OR REDIRECT URLS, THIS BREAKS THE AUTH
+    // Sharago-owned Google OAuth — server handles full flow (state CSRF + token exchange).
+    const backend = process.env.REACT_APP_BACKEND_URL || "";
+    window.location.href = `${backend.replace(/\/$/, "")}/api/auth/google?next=/garage`;
   };
 
   return (

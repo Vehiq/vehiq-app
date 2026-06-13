@@ -46,6 +46,17 @@ export const AuthProvider = ({ children }) => {
     return data.user;
   };
 
+  // Used by /auth/callback after our own Google OAuth round-trip: the
+  // backend mints a JWT and forwards it via ?token=. We just persist it
+  // and hydrate the user from /auth/me.
+  const adoptToken = async (token) => {
+    if (!token) throw new Error("Missing token");
+    localStorage.setItem("sharago_token", token);
+    const { data } = await api.get("/auth/me");
+    setUser(data);
+    return data;
+  };
+
   const updateProfile = async (payload) => {
     const { data } = await api.put("/auth/me", payload);
     setUser(data);
@@ -58,7 +69,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, loginWithGoogleSession, updateProfile, logout, refresh: fetchMe }}>
+    <AuthContext.Provider value={{ user, loading, login, register, loginWithGoogleSession, adoptToken, updateProfile, logout, refresh: fetchMe }}>
       {children}
     </AuthContext.Provider>
   );

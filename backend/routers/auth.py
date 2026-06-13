@@ -1,11 +1,17 @@
-"""Auth router — register, login, Emergent Google OAuth, profile."""
+"""Auth router — register, login, custom Google OAuth, profile."""
 from fastapi import APIRouter, HTTPException, Header, Body, Depends, Request
+from fastapi.responses import RedirectResponse
 from pydantic import BaseModel, EmailStr, Field
 from typing import Optional
 from datetime import datetime, timezone
 import uuid
 import os
 import re
+import hmac
+import hashlib
+import secrets
+import time
+from urllib.parse import urlencode
 import httpx
 
 from db_helper import get_db
@@ -199,36 +205,182 @@ async def login(payload: LoginIn):
 
 
 @router.post("/google/session")
-async def google_session(x_session_id: Optional[str] = Header(None)):
-    """Emergent-managed Google OAuth — exchange session_id for user data."""
-    db = get_db()
-    if not x_session_id:
-        raise HTTPException(status_code=400, detail="Missing X-Session-ID header")
+async def google_session_legacy(x_session_id: Optional[str] = Header(None)):
+    """Legacy endpoint — kept as a hard 410 so any lingering frontend
+    bundles surface a clear error instead of silently succeeding via the
+    Emergent-managed OAuth provider. Will be removed once we're confident
+    no cached frontends are still calling it.
+    """
+    raise HTTPException(
+        status_code=410,
+        detail="Endpoint removed — use GET /api/auth/google to start OAuth flow",
+    )
 
-    settings = await db.app_settings.find_one({"key": "google_oauth_enabled"})
-    if settings and settings["value"] != "true":
-        raise HTTPException(status_code=403, detail="Google OAuth disabled")
+
+# --- Custom Google OAuth 2.0 ---------------------------------------------
+
+GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth"
+GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token"
+GOOGLE_USERINFO_URL = "https://www.googleapis.com/oauth2/v2/userinfo"
+STATE_TTL_SECONDS = 600  # 10 min
+
+
+def _state_secret() -> bytes:
+    # Re-use the JWT signing secret — same trust boundary, no extra config.
+    secret = os.environ.get("JWT_SECRET") or os.environ.get("SECRET_KEY")
+    if not secret:
+        raise HTTPException(status_code=500, detail="JWT_SECRET not configured")
+    return secret.encode("utf-8")
+
+
+def _make_state(next_path: str = "") -> str:
+    """Signed, short-lived CSRF state token. No DB needed.
+
+    Format: <random_hex>.<unix_ts>.<base64url_next>.<hmac>
+    """
+    nonce = secrets.token_urlsafe(16)
+    ts = str(int(time.time()))
+    # Allow forwarding a `next=` redirect inside state so the user lands where
+    # they tried to go before logging in. Sanitized to a path on our domain.
+    safe_next = next_path if next_path.startswith("/") else ""
+    payload = f"{nonce}.{ts}.{safe_next}"
+    sig = hmac.new(_state_secret(), payload.encode("utf-8"), hashlib.sha256).hexdigest()
+    return f"{payload}.{sig}"
+
+
+def _verify_state(state: str) -> str:
+    """Returns the embedded `next_path` if state is valid+fresh, else raises."""
+    if not state or state.count(".") < 3:
+        raise HTTPException(status_code=400, detail="Invalid OAuth state")
+    parts = state.rsplit(".", 1)
+    payload, sig = parts[0], parts[1]
+    expected = hmac.new(_state_secret(), payload.encode("utf-8"), hashlib.sha256).hexdigest()
+    if not hmac.compare_digest(sig, expected):
+        raise HTTPException(status_code=400, detail="State signature mismatch")
+    bits = payload.split(".", 2)
+    if len(bits) < 2:
+        raise HTTPException(status_code=400, detail="State malformed")
+    try:
+        ts = int(bits[1])
+    except ValueError:
+        raise HTTPException(status_code=400, detail="State malformed")
+    if time.time() - ts > STATE_TTL_SECONDS:
+        raise HTTPException(status_code=400, detail="State expired — please retry")
+    return bits[2] if len(bits) > 2 else ""
+
+
+@router.get("/google")
+async def google_login(next: Optional[str] = ""):
+    """Kick off Google OAuth — redirect to the consent screen."""
+    client_id = os.environ.get("GOOGLE_CLIENT_ID")
+    redirect_uri = os.environ.get("GOOGLE_REDIRECT_URI")
+    if not client_id or not redirect_uri:
+        raise HTTPException(
+            status_code=503,
+            detail="Google OAuth not configured (missing GOOGLE_CLIENT_ID or GOOGLE_REDIRECT_URI)",
+        )
+    state = _make_state(next or "")
+    params = {
+        "client_id": client_id,
+        "redirect_uri": redirect_uri,
+        "response_type": "code",
+        "scope": "openid email profile",
+        "access_type": "offline",
+        "prompt": "consent",
+        "state": state,
+        "include_granted_scopes": "true",
+    }
+    return RedirectResponse(url=f"{GOOGLE_AUTH_URL}?{urlencode(params)}")
+
+
+def _frontend_url() -> str:
+    return os.environ.get("FRONTEND_URL") or APP_URL
+
+
+def _callback_error_redirect(reason: str) -> RedirectResponse:
+    target = _frontend_url().rstrip("/")
+    return RedirectResponse(url=f"{target}/login?error={reason}")
+
+
+@router.get("/google/callback")
+async def google_callback(code: Optional[str] = None, state: Optional[str] = None, error: Optional[str] = None):
+    """Google redirects here with `?code=...&state=...`. Exchange the code,
+    fetch userinfo, upsert profile, mint a Sharago JWT, then forward the
+    browser to the frontend with the token.
+    """
+    if error:
+        return _callback_error_redirect(error)
+    if not code or not state:
+        return _callback_error_redirect("missing_code")
+
+    try:
+        next_path = _verify_state(state)
+    except HTTPException as exc:
+        return _callback_error_redirect("state_invalid" if exc.status_code == 400 else "state_error")
+
+    client_id = os.environ.get("GOOGLE_CLIENT_ID")
+    client_secret = os.environ.get("GOOGLE_CLIENT_SECRET")
+    redirect_uri = os.environ.get("GOOGLE_REDIRECT_URI")
+    if not (client_id and client_secret and redirect_uri):
+        return _callback_error_redirect("not_configured")
 
     async with httpx.AsyncClient(timeout=15) as client:
         try:
-            r = await client.get(
-                "https://demobackend.emergentagent.com/auth/v1/env/oauth/session-data",
-                headers={"X-Session-ID": x_session_id},
+            tok = await client.post(
+                GOOGLE_TOKEN_URL,
+                data={
+                    "code": code,
+                    "client_id": client_id,
+                    "client_secret": client_secret,
+                    "redirect_uri": redirect_uri,
+                    "grant_type": "authorization_code",
+                },
+                headers={"Accept": "application/json"},
             )
-        except Exception as e:
-            raise HTTPException(status_code=502, detail=f"OAuth provider unreachable: {e}")
-        if r.status_code != 200:
-            raise HTTPException(status_code=401, detail="Invalid session id")
-        data = r.json()
+        except Exception:
+            return _callback_error_redirect("token_unreachable")
+        if tok.status_code != 200:
+            return _callback_error_redirect("token_exchange_failed")
+        tokens = tok.json()
+        access_token = tokens.get("access_token")
+        if not access_token:
+            return _callback_error_redirect("no_access_token")
 
-    email = (data.get("email") or "").lower()
-    name = data.get("name") or email.split("@")[0]
-    picture = data.get("picture")
+        try:
+            ui = await client.get(
+                GOOGLE_USERINFO_URL,
+                headers={"Authorization": f"Bearer {access_token}"},
+            )
+        except Exception:
+            return _callback_error_redirect("userinfo_unreachable")
+        if ui.status_code != 200:
+            return _callback_error_redirect("userinfo_failed")
+        gu = ui.json()
+
+    email = (gu.get("email") or "").lower()
     if not email:
-        raise HTTPException(status_code=400, detail="No email returned by provider")
+        return _callback_error_redirect("no_email")
+    if gu.get("verified_email") is False:
+        return _callback_error_redirect("email_unverified")
+    name = gu.get("name") or email.split("@")[0]
+    picture = gu.get("picture")
+    google_id = gu.get("id")
 
+    db = get_db()
     user = await db.profiles.find_one({"email": email})
-    if not user:
+    if user:
+        if user.get("suspended"):
+            return _callback_error_redirect("account_suspended")
+        await db.profiles.update_one(
+            {"id": user["id"]},
+            {"$set": {
+                "avatar": picture or user.get("avatar"),
+                "google_id": google_id or user.get("google_id"),
+                "auth_provider": user.get("auth_provider") or "google",
+                "last_active": datetime.now(timezone.utc).isoformat(),
+            }},
+        )
+    else:
         user_id = str(uuid.uuid4())
         base_slug = re.sub(r"[^a-z0-9]+", "-", (name or email.split("@")[0]).lower()).strip("-") or "user"
         slug = base_slug
@@ -251,6 +403,7 @@ async def google_session(x_session_id: Optional[str] = Header(None)):
             "suspend_reason": None,
             "marketing_consent": False,
             "auth_provider": "google",
+            "google_id": google_id,
             "onboarded": False,
             "tooltips_seen": False,
             "privacy_settings": DEFAULT_PRIVACY.copy(),
@@ -258,17 +411,14 @@ async def google_session(x_session_id: Optional[str] = Header(None)):
             "last_active": datetime.now(timezone.utc).isoformat(),
         }
         await db.profiles.insert_one(user)
-    else:
-        if user.get("suspended"):
-            raise HTTPException(status_code=403, detail="Account suspended")
-        await db.profiles.update_one(
-            {"id": user["id"]},
-            {"$set": {"avatar": picture or user.get("avatar"), "last_active": datetime.now(timezone.utc).isoformat()}},
-        )
-        user["avatar"] = picture or user.get("avatar")
 
     token = create_access_token({"sub": user["id"], "type": "user"})
-    return {"token": token, "user": _public_user(user)}
+    target = _frontend_url().rstrip("/")
+    safe_next = next_path if next_path.startswith("/") else "/garage"
+    return RedirectResponse(
+        url=f"{target}/auth/callback?token={token}&next={safe_next}",
+        status_code=302,
+    )
 
 
 @router.get("/me")
