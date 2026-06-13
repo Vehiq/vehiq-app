@@ -750,3 +750,53 @@ maxPoolSize=10, serverSelectionTimeoutMS=5000, connectTimeoutMS=10000
 - 🟡 P2 Facebook OAuth (czeka na klucze)
 - 🟣 Refactor: rozbić długie komponenty, FX rates → `/api/fx`
 - 🟣 Mini-cleanup: rozważyć usunięcie `react-helmet-async` z deps (po refactorze zastąpione hookiem) — opcjonalne.
+
+---
+
+## Iter 24 — Rebranding VEHIQ → Sharago + Moduł wynajmu (Feb 2026)
+
+### CZĘŚĆ 1 — Rebranding
+**Zakres zmian** (decyzje użytkownika: zostaw `vehiq-*` Tailwind / zostaw email sender `noreply@vehiq.pl` / runtime migration localStorage / DB migracja automatyczna / NEW `category` field obok `type`):
+- `/app/scripts/rebrand_to_sharago.py` — code-level find/replace, 55 plików zmienionych. Reguły: `\bVEHIQ\b` → `Sharago`, `\bVehiq\b` → `Sharago`, `vehiq.pl` → `sharago.pl`. Pomija: `vehiq-*` Tailwind, `vehiq_*` identifiery, `vehiq_database` env default, `/app/memory/`, `/app/test_reports/`, `node_modules`.
+- `/app/backend/scripts/mongo_rebrand_to_sharago.py` — DB migracja content w `legal_pages`, `blog_posts` (title/content/excerpt/meta_*), `app_settings`. 1 blog post + 1 manual author update zmienione.
+- `/app/frontend/src/lib/storageMigration.js` — runtime migracja localStorage `vehiq_*` → `sharago_*` (jednorazowy copy + remove starych kluczy). Wpięte w `index.js` przed renderem → istniejące sesje zachowane.
+- Email sender pozostaje `kontakt@vehiq.pl` w `email_service.py` (Brevo nie ma zweryfikowanej domeny sharago.pl).
+- Logo: `Logo.js` — "Shar" + gold "ago", `data-testid="sharago-logo"`.
+
+### CZĘŚĆ 2 — Moduł wynajmu (rental_car, rental_garage)
+**Backend** (`routers/marketplace.py`):
+- Nowy model `RentalDetails` (price_per_day/week/month, currency, availability_text, pickup_location, garage_address, requirements, owner_type, business_name).
+- `ListingIn.category` — nowe pole obok istniejącego `type`. Walidacja: tylko `rental_car`/`rental_garage` dozwolone (None dla klasycznych).
+- `GET /api/marketplace/listings?category=rental_car|rental_garage|rental` — `rental` shorthand robi `$in` na oba typy. Multi-cat comma-split też wspierany.
+- `POST /api/marketplace/listings` — limit Free: 1 aktywne ogłoszenie z `category ∈ rental_*` łącznie. Przekroczenie → HTTP 402 z `detail.code="rental_limit_free"`. Business plan (premium/business/b2b) lub `owner_type=business` omijają limit.
+- Indeks `(category, status, created_at)` dodany w `seed.py`.
+
+**Frontend**:
+- `/wynajem` (`Rentals.js`) — strona z togglem Samochody/Garaże, kartami z ceną/dobę, badge Prywatny/Firma, "Załaduj więcej".
+- Link w sidebarze: `Wynajem` z ikoną `Key` (data-testid `sidebar-rentals`).
+- `CreateListing.js` — po wybraniu type=rental pojawiają się dwa buttony [listing-cat-rental_car/garage]. Conditional sekcja [listing-rental-fields] z polami rental-price-day/week/month, availability, pickup/address (zależne od category), requirements, radio owner_type, business_name. Top-level "Cena (PLN)" ukryte dla rentals (UX fix po iter11).
+- Modal `[rental-limit-modal]` przy HTTP 402 z CTA "Przejdź na Premium".
+- `ListingDetail.js` — sekcja [listing-rental-block] z cenami, dostępność, miejsce, wymagania, badge "Prywatny" / "Weryfikowana firma", disclaimer [listing-rental-disclaimer]: "Sharago jest platformą ogłoszeniową...".
+- `MyListings.js` — filter tabs [my-listings-filter-all/classic/rental].
+
+**Regulamin (seed.py)**: dodano §5a o platformie ogłoszeniowej w PL i EN.
+
+### Weryfikacja (testing_agent iteration_11.json):
+- **Backend**: 10/10 pytest PASS (`test_iter11_rental_rebrand.py`).
+- **Frontend**: ~95% — wszystkie data-testid + flowy potwierdzone. 3 drobne issues, wszystkie naprawione w follow-up:
+  - LOW: badge "Osoba prywatna" → "Prywatny" ✓
+  - LOW: blog author "Zespół VEHIQ" → "Zespół Sharago" (MongoDB update) ✓
+  - MEDIUM: top-level "Cena (PLN)" required dla rentals → conditional render ✓
+  - MEDIUM (carry-over iter10): Helmet/title — useDocumentHead już rozwiązuje, raport flaky przez Cloudflare 429s
+
+### Pliki:
+- **NEW**: `scripts/rebrand_to_sharago.py`, `backend/scripts/mongo_rebrand_to_sharago.py`, `backend/scripts/__init__.py`, `frontend/src/lib/storageMigration.js`, `frontend/src/pages/Rentals.js`, `backend/tests/test_iter11_rental_rebrand.py`
+- **MOD**: 55 plików z rebrandu (UI strings, meta, sitemap, robots.txt, RSS), `routers/marketplace.py`, `seed.py`, `pages/CreateListing.js`, `ListingDetail.js`, `MyListings.js`, `components/Logo.js`, `Sidebar.js`, `i18n/locales/pl.json|en.json`, `index.js`, `App.js`
+
+### Następne (Backlog):
+- 🔴 P0 **Push na main z Force Push** — wymaga ręcznego kliknięcia **"Save to GitHub"** w UI Emergent (agent nie ma uprawnień do `git push --force`).
+- 🟡 P1 Po weryfikacji domeny sharago.pl w Brevo: zmień `from_email` na `noreply@sharago.pl` (w `email_service.py` + `backend/.env` `ADMIN_EMAIL`).
+- 🔴 P1 Stripe payments, GPS Geolocation, Push notifications, Project Mode budget/notes/parts.
+- 🟡 P2 Admin slow-queries, System Health widget, Facebook OAuth, dodać mapę Leaflet z pinami na /wynajem (spec wspominała).
+- 🟣 P3 Po-rebrand cleanup: usunąć `react-helmet-async` z deps (zastąpione przez useDocumentHead), opcjonalnie zmigrować pozostałe identyfikatory `vehiq_*` po fade-out window.
+

@@ -374,10 +374,12 @@ export default function CreateListing() {
           <textarea value={form.description} onChange={(e) => setForm({...form, description: e.target.value})} className="vehiq-input" rows={5} data-testid="listing-description" />
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="vehiq-overline mb-2 block">{t("marketplace.price")}</label>
-            <input required type="number" step="0.01" value={form.price} onChange={(e) => setForm({...form, price: e.target.value})} className="vehiq-input" data-testid="listing-price" />
-          </div>
+          {!(form.category === "rental_car" || form.category === "rental_garage") && (
+            <div>
+              <label className="vehiq-overline mb-2 block">{t("marketplace.price")}</label>
+              <input required type="number" step="0.01" value={form.price} onChange={(e) => setForm({...form, price: e.target.value})} className="vehiq-input" data-testid="listing-price" />
+            </div>
+          )}
           <div>
             <label className="vehiq-overline mb-2 block">{t("marketplace.filterLocation")}</label>
             <input value={form.location} onChange={(e) => setForm({...form, location: e.target.value})} className="vehiq-input" data-testid="listing-location" />

@@ -133,7 +133,7 @@ export default function ListingDetail() {
               )}
               {listing.rental.owner_type === "private" && (
                 <div className="inline-flex items-center gap-2 text-xs px-3 py-1.5 rounded bg-vehiq-bg/60 text-vehiq-muted border border-vehiq-border" data-testid="listing-private-badge">
-                  <UserIcon size={12} /> Osoba prywatna
+                  <UserIcon size={12} /> Prywatny
                 </div>
               )}
               <div
