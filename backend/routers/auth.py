@@ -294,11 +294,35 @@ async def google_login(next: Optional[str] = ""):
 
 
 def _frontend_url() -> str:
-    return os.environ.get("FRONTEND_URL") or APP_URL
+    """Resolve the public frontend host for OAuth post-login redirects.
+
+    Order: FRONTEND_URL env > APP_URL env > hardcoded vehiq.pl.
+
+    Defensive: if any of these accidentally point to *.onrender.com (e.g. the
+    Render service URL got copy-pasted), we fall through to the next one.
+    Hitting an onrender URL from a Google callback shows Render's free-tier
+    "wake the app" interstitial — terrible UX. Better to land on the canonical
+    public domain even at the cost of one extra public-domain re-hit.
+    """
+    import logging
+    log = logging.getLogger("server")
+    candidates = [
+        os.environ.get("FRONTEND_URL"),
+        os.environ.get("APP_URL"),
+        APP_URL,  # final fallback to module-level default
+    ]
+    for cand in candidates:
+        if not cand:
+            continue
+        if "onrender.com" in cand.lower():
+            log.warning("Skipping onrender.com frontend candidate: %s", cand)
+            continue
+        return cand.rstrip("/")
+    return "https://vehiq.pl"
 
 
 def _callback_error_redirect(reason: str) -> RedirectResponse:
-    target = _frontend_url().rstrip("/")
+    target = _frontend_url()
     return RedirectResponse(url=f"{target}/login?error={reason}")
 
 
@@ -413,12 +437,15 @@ async def google_callback(code: Optional[str] = None, state: Optional[str] = Non
         await db.profiles.insert_one(user)
 
     token = create_access_token({"sub": user["id"], "type": "user"})
-    target = _frontend_url().rstrip("/")
+    target = _frontend_url()
     safe_next = next_path if next_path.startswith("/") else "/garage"
-    return RedirectResponse(
-        url=f"{target}/auth/callback?token={token}&next={safe_next}",
-        status_code=302,
+    redirect_url = f"{target}/auth/callback?token={token}&next={safe_next}"
+    # Log non-PII parts for debugging unexpected hosts (e.g. onrender interstitials).
+    import logging
+    logging.getLogger("server").info(
+        "Google OAuth callback → redirecting to %s (frontend=%s)", target, target
     )
+    return RedirectResponse(url=redirect_url, status_code=302)
 
 
 @router.get("/me")

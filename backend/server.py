@@ -183,9 +183,14 @@ api_router.include_router(blog_router.admin_router)
 app.include_router(api_router)
 
 # ---- CORS configuration (production-ready) ----
+# Defaults cover both the new `sharago.pl` brand and the still-live `vehiq.pl`
+# domain until the migration finishes. Override at runtime via `CORS_ORIGINS=...`
+# (comma-separated list, or `*` to allow everything) without re-deploying.
 DEFAULT_ALLOWED_ORIGINS = [
     "https://sharago.pl",
     "https://www.sharago.pl",
+    "https://vehiq.pl",
+    "https://www.vehiq.pl",
     "http://localhost:3000",
     "http://localhost:5173",  # Vite dev (in case)
 ]

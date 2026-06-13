@@ -930,3 +930,36 @@ Po przeniesieniu na sharago.pl: zmień `GOOGLE_REDIRECT_URI` + `FRONTEND_URL` + 
 - 🟣 Iter 27 cleanup: usunąć legacy `loginWithGoogleSession` + 410 endpoint po fade-out (~30 dni).
 - 🔴 P1 Stripe, GPS, Push notifications, Project Mode, Facebook OAuth (analogiczna implementacja jak Google).
 
+
+---
+
+## Iter 26.1 — CORS dla vehiq.pl + sanityzacja FRONTEND_URL (Feb 2026)
+
+### Problem 1: CORS blokuje requesty z vehiq.pl
+`DEFAULT_ALLOWED_ORIGINS` zawierało tylko `sharago.pl`. Produkcja frontendu działa na `vehiq.pl` → OPTIONS preflight wracał 400 → wszystkie wywołania `/api/*` (włącznie z `/auth/me`) z `vehiq.pl` były blokowane przez CORS.
+
+**Fix** (`backend/server.py`):
+- Dodane `https://vehiq.pl` + `https://www.vehiq.pl` do `DEFAULT_ALLOWED_ORIGINS`. Lista zawiera teraz oba brandy (sharago.pl + vehiq.pl) na czas migracji domeny.
+- Env `CORS_ORIGINS=...` (comma-separated lub `*`) **już istniał** — pozwala zarządzać listą bez deployu kodu.
+- Verified: po `unset CORS_ORIGINS` backend ładuje defaults: `['https://sharago.pl', 'https://www.sharago.pl', 'https://vehiq.pl', 'https://www.vehiq.pl', 'http://localhost:3000', 'http://localhost:5173']`.
+
+### Problem 2: Pośredni ekran "przejdź do vehiq-app.onrender.com"
+**Root cause**: ZERO referencji do `onrender.com` w naszym kodzie (zweryfikowane przez grep w całym repo). Ekran "Open in browser" to **interstitial Render free-tier** podczas wybudzania śpiącej aplikacji. Pojawia się na pierwszym requeście po idle ~15 min.
+
+**Fixy zapobiegawcze w kodzie** (`backend/routers/auth.py`):
+- `_frontend_url()` zrefaktorowane: skanuje kandydatów (`FRONTEND_URL` → `APP_URL` → fallback `https://vehiq.pl`) i **pomija** kandydatów zawierających `onrender.com` (z warning logiem). Defensywa przeciw misconfiguration env vars na Render.
+- Callback teraz loguje docelowy URL przed redirect → łatwa diagnostyka unexpected hostów w logach Render.
+
+**Mitygacja Render interstitial** (po stronie infrastruktury, nie kodu):
+- **Opcja A (zalecane)**: UptimeRobot ping co 5 min na `/api/health` (już udokumentowane w `/app/UPTIMEROBOT_SETUP.md`). Backend nie zasypia → brak interstitial.
+- **Opcja B**: Upgrade Render do paid plan ($7/mo) → no sleep.
+- **Opcja C**: Migracja na Fly.io / Railway / własny VPS — bez free-tier sleep.
+
+### Pliki:
+- **MOD**: `backend/server.py` (DEFAULT_ALLOWED_ORIGINS +2 entries + comment), `backend/routers/auth.py` (`_frontend_url()` defensive logic + callback redirect logging)
+
+### Weryfikacja:
+- CORS preflight `OPTIONS /api/auth/me` z origin=`vehiq.pl|www.vehiq.pl|sharago.pl` → **204** ✓
+- Defaults load przy braku env `CORS_ORIGINS` → cztery domeny + 2 localhost ✓
+- Lint Python: clean.
+
