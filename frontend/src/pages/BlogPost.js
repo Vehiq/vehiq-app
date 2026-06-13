@@ -128,8 +128,7 @@ export default function BlogPost() {
             <ArrowLeft size={14} /> Wróć
           </button>
           <Link to="/" className="flex items-center gap-2">
-            <div className="h-8 w-8 rounded-md bg-vehiq-gold flex items-center justify-center text-vehiq-bg font-bold">V</div>
-            <span className="vehiq-display tracking-wider">Sharago</span>
+            <img src="/logo.png" alt="Sharago" className="h-8 w-auto object-contain" draggable="false" />
           </Link>
           <button
             onClick={copyLink}

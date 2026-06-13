@@ -5,93 +5,93 @@
 @layer base {
   :root {
     /* shadcn tokens mapped to Sharago dark palette */
-    --background: 230 31% 8%;          /* #0D0F1A */
-    --foreground: 36 36% 94%;          /* #F4F1EC */
-    --card: 232 30% 12%;               /* #161829 */
+    --background: 220 47% 10%;          /* #0D1626 */
+    --foreground: 36 36% 94%;          /* #FFFFFF */
+    --card: 219 41% 14%;               /* #162035 */
     --card-foreground: 36 36% 94%;
     --popover: 232 30% 12%;
     --popover-foreground: 36 36% 94%;
-    --primary: 44 53% 54%;             /* gold */
-    --primary-foreground: 230 31% 8%;
-    --secondary: 234 26% 16%;          /* nav */
+    --primary: 213 80% 54%;             /* gold */
+    --primary-foreground: 220 47% 10%;
+    --secondary: 215 47% 12%;          /* nav */
     --secondary-foreground: 36 36% 94%;
     --muted: 234 26% 16%;
-    --muted-foreground: 232 16% 49%;   /* #6B7090 */
-    --accent: 44 53% 54%;
-    --accent-foreground: 230 31% 8%;
+    --muted-foreground: 211 22% 71%;   /* #A0B4C8 */
+    --accent: 213 80% 54%;
+    --accent-foreground: 220 47% 10%;
     --destructive: 0 65% 50%;
     --destructive-foreground: 36 36% 94%;
-    --border: 44 53% 54% / 0.2;
+    --border: 213 80% 54% / 0.2;
     --input: 234 26% 16%;
-    --ring: 44 53% 54%;
+    --ring: 213 80% 54%;
     --radius: 0.5rem;
   }
   .dark { /* same as :root for Sharago dark-only */
-    --background: 230 31% 8%;
+    --background: 220 47% 10%;
     --foreground: 36 36% 94%;
-    --card: 232 30% 12%;
+    --card: 219 41% 14%;
     --card-foreground: 36 36% 94%;
     --popover: 232 30% 12%;
     --popover-foreground: 36 36% 94%;
-    --primary: 44 53% 54%;
-    --primary-foreground: 230 31% 8%;
-    --secondary: 234 26% 16%;
+    --primary: 213 80% 54%;
+    --primary-foreground: 220 47% 10%;
+    --secondary: 215 47% 12%;
     --secondary-foreground: 36 36% 94%;
     --muted: 234 26% 16%;
-    --muted-foreground: 232 16% 49%;
-    --accent: 44 53% 54%;
-    --accent-foreground: 230 31% 8%;
+    --muted-foreground: 211 22% 71%;
+    --accent: 213 80% 54%;
+    --accent-foreground: 220 47% 10%;
     --destructive: 0 65% 50%;
     --destructive-foreground: 36 36% 94%;
-    --border: 44 53% 54% / 0.2;
+    --border: 213 80% 54% / 0.2;
     --input: 234 26% 16%;
-    --ring: 44 53% 54%;
+    --ring: 213 80% 54%;
   }
 }
 
 @layer base {
-  * { border-color: rgba(201, 168, 76, 0.2); }
+  * { border-color: rgba(43,127,232,0.2); }
   html, body, #root { height: 100%; }
   body {
     margin: 0;
-    background: #0D0F1A;
-    color: #F4F1EC;
+    background: #0D1626;
+    color: #FFFFFF;
     font-family: "DM Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
-  ::selection { background: rgba(201,168,76,0.4); color: #F4F1EC; }
+  ::selection { background: rgba(43,127,232,0.4); color: #FFFFFF; }
 }
 
 @layer components {
   .vehiq-card {
-    background-color: #161829;
-    border: 1px solid rgba(201, 168, 76, 0.2);
+    background-color: #162035;
+    border: 1px solid rgba(43,127,232,0.2);
     border-radius: 0.625rem;
   }
   .vehiq-btn-primary {
-    background-color: #C9A84C;
-    color: #0D0F1A;
+    background-color: #2B7FE8;
+    color: #0D1626;
     font-weight: 500;
     border-radius: 0.5rem;
     padding: 0.55rem 1.25rem;
     transition: background-color 200ms ease, transform 150ms ease;
   }
-  .vehiq-btn-primary:hover { background-color: #E8C96A; }
+  .vehiq-btn-primary:hover { background-color: #4A95F0; }
   .vehiq-btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
   .vehiq-btn-secondary {
     background: transparent;
-    color: #C9A84C;
-    border: 1px solid #C9A84C;
+    color: #2B7FE8;
+    border: 1px solid #2B7FE8;
     border-radius: 0.5rem;
     padding: 0.55rem 1.25rem;
     transition: background-color 200ms ease;
   }
-  .vehiq-btn-secondary:hover { background-color: rgba(201,168,76,0.15); }
+  .vehiq-btn-secondary:hover { background-color: rgba(43,127,232,0.15); }
   .vehiq-input {
-    background-color: #0D0F1A;
-    border: 1px solid rgba(201, 168, 76, 0.2);
-    color: #F4F1EC;
+    background-color: #0D1626;
+    border: 1px solid rgba(43,127,232,0.2);
+    color: #FFFFFF;
     border-radius: 0.5rem;
     padding: 0.6rem 0.85rem;
     width: 100%;
@@ -99,33 +99,33 @@
   }
   .vehiq-input:focus {
     outline: none;
-    border-color: #C9A84C;
-    box-shadow: 0 0 0 1px #C9A84C;
+    border-color: #2B7FE8;
+    box-shadow: 0 0 0 1px #2B7FE8;
   }
   .vehiq-overline {
     font-size: 0.75rem;
     text-transform: uppercase;
     letter-spacing: 0.2em;
-    color: #C9A84C;
+    color: #2B7FE8;
   }
   .vehiq-display { font-family: "Cormorant Garamond", serif; }
 }
 
 /* hide default browser scrollbar look on dark theme */
 ::-webkit-scrollbar { width: 10px; height: 10px; }
-::-webkit-scrollbar-track { background: #0D0F1A; }
-::-webkit-scrollbar-thumb { background: #1E2035; border-radius: 4px; }
-::-webkit-scrollbar-thumb:hover { background: rgba(201,168,76,0.4); }
+::-webkit-scrollbar-track { background: #0D1626; }
+::-webkit-scrollbar-thumb { background: #111D2E; border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(43,127,232,0.4); }
 
 /* Blog markdown styling (no Tailwind typography plugin — keep it explicit) */
 .blog-markdown {
-  color: #F4F1EC;
+  color: #FFFFFF;
   line-height: 1.7;
   font-size: 1rem;
 }
 .blog-markdown h1, .blog-markdown h2, .blog-markdown h3, .blog-markdown h4 {
   font-family: "Cormorant Garamond", serif;
-  color: #F4F1EC;
+  color: #FFFFFF;
   margin-top: 2rem;
   margin-bottom: 0.75rem;
   line-height: 1.25;
@@ -133,43 +133,43 @@
 .blog-markdown h1 { font-size: 2rem; }
 .blog-markdown h2 { font-size: 1.625rem; }
 .blog-markdown h3 { font-size: 1.25rem; }
-.blog-markdown p { margin-bottom: 1.1rem; color: #D8D5CE; }
-.blog-markdown a { color: #C9A84C; text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; }
-.blog-markdown a:hover { color: #E8C96A; }
-.blog-markdown ul, .blog-markdown ol { margin: 0 0 1.1rem 1.4rem; color: #D8D5CE; }
+.blog-markdown p { margin-bottom: 1.1rem; color: #A0B4C8; }
+.blog-markdown a { color: #2B7FE8; text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; }
+.blog-markdown a:hover { color: #4A95F0; }
+.blog-markdown ul, .blog-markdown ol { margin: 0 0 1.1rem 1.4rem; color: #A0B4C8; }
 .blog-markdown li { margin-bottom: 0.35rem; }
 .blog-markdown ul { list-style: disc; }
 .blog-markdown ol { list-style: decimal; }
 .blog-markdown blockquote {
-  border-left: 3px solid #C9A84C;
-  background: rgba(201,168,76,0.06);
+  border-left: 3px solid #2B7FE8;
+  background: rgba(43,127,232,0.06);
   padding: 0.75rem 1rem;
   margin: 1.25rem 0;
-  color: #D8D5CE;
+  color: #A0B4C8;
   font-style: italic;
 }
 .blog-markdown code {
-  background: #161829;
+  background: #162035;
   padding: 0.1rem 0.4rem;
   border-radius: 4px;
   font-size: 0.92em;
-  color: #E8C96A;
+  color: #4A95F0;
 }
 .blog-markdown pre {
-  background: #0F1120;
-  border: 1px solid #222540;
+  background: #0A1220;
+  border: 1px solid #1E2A42;
   border-radius: 6px;
   padding: 1rem;
   margin: 1.25rem 0;
   overflow-x: auto;
 }
-.blog-markdown pre code { background: transparent; color: #F4F1EC; padding: 0; }
+.blog-markdown pre code { background: transparent; color: #FFFFFF; padding: 0; }
 .blog-markdown img { max-width: 100%; border-radius: 6px; margin: 1rem 0; }
 .blog-markdown table { width: 100%; border-collapse: collapse; margin: 1.25rem 0; font-size: 0.95rem; }
-.blog-markdown th, .blog-markdown td { padding: 0.6rem 0.8rem; border: 1px solid #222540; text-align: left; }
-.blog-markdown th { background: #161829; color: #C9A84C; font-weight: 500; text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.15em; }
-.blog-markdown hr { border: 0; border-top: 1px solid #222540; margin: 2rem 0; }
-.blog-markdown strong { color: #F4F1EC; }
+.blog-markdown th, .blog-markdown td { padding: 0.6rem 0.8rem; border: 1px solid #1E2A42; text-align: left; }
+.blog-markdown th { background: #162035; color: #2B7FE8; font-weight: 500; text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.15em; }
+.blog-markdown hr { border: 0; border-top: 1px solid #1E2A42; margin: 2rem 0; }
+.blog-markdown strong { color: #FFFFFF; }
 .prose-vehiq img { max-height: 480px; object-fit: cover; }
 
 /* avoid the debug-wrapper flatten for emergent visual edits */

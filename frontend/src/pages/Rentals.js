@@ -3,13 +3,14 @@ import { Link, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import api, { apiErrorMessage } from "@/lib/api";
 import { toast } from "sonner";
-import { Plus, Key, MapPin, Building2, User as UserIcon, Loader2, Car } from "lucide-react";
+import { Plus, Key, MapPin, Building2, User as UserIcon, Loader2, Car, List, Map as MapIcon } from "lucide-react";
 import EmptyState from "@/components/EmptyState";
 import LazyImage from "@/components/LazyImage";
 import { SkeletonListingGrid } from "@/components/Skeleton";
 import { photoThumb } from "@/lib/photos";
 import { useAuth } from "@/contexts/AuthContext";
 import { fmtPrice, getUnits } from "@/lib/units";
+import RentalsMap from "@/components/RentalsMap";
 
 const TABS = [
   { value: "rental_car", labelPl: "Samochody", labelEn: "Cars", Icon: Car },
@@ -25,6 +26,8 @@ export default function Rentals() {
   const [tab, setTab] = useState(params.get("cat") || "rental_car");
   const [data, setData] = useState(null);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [selectedId, setSelectedId] = useState(null);
+  const [mobileView, setMobileView] = useState("list"); // list | map (mobile only)
 
   const fetchList = useCallback(async () => {
     setData(null);
@@ -145,27 +148,83 @@ export default function Rentals() {
         />
       ) : (
         <>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-5" data-testid="rentals-grid">
-            {data.items.map((l, idx) => (
-              <RentalCard key={l.id} listing={l} units={units} lang={lang} eager={idx < 4} />
-            ))}
+          {/* Mobile-only list/map toggle */}
+          <div className="lg:hidden inline-flex rounded-md border border-vehiq-border bg-vehiq-card p-1" data-testid="rentals-mobile-toggle">
+            <button
+              type="button"
+              onClick={() => setMobileView("list")}
+              className={`inline-flex items-center gap-2 px-3 py-1.5 text-xs rounded transition-colors ${
+                mobileView === "list" ? "bg-vehiq-gold text-vehiq-bg font-medium" : "text-vehiq-muted"
+              }`}
+              data-testid="rentals-mobile-list"
+            >
+              <List size={12} /> {lang === "en" ? "List" : "Lista"}
+            </button>
+            <button
+              type="button"
+              onClick={() => setMobileView("map")}
+              className={`inline-flex items-center gap-2 px-3 py-1.5 text-xs rounded transition-colors ${
+                mobileView === "map" ? "bg-vehiq-gold text-vehiq-bg font-medium" : "text-vehiq-muted"
+              }`}
+              data-testid="rentals-mobile-map"
+            >
+              <MapIcon size={12} /> {lang === "en" ? "Map" : "Mapa"}
+            </button>
           </div>
-          <div className="flex flex-col items-center gap-2 pt-2 pb-6" data-testid="rentals-pagination">
-            <div className="text-xs text-vehiq-muted">
-              {lang === "en" ? "Showing" : "Pokazano"} {data.items.length} {lang === "en" ? "of" : "z"} {data.total}
+
+          {/* Split layout — desktop side-by-side, mobile toggled */}
+          <div className="grid grid-cols-1 lg:grid-cols-5 gap-4" data-testid="rentals-split">
+            {/* List column (40% on desktop) */}
+            <div
+              className={`lg:col-span-2 ${mobileView === "list" ? "block" : "hidden"} lg:block`}
+              data-testid="rentals-list-col"
+            >
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-3 sm:gap-4" data-testid="rentals-grid">
+                {data.items.map((l, idx) => (
+                  <RentalCard
+                    key={l.id}
+                    listing={l}
+                    units={units}
+                    lang={lang}
+                    eager={idx < 4}
+                    selected={selectedId === l.id}
+                    onSelect={() => setSelectedId(l.id)}
+                  />
+                ))}
+              </div>
+              <div className="flex flex-col items-center gap-2 pt-4" data-testid="rentals-pagination">
+                <div className="text-xs text-vehiq-muted">
+                  {lang === "en" ? "Showing" : "Pokazano"} {data.items.length} {lang === "en" ? "of" : "z"} {data.total}
+                </div>
+                {data.items.length < data.total && (
+                  <button
+                    type="button"
+                    onClick={loadMore}
+                    disabled={loadingMore}
+                    className="vehiq-btn-secondary inline-flex items-center gap-2 disabled:opacity-50"
+                    data-testid="rentals-load-more"
+                  >
+                    {loadingMore ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
+                    {lang === "en" ? "Load more" : "Załaduj więcej"}
+                  </button>
+                )}
+              </div>
             </div>
-            {data.items.length < data.total && (
-              <button
-                type="button"
-                onClick={loadMore}
-                disabled={loadingMore}
-                className="vehiq-btn-secondary inline-flex items-center gap-2 disabled:opacity-50"
-                data-testid="rentals-load-more"
-              >
-                {loadingMore ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
-                {lang === "en" ? "Load more" : "Załaduj więcej"}
-              </button>
-            )}
+
+            {/* Map column (60% on desktop) */}
+            <div
+              className={`lg:col-span-3 ${mobileView === "map" ? "block" : "hidden"} lg:block`}
+              data-testid="rentals-map-col"
+            >
+              <div className="lg:sticky lg:top-4">
+                <RentalsMap
+                  listings={data.items}
+                  selectedId={selectedId}
+                  onSelect={setSelectedId}
+                  height={620}
+                />
+              </div>
+            </div>
           </div>
         </>
       )}
@@ -173,17 +232,37 @@ export default function Rentals() {
   );
 }
 
-function RentalCard({ listing, units, lang, eager }) {
+function RentalCard({ listing, units, lang, eager, selected, onSelect }) {
   const r = listing.rental || {};
   const priceDay = r.price_per_day ?? listing.price;
   const isBusiness = r.owner_type === "business";
   return (
     <Link
       to={`/marketplace/${listing.id}`}
-      className="vehiq-card overflow-hidden hover:border-vehiq-gold transition-all hover:-translate-y-1 flex flex-col"
+      onMouseEnter={onSelect}
+      onClick={(e) => {
+        // Allow ctrl/cmd-click to open in new tab without selecting.
+        if (e.metaKey || e.ctrlKey || e.button === 1) return;
+        if (onSelect) onSelect();
+      }}
+      className={`vehiq-card overflow-hidden transition-all hover:-translate-y-0.5 flex flex-col sm:flex-row lg:flex-row ${
+        selected ? "border-vehiq-gold ring-1 ring-vehiq-gold/40" : "hover:border-vehiq-gold"
+      }`}
       data-testid={`rental-card-${listing.id}`}
+      data-selected={selected ? "true" : "false"}
     >
-      <div className="p-3 sm:p-4 order-2 flex-1 flex flex-col gap-1">
+      <LazyImage
+        src={photoThumb(listing.photos?.[0])}
+        alt={listing.title}
+        className="sm:w-40 lg:w-40 sm:shrink-0 aspect-[16/10] sm:aspect-auto bg-vehiq-bg overflow-hidden"
+        eager={eager}
+        fallback={
+          <div className="aspect-[16/10] sm:aspect-auto sm:w-40 lg:w-40 sm:shrink-0 bg-vehiq-bg flex items-center justify-center text-vehiq-muted text-[10px]">
+            {lang === "en" ? "No photo" : "Brak zdjęcia"}
+          </div>
+        }
+      />
+      <div className="p-3 sm:p-4 flex-1 flex flex-col gap-1 min-w-0">
         <div className="flex items-start justify-between gap-2">
           <div className="vehiq-display text-base sm:text-lg text-vehiq-text leading-tight line-clamp-2 flex-1">
             {listing.title}
@@ -205,7 +284,7 @@ function RentalCard({ listing, units, lang, eager }) {
           <span className="text-[11px] text-vehiq-muted ml-1">/ {lang === "en" ? "day" : "dzień"}</span>
         </div>
         {(listing.make || listing.model) && (
-          <div className="text-[11px] text-vehiq-muted mt-0.5 line-clamp-1">
+          <div className="text-[11px] text-vehiq-muted line-clamp-1">
             {listing.make}{listing.model ? ` ${listing.model}` : ""}{listing.year ? ` · ${listing.year}` : ""}
           </div>
         )}
@@ -213,17 +292,6 @@ function RentalCard({ listing, units, lang, eager }) {
           <MapPin size={10} /> {listing.location || (r.pickup_location || r.garage_address) || "—"}
         </div>
       </div>
-      <LazyImage
-        src={photoThumb(listing.photos?.[0])}
-        alt={listing.title}
-        className="aspect-[16/10] bg-vehiq-bg overflow-hidden order-1"
-        eager={eager}
-        fallback={
-          <div className="aspect-[16/10] bg-vehiq-bg flex items-center justify-center text-vehiq-muted text-[10px] order-1">
-            {lang === "en" ? "No photo" : "Brak zdjęcia"}
-          </div>
-        }
-      />
     </Link>
   );
 }

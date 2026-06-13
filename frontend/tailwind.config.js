@@ -8,16 +8,16 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        // Sharago brand palette
-        "vehiq-bg": "#0D0F1A",
-        "vehiq-card": "#161829",
-        "vehiq-nav": "#1E2035",
-        "vehiq-gold": "#C9A84C",
-        "vehiq-gold-hover": "#E8C96A",
-        "vehiq-gold-dim": "rgba(201,168,76,0.15)",
-        "vehiq-text": "#F4F1EC",
-        "vehiq-muted": "#6B7090",
-        "vehiq-border": "rgba(201, 168, 76, 0.2)",
+        // Sharago brand palette (iter 25: blue/garage)
+        "vehiq-bg": "#0D1626",
+        "vehiq-card": "#162035",
+        "vehiq-nav": "#111D2E",
+        "vehiq-gold": "#2B7FE8",          // primary accent — blue from logo
+        "vehiq-gold-hover": "#4A95F0",    // hover state
+        "vehiq-gold-dim": "rgba(43,127,232,0.15)",
+        "vehiq-text": "#FFFFFF",
+        "vehiq-muted": "#A0B4C8",
+        "vehiq-border": "rgba(43,127,232,0.2)",
 
         // shadcn tokens (kept for component compatibility)
         background: 'hsl(var(--background))',

@@ -144,8 +144,7 @@ export default function PublicVehicle() {
             <ArrowLeft size={14} /> {t("common.back")}
           </button>
           <Link to="/" className="flex items-center gap-2">
-            <div className="h-8 w-8 rounded-md bg-vehiq-gold flex items-center justify-center text-vehiq-bg font-bold">V</div>
-            <span className="vehiq-display tracking-wider">Sharago</span>
+            <img src="/logo.png" alt="Sharago" className="h-8 w-auto object-contain" draggable="false" />
           </Link>
           <button onClick={copy} className="vehiq-btn-secondary inline-flex items-center gap-2 text-xs" data-testid="public-share-btn">
             {copied ? <Check size={14} /> : <Share2 size={14} />} {t("share.share")}

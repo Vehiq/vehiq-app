@@ -40,8 +40,8 @@ export default function Sidebar({ onNavigate, mobile = false }) {
 
   return (
     <aside className={`${mobile ? "flex" : "hidden md:flex"} w-64 flex-col bg-vehiq-nav border-r border-vehiq-border min-h-screen sticky top-0`} data-testid="sidebar">
-      <div className="p-6 border-b border-vehiq-border">
-        <Logo size="md" showTagline />
+      <div className="p-4 border-b border-vehiq-border flex items-center justify-center">
+        <Logo size="xl" />
       </div>
 
       <nav className="flex-1 p-4 space-y-1">
