@@ -17,13 +17,29 @@ export default function CreateListing() {
   const [searchParams] = useSearchParams();
   const [vehicles, setVehicles] = useState([]);
   const [form, setForm] = useState({
-    type: "car", title: "", description: "", price: "", location: "",
+    type: "car", category: "", title: "", description: "", price: "", location: "",
     photos: [], vehicle_id: "", make: "", model: "", year: "",
     condition: "", mileage: "", steering: "left",
     parts_category: "", parts_subcategory: "",
     desired_swaps: [],
+    rental: {
+      price_per_day: "", price_per_week: "", price_per_month: "", currency: "PLN",
+      availability_text: "", pickup_location: "", garage_address: "",
+      requirements: "", owner_type: "private", business_name: "",
+    },
   });
   const [busy, setBusy] = useState(false);
+  const [limitModal, setLimitModal] = useState(false);
+
+  // Prefill category from URL (e.g. when arriving from /wynajem "Add listing" button).
+  useEffect(() => {
+    const cat = searchParams.get("category");
+    if (cat === "rental_car" || cat === "rental_garage") {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setForm((f) => ({ ...f, type: "rental", category: cat }));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     api.get("/vehicles").then(r => {
@@ -87,8 +103,10 @@ export default function CreateListing() {
       // Pydantic rejects undefined for non-Optional string fields with
       // "input should be a valid string" — this is the root cause of issue #1.
       const s = (v) => (v == null ? "" : String(v));
+      const isRental = form.category === "rental_car" || form.category === "rental_garage";
       const payload = {
         type: s(form.type) || "car",
+        category: form.category || null,
         title: s(form.title),
         description: s(form.description),
         location: s(form.location),
@@ -112,12 +130,42 @@ export default function CreateListing() {
         payload.condition = null;
         payload.steering = null;
       }
+      // Rental-specific payload
+      if (isRental) {
+        const r = form.rental || {};
+        if (!r.price_per_day) {
+          toast.error("Cena za dobę jest wymagana");
+          return;
+        }
+        payload.rental = {
+          price_per_day: parseFloat(r.price_per_day) || 0,
+          price_per_week: r.price_per_week ? parseFloat(r.price_per_week) : null,
+          price_per_month: r.price_per_month ? parseFloat(r.price_per_month) : null,
+          currency: r.currency || "PLN",
+          availability_text: s(r.availability_text),
+          pickup_location: form.category === "rental_car" ? s(r.pickup_location) : null,
+          garage_address: form.category === "rental_garage" ? s(r.garage_address) : null,
+          requirements: s(r.requirements),
+          owner_type: r.owner_type || "private",
+          business_name: r.owner_type === "business" ? s(r.business_name) : null,
+        };
+        // For rentals the top-level `price` mirrors price_per_day to keep
+        // existing sort/filter queries by `price` consistent.
+        payload.price = payload.rental.price_per_day;
+      } else {
+        payload.rental = null;
+      }
       // Title is required by backend — block empty submission early
       if (!payload.title.trim()) { toast.error(t("marketplace.titleRequired")); return; }
-      const { data } = await api.post("/marketplace/listings", payload);
+      await api.post("/marketplace/listings", payload);
       toast.success(t("common.success"));
-      navigate("/garage");
+      navigate(isRental ? "/wynajem" : "/garage");
     } catch (err) {
+      const detail = err?.response?.data?.detail;
+      if (err?.response?.status === 402 && detail?.code === "rental_limit_free") {
+        setLimitModal(true);
+        return;
+      }
       toast.error(apiErrorMessage(err, t("common.error")));
     } finally { setBusy(false); }
   };
@@ -151,12 +199,38 @@ export default function CreateListing() {
       <div className="vehiq-card p-6 space-y-4">
         <div>
           <label className="vehiq-overline mb-2 block">{t("marketplace.filterType")}</label>
-          <select value={form.type} onChange={(e) => setForm({...form, type: e.target.value})} className="vehiq-input" data-testid="listing-type">
+          <select value={form.type} onChange={(e) => setForm({...form, type: e.target.value, category: e.target.value === "rental" ? (form.category || "rental_car") : ""})} className="vehiq-input" data-testid="listing-type">
             {LISTING_TYPES.map((tp) => (
               <option key={tp.id} value={tp.id}>{t(tp.labelKey)}</option>
             ))}
           </select>
         </div>
+
+        {form.type === "rental" && (
+          <div data-testid="listing-rental-category">
+            <label className="vehiq-overline mb-2 block">Co wynajmujesz?</label>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {[
+                { value: "rental_car", label: "Wynajmę samochód" },
+                { value: "rental_garage", label: "Wynajmę garaż / miejsce parkingowe" },
+              ].map((opt) => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => setForm({ ...form, category: opt.value })}
+                  className={`text-left p-3 rounded border transition-colors ${
+                    form.category === opt.value
+                      ? "border-vehiq-gold bg-vehiq-gold-dim text-vehiq-text"
+                      : "border-vehiq-border text-vehiq-muted hover:border-vehiq-gold hover:text-vehiq-text"
+                  }`}
+                  data-testid={`listing-cat-${opt.value}`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         {vehicles.length > 0 && showVehicleFields && (
           <div>
@@ -329,7 +403,157 @@ export default function CreateListing() {
         </div>
       </div>
 
+      {(form.category === "rental_car" || form.category === "rental_garage") && (
+        <div className="vehiq-card p-6 space-y-4" data-testid="listing-rental-fields">
+          <div className="vehiq-overline">Warunki wynajmu</div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div>
+              <label className="vehiq-overline mb-2 block">Cena za dobę (PLN) *</label>
+              <input
+                type="number" min="0" step="1" required
+                value={form.rental.price_per_day}
+                onChange={(e) => setForm({ ...form, rental: { ...form.rental, price_per_day: e.target.value } })}
+                className="vehiq-input"
+                data-testid="rental-price-day"
+              />
+            </div>
+            <div>
+              <label className="vehiq-overline mb-2 block">Cena za tydzień (PLN)</label>
+              <input
+                type="number" min="0" step="1"
+                value={form.rental.price_per_week}
+                onChange={(e) => setForm({ ...form, rental: { ...form.rental, price_per_week: e.target.value } })}
+                className="vehiq-input"
+                data-testid="rental-price-week"
+              />
+            </div>
+            <div>
+              <label className="vehiq-overline mb-2 block">Cena za miesiąc (PLN)</label>
+              <input
+                type="number" min="0" step="1"
+                value={form.rental.price_per_month}
+                onChange={(e) => setForm({ ...form, rental: { ...form.rental, price_per_month: e.target.value } })}
+                className="vehiq-input"
+                data-testid="rental-price-month"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="vehiq-overline mb-2 block">Dostępność</label>
+            <input
+              value={form.rental.availability_text}
+              onChange={(e) => setForm({ ...form, rental: { ...form.rental, availability_text: e.target.value } })}
+              placeholder="np. Dostępne od 1 lipca"
+              className="vehiq-input"
+              data-testid="rental-availability"
+            />
+          </div>
+
+          {form.category === "rental_car" && (
+            <div>
+              <label className="vehiq-overline mb-2 block">Miejsce odbioru</label>
+              <input
+                value={form.rental.pickup_location}
+                onChange={(e) => setForm({ ...form, rental: { ...form.rental, pickup_location: e.target.value } })}
+                placeholder="np. Warszawa, Mokotów"
+                className="vehiq-input"
+                data-testid="rental-pickup"
+              />
+            </div>
+          )}
+
+          {form.category === "rental_garage" && (
+            <div>
+              <label className="vehiq-overline mb-2 block">Adres garażu</label>
+              <input
+                value={form.rental.garage_address}
+                onChange={(e) => setForm({ ...form, rental: { ...form.rental, garage_address: e.target.value } })}
+                placeholder="np. ul. Kwiatowa 12, Warszawa"
+                className="vehiq-input"
+                data-testid="rental-address"
+              />
+            </div>
+          )}
+
+          <div>
+            <label className="vehiq-overline mb-2 block">Wymagania od najemcy</label>
+            <textarea
+              rows={2}
+              value={form.rental.requirements}
+              onChange={(e) => setForm({ ...form, rental: { ...form.rental, requirements: e.target.value } })}
+              placeholder="np. Kaucja 500 PLN, prawo jazdy min. 3 lata"
+              className="vehiq-input"
+              data-testid="rental-requirements"
+            />
+          </div>
+
+          <div>
+            <label className="vehiq-overline mb-2 block">Typ ogłoszeniodawcy</label>
+            <div className="flex gap-4">
+              {[
+                { v: "private", label: "Osoba prywatna" },
+                { v: "business", label: "Firma" },
+              ].map((opt) => (
+                <label key={opt.v} className="inline-flex items-center gap-2 text-sm cursor-pointer">
+                  <input
+                    type="radio"
+                    name="owner_type"
+                    value={opt.v}
+                    checked={form.rental.owner_type === opt.v}
+                    onChange={(e) => setForm({ ...form, rental: { ...form.rental, owner_type: e.target.value } })}
+                    data-testid={`rental-owner-${opt.v}`}
+                  />
+                  <span>{opt.label}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+
+          {form.rental.owner_type === "business" && (
+            <div data-testid="rental-business-name-wrap">
+              <label className="vehiq-overline mb-2 block">Nazwa firmy</label>
+              <input
+                value={form.rental.business_name}
+                onChange={(e) => setForm({ ...form, rental: { ...form.rental, business_name: e.target.value } })}
+                className="vehiq-input"
+                data-testid="rental-business-name"
+              />
+            </div>
+          )}
+        </div>
+      )}
+
       <button type="submit" disabled={busy} className="vehiq-btn-primary" data-testid="listing-submit">{busy ? t("common.loading") : t("common.save")}</button>
+
+      {limitModal && (
+        <div className="fixed inset-0 z-50 bg-vehiq-bg/80 backdrop-blur-sm flex items-center justify-center p-4" data-testid="rental-limit-modal">
+          <div className="vehiq-card p-8 max-w-md w-full space-y-4 border-vehiq-gold/40">
+            <h2 className="vehiq-display text-2xl text-vehiq-text">Limit Free</h2>
+            <p className="text-sm text-vehiq-muted">
+              W planie Free możesz mieć <strong className="text-vehiq-text">1 aktywne ogłoszenie wynajmu</strong>. Przejdź na Premium, aby dodawać bez limitu.
+            </p>
+            <div className="flex gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setLimitModal(false)}
+                className="vehiq-btn-secondary flex-1"
+                data-testid="rental-limit-close"
+              >
+                Anuluj
+              </button>
+              <button
+                type="button"
+                onClick={() => navigate("/profile?upgrade=1")}
+                className="vehiq-btn-primary flex-1"
+                data-testid="rental-limit-upgrade"
+              >
+                Przejdź na Premium
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </form>
   );
 }

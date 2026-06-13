@@ -35,7 +35,7 @@ const EMPTY_POST = {
   excerpt: "",
   content: "",
   cover_image: "",
-  author: "Zespół VEHIQ",
+  author: "Zespół Sharago",
   tags: [],
   meta_title: "",
   meta_description: "",
@@ -106,7 +106,7 @@ export default function AdminBlog() {
       excerpt: editing.excerpt || "",
       content: editing.content || "",
       cover_image: editing.cover_image || null,
-      author: editing.author || "Zespół VEHIQ",
+      author: editing.author || "Zespół Sharago",
       tags,
       meta_title: editing.meta_title || null,
       meta_description: editing.meta_description || null,
@@ -349,7 +349,7 @@ function BlogEditor({
               rows={14}
               className="w-full bg-[#0a0b13] border border-[#222540] rounded px-3 py-2 text-sm font-mono"
               data-testid="admin-blog-input-content"
-              placeholder="# Nagłówek&#10;&#10;**Pogrubienie**, *kursywa*, [link](https://vehiq.pl), listy, tabele itp."
+              placeholder="# Nagłówek&#10;&#10;**Pogrubienie**, *kursywa*, [link](https://sharago.pl), listy, tabele itp."
             />
           </Field>
           <Field label="Cover image URL">

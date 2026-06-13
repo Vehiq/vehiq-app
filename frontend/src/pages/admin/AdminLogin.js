@@ -11,7 +11,7 @@ export default function AdminLogin() {
   const [forgotMode, setForgotMode] = useState(false);
 
   useEffect(() => {
-    if (localStorage.getItem("vehiq_admin_token")) {
+    if (localStorage.getItem("sharago_admin_token")) {
       navigate("/gv91-admin/dashboard");
     }
   }, [navigate]);
@@ -21,7 +21,7 @@ export default function AdminLogin() {
     setBusy(true);
     try {
       const { data } = await adminApi.post("/admin/login", { email: adminEmail, password });
-      localStorage.setItem("vehiq_admin_token", data.token);
+      localStorage.setItem("sharago_admin_token", data.token);
       if (data.first_login) {
         navigate("/gv91-admin/change-password");
       } else {

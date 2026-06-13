@@ -38,7 +38,7 @@ class BlogPostIn(BaseModel):
     excerpt: str = ""
     content: str = ""
     cover_image: Optional[str] = None
-    author: str = "Zespół VEHIQ"
+    author: str = "Zespół Sharago"
     tags: List[str] = Field(default_factory=list)
     published: bool = False
     meta_title: Optional[str] = None
@@ -100,7 +100,7 @@ def _public_post(p: dict) -> dict:
         "excerpt": p.get("excerpt"),
         "content": p.get("content"),
         "cover_image": p.get("cover_image"),
-        "author": p.get("author") or "Zespół VEHIQ",
+        "author": p.get("author") or "Zespół Sharago",
         "tags": p.get("tags") or [],
         "published": bool(p.get("published")),
         "published_at": p.get("published_at"),
@@ -164,8 +164,8 @@ async def blog_rss_feed():
     now_rfc = format_datetime(datetime.now(timezone.utc))
     items_xml: List[str] = []
     for p in posts:
-        link = f"https://vehiq.pl/blog/{p.get('slug', '')}"
-        author = p.get("author") or "Zespół VEHIQ"
+        link = f"https://sharago.pl/blog/{p.get('slug', '')}"
+        author = p.get("author") or "Zespół Sharago"
         item = f"""    <item>
       <title>{xml_escape(p.get('title') or '')}</title>
       <link>{xml_escape(link)}</link>
@@ -183,12 +183,12 @@ async def blog_rss_feed():
     body = f"""<?xml version="1.0" encoding="UTF-8"?>
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:dc="http://purl.org/dc/elements/1.1/">
   <channel>
-    <title>VEHIQ Blog</title>
-    <link>https://vehiq.pl</link>
-    <description>Porady, historie i nowości dla właścicieli pojazdów — od zespołu VEHIQ.</description>
+    <title>Sharago Blog</title>
+    <link>https://sharago.pl</link>
+    <description>Porady, historie i nowości dla właścicieli pojazdów — od zespołu Sharago.</description>
     <language>pl-PL</language>
     <lastBuildDate>{now_rfc}</lastBuildDate>
-    <atom:link href="https://vehiq.pl/api/blog/feed.xml" rel="self" type="application/rss+xml" />
+    <atom:link href="https://sharago.pl/api/blog/feed.xml" rel="self" type="application/rss+xml" />
 {chr(10).join(items_xml)}
   </channel>
 </rss>
@@ -271,7 +271,7 @@ async def admin_create(payload: BlogPostIn, admin=Depends(get_admin)):
         "excerpt": _normalise_excerpt(payload.excerpt),
         "content": payload.content or "",
         "cover_image": payload.cover_image,
-        "author": (payload.author or "Zespół VEHIQ").strip() or "Zespół VEHIQ",
+        "author": (payload.author or "Zespół Sharago").strip() or "Zespół Sharago",
         "tags": [t.strip() for t in (payload.tags or []) if t and t.strip()],
         "published": bool(payload.published),
         "published_at": now if payload.published else None,

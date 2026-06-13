@@ -12,7 +12,7 @@ from db_helper import get_db
 from email_service import send_email, _wrap_html, _btn
 
 logger = logging.getLogger(__name__)
-APP_URL = os.environ.get("APP_URL", "https://vehiq.pl")
+APP_URL = os.environ.get("APP_URL", "https://sharago.pl")
 RUN_INTERVAL_SEC = int(os.environ.get("RETENTION_INTERVAL_SEC", "21600"))  # 6h
 
 
@@ -22,13 +22,13 @@ def _tpl_d1(name: str, lang: str):
     if lang == "en":
         subject = "Your garage is waiting — add your first vehicle"
         body = f"""<h2 style="font-family:Georgia,serif;color:#0D0F1A;font-size:26px;margin:0 0 12px;">Hi {name},</h2>
-<p>Your VEHIQ garage is empty. Take 30 seconds to add your first vehicle and unlock service tracking, P&L and the AI Mechanic.</p>
+<p>Your Sharago garage is empty. Take 30 seconds to add your first vehicle and unlock service tracking, P&L and the AI Mechanic.</p>
 {_btn("Add my first vehicle", f"{APP_URL}/garage/new")}
 <p style="color:#666;font-size:13px;">If you'd rather explore first, <a href="{APP_URL}/garage" style="color:#C9A84C;">go to your garage</a>.</p>"""
     else:
         subject = "Twój garaż czeka — dodaj pierwszy pojazd"
         body = f"""<h2 style="font-family:Georgia,serif;color:#0D0F1A;font-size:26px;margin:0 0 12px;">Cześć {name},</h2>
-<p>Twój garaż VEHIQ jest pusty. Dodaj pierwszy pojazd w 30 sekund i odblokuj historię serwisową, P&L oraz AI Mechanika.</p>
+<p>Twój garaż Sharago jest pusty. Dodaj pierwszy pojazd w 30 sekund i odblokuj historię serwisową, P&L oraz AI Mechanika.</p>
 {_btn("Dodaj pierwszy pojazd", f"{APP_URL}/garage/new")}
 <p style="color:#666;font-size:13px;">Wolisz najpierw zobaczyć platformę? <a href="{APP_URL}/garage" style="color:#C9A84C;">Przejdź do garażu</a>.</p>"""
     return subject, _wrap_html(subject, body, lang)
@@ -40,12 +40,12 @@ def _tpl_d7(name: str, lang: str):
         subject = "How's your car doing?"
         body = f"""<h2 style="font-family:Georgia,serif;color:#0D0F1A;font-size:26px;margin:0 0 12px;">{name}, your garage misses you.</h2>
 <p>Anything new with your car? Log a service entry, update the mileage, or check what's on the marketplace.</p>
-{_btn("Open VEHIQ", f"{APP_URL}/garage")}"""
+{_btn("Open Sharago", f"{APP_URL}/garage")}"""
     else:
         subject = "Co słychać u Twojego auta?"
         body = f"""<h2 style="font-family:Georgia,serif;color:#0D0F1A;font-size:26px;margin:0 0 12px;">{name}, Twój garaż za Tobą tęskni.</h2>
 <p>Coś nowego u Twojego auta? Dodaj wpis serwisowy, zaktualizuj przebieg lub zobacz nowości w marketplace.</p>
-{_btn("Otwórz VEHIQ", f"{APP_URL}/garage")}"""
+{_btn("Otwórz Sharago", f"{APP_URL}/garage")}"""
     return subject, _wrap_html(subject, body, lang)
 
 
@@ -55,7 +55,7 @@ def _tpl_monthly(name: str, lang: str, stats: dict, month_label: str):
     spend = stats.get("total_spent", 0)
     new_listings = stats.get("new_listings", 0)
     if lang == "en":
-        subject = f"Your VEHIQ in {month_label} — summary"
+        subject = f"Your Sharago in {month_label} — summary"
         body = f"""<h2 style="font-family:Georgia,serif;color:#0D0F1A;font-size:26px;margin:0 0 12px;">Hi {name},</h2>
 <p>Here's your {month_label} summary:</p>
 <ul style="color:#222;line-height:1.9;">
@@ -65,7 +65,7 @@ def _tpl_monthly(name: str, lang: str, stats: dict, month_label: str):
 </ul>
 {_btn("Open my garage", f"{APP_URL}/garage")}"""
     else:
-        subject = f"Twoje VEHIQ w {month_label} — podsumowanie"
+        subject = f"Twoje Sharago w {month_label} — podsumowanie"
         body = f"""<h2 style="font-family:Georgia,serif;color:#0D0F1A;font-size:26px;margin:0 0 12px;">Cześć {name},</h2>
 <p>Oto Twoje podsumowanie za {month_label}:</p>
 <ul style="color:#222;line-height:1.9;">

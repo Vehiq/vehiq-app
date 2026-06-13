@@ -65,7 +65,7 @@ export default function BlogPost() {
 
   const copyLink = async () => {
     try {
-      const link = `https://vehiq.pl/blog/${slug}`;
+      const link = `https://sharago.pl/blog/${slug}`;
       await navigator.clipboard.writeText(link);
       setCopied(true);
       setTimeout(() => setCopied(false), 1800);
@@ -77,12 +77,12 @@ export default function BlogPost() {
 
   // Build head metadata (safe when post is null — hook is always called).
   const metaTitle = post
-    ? post.meta_title || `${post.title} — Blog VEHIQ`
-    : "Blog VEHIQ";
+    ? post.meta_title || `${post.title} — Blog Sharago`
+    : "Blog Sharago";
   const metaDesc = post
     ? post.meta_description || post.excerpt || ""
     : "";
-  const canonical = `https://vehiq.pl/blog/${slug}`;
+  const canonical = `https://sharago.pl/blog/${slug}`;
   useDocumentHead({
     title: metaTitle,
     description: metaDesc,
@@ -129,7 +129,7 @@ export default function BlogPost() {
           </button>
           <Link to="/" className="flex items-center gap-2">
             <div className="h-8 w-8 rounded-md bg-vehiq-gold flex items-center justify-center text-vehiq-bg font-bold">V</div>
-            <span className="vehiq-display tracking-wider">VEHIQ</span>
+            <span className="vehiq-display tracking-wider">Sharago</span>
           </Link>
           <button
             onClick={copyLink}
@@ -144,7 +144,7 @@ export default function BlogPost() {
       <article className="max-w-3xl mx-auto px-4 md:px-6 py-10 space-y-8">
         <header className="space-y-4">
           <Link to="/blog" className="text-xs uppercase tracking-widest text-vehiq-gold inline-flex items-center gap-1.5" data-testid="blog-post-breadcrumb">
-            <BookOpen size={11} /> Blog VEHIQ
+            <BookOpen size={11} /> Blog Sharago
           </Link>
           <h1 className="vehiq-display text-4xl sm:text-5xl leading-tight" data-testid="blog-post-title">{post.title}</h1>
           {post.excerpt && (
@@ -184,9 +184,9 @@ export default function BlogPost() {
           className="vehiq-card p-8 border-vehiq-gold/40 text-center space-y-3 mt-10"
           data-testid="blog-post-cta"
         >
-          <div className="vehiq-overline">VEHIQ — Twój wirtualny garaż</div>
+          <div className="vehiq-overline">Sharago — Twój wirtualny garaż</div>
           <h3 className="vehiq-display text-2xl text-vehiq-text">
-            Zarządzaj swoim autem w VEHIQ
+            Zarządzaj swoim autem w Sharago
           </h3>
           <p className="text-sm text-vehiq-muted max-w-md mx-auto">
             Historia serwisowa, koszty, przebieg, ogłoszenia i społeczność — wszystko w jednym miejscu. Darmowa rejestracja, bez karty.

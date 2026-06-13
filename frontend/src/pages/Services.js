@@ -63,7 +63,7 @@ export default function Services() {
     <div className="space-y-6 animate-fade-in" data-testid="services-page">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <div className="vehiq-overline">VEHIQ Network</div>
+          <div className="vehiq-overline">Sharago Network</div>
           <h1 className="vehiq-display text-4xl sm:text-5xl text-vehiq-text mt-1">{t("services.title")}</h1>
           <p className="text-sm text-vehiq-muted mt-1 max-w-2xl">{t("services.subtitle")}</p>
         </div>

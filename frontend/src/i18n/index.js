@@ -17,7 +17,7 @@ i18n
     detection: {
       order: ["localStorage", "navigator"],
       caches: ["localStorage"],
-      lookupLocalStorage: "vehiq_lang",
+      lookupLocalStorage: "sharago_lang",
     },
     interpolation: { escapeValue: false },
     react: { useSuspense: false },

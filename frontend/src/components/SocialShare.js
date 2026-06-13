@@ -46,11 +46,11 @@ export default function SocialShare({ vehicle, url, compact = false }) {
   };
 
   const label = lang === "en"
-    ? `Check out my ${vehicle.make} ${vehicle.model}${vehicle.year ? " " + vehicle.year : ""} on VEHIQ!`
-    : `Zobacz moje ${vehicle.make} ${vehicle.model}${vehicle.year ? " " + vehicle.year : ""} na VEHIQ!`;
+    ? `Check out my ${vehicle.make} ${vehicle.model}${vehicle.year ? " " + vehicle.year : ""} on Sharago!`
+    : `Zobacz moje ${vehicle.make} ${vehicle.model}${vehicle.year ? " " + vehicle.year : ""} na Sharago!`;
 
   const fbHref = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`;
-  const xHref = `https://twitter.com/intent/tweet?text=${encodeURIComponent(label)}&url=${encodeURIComponent(url)}&hashtags=VEHIQ,motoryzacja,auto`;
+  const xHref = `https://twitter.com/intent/tweet?text=${encodeURIComponent(label)}&url=${encodeURIComponent(url)}&hashtags=Sharago,motoryzacja,auto`;
   const waHref = `https://wa.me/?text=${encodeURIComponent(label + " " + url)}`;
 
   const btn = "inline-flex items-center gap-2 text-xs px-3 py-2 rounded border border-vehiq-border hover:border-vehiq-gold hover:text-vehiq-gold text-vehiq-text transition-colors";

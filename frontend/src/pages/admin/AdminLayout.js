@@ -21,11 +21,11 @@ export default function AdminLayout() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (!localStorage.getItem("vehiq_admin_token")) navigate("/gv91-admin");
+    if (!localStorage.getItem("sharago_admin_token")) navigate("/gv91-admin");
   }, [navigate]);
 
   const logout = () => {
-    localStorage.removeItem("vehiq_admin_token");
+    localStorage.removeItem("sharago_admin_token");
     navigate("/gv91-admin");
   };
 
@@ -33,7 +33,7 @@ export default function AdminLayout() {
     <div className="min-h-screen flex bg-[#0a0b13] text-[#F4F1EC]" data-testid="admin-layout">
       <aside className="w-60 bg-[#0F1120] border-r border-[#222540] flex flex-col">
         <div className="p-4 border-b border-[#222540]">
-          <div className="text-xs uppercase tracking-[0.3em] text-[#C9A84C]">VEHIQ Admin</div>
+          <div className="text-xs uppercase tracking-[0.3em] text-[#C9A84C]">Sharago Admin</div>
         </div>
         <nav className="flex-1 p-3 space-y-1">
           {SECTIONS.map(({ to, icon: Icon, label }) => (

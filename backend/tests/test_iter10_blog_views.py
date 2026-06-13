@@ -150,7 +150,7 @@ class TestBlogAdminCRUD:
 
     def test_slug_dedupe(self, admin_headers):
         # Create another post with same auto-slug source title -> should dedupe
-        title = "Pierwszy wpis na blogu VEHIQ"  # same as seed post title
+        title = "Pierwszy wpis na blogu Sharago"  # same as seed post title
         r = requests.post(
             f"{API}/admin/blog",
             headers=admin_headers,

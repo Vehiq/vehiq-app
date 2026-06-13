@@ -8,13 +8,13 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   const fetchMe = useCallback(async () => {
-    const token = localStorage.getItem("vehiq_token");
+    const token = localStorage.getItem("sharago_token");
     if (!token) { setLoading(false); return; }
     try {
       const { data } = await api.get("/auth/me");
       setUser(data);
     } catch {
-      localStorage.removeItem("vehiq_token");
+      localStorage.removeItem("sharago_token");
       setUser(null);
     } finally {
       setLoading(false);
@@ -25,14 +25,14 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (email, password) => {
     const { data } = await api.post("/auth/login", { email, password });
-    localStorage.setItem("vehiq_token", data.token);
+    localStorage.setItem("sharago_token", data.token);
     setUser(data.user);
     return data.user;
   };
 
   const register = async (payload) => {
     const { data } = await api.post("/auth/register", payload);
-    localStorage.setItem("vehiq_token", data.token);
+    localStorage.setItem("sharago_token", data.token);
     setUser(data.user);
     return data.user;
   };
@@ -41,7 +41,7 @@ export const AuthProvider = ({ children }) => {
     const { data } = await api.post("/auth/google/session", null, {
       headers: { "X-Session-ID": sessionId },
     });
-    localStorage.setItem("vehiq_token", data.token);
+    localStorage.setItem("sharago_token", data.token);
     setUser(data.user);
     return data.user;
   };
@@ -53,7 +53,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   const logout = () => {
-    localStorage.removeItem("vehiq_token");
+    localStorage.removeItem("sharago_token");
     setUser(null);
   };
 

@@ -66,12 +66,12 @@ export default function Blog() {
   const hasMore = data && data.items.length < (data.total || 0);
 
   useDocumentHead({
-    title: "Blog VEHIQ — porady, historie i nowości",
-    description: "Blog VEHIQ — porady dla właścicieli pojazdów, historie z garażu, nowości o platformie.",
-    canonical: "https://vehiq.pl/blog",
+    title: "Blog Sharago — porady, historie i nowości",
+    description: "Blog Sharago — porady dla właścicieli pojazdów, historie z garażu, nowości o platformie.",
+    canonical: "https://sharago.pl/blog",
     ogType: "website",
-    rssFeed: "https://vehiq.pl/api/blog/feed.xml",
-    rssTitle: "VEHIQ Blog",
+    rssFeed: "https://sharago.pl/api/blog/feed.xml",
+    rssTitle: "Sharago Blog",
   });
 
   return (
@@ -80,7 +80,7 @@ export default function Blog() {
         <div className="max-w-5xl mx-auto px-4 md:px-6 py-3 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-2" data-testid="blog-home-link">
             <div className="h-8 w-8 rounded-md bg-vehiq-gold flex items-center justify-center text-vehiq-bg font-bold">V</div>
-            <span className="vehiq-display tracking-wider">VEHIQ</span>
+            <span className="vehiq-display tracking-wider">Sharago</span>
           </Link>
           <Link to="/register" className="vehiq-btn-secondary text-xs" data-testid="blog-cta-register">Załóż garaż</Link>
         </div>
@@ -88,10 +88,10 @@ export default function Blog() {
 
       <main className="max-w-5xl mx-auto px-4 md:px-6 py-10 space-y-10">
         <section className="space-y-3">
-          <div className="vehiq-overline inline-flex items-center gap-2"><BookOpen size={12}/> Blog VEHIQ</div>
+          <div className="vehiq-overline inline-flex items-center gap-2"><BookOpen size={12}/> Blog Sharago</div>
           <h1 className="vehiq-display text-4xl sm:text-5xl lg:text-6xl">Porady, historie i nowości</h1>
           <p className="text-vehiq-muted max-w-2xl">
-            Artykuły dla właścicieli pojazdów — serwis, ekonomia eksploatacji, kupno i sprzedaż, projekty garażowe oraz to, co dzieje się w platformie VEHIQ.
+            Artykuły dla właścicieli pojazdów — serwis, ekonomia eksploatacji, kupno i sprzedaż, projekty garażowe oraz to, co dzieje się w platformie Sharago.
           </p>
         </section>
 
@@ -112,7 +112,7 @@ export default function Blog() {
           <EmptyState
             icon={BookOpen}
             title="Wkrótce pojawią się tu artykuły"
-            description="Zespół VEHIQ pracuje nad pierwszymi wpisami. Zajrzyj za chwilę albo załóż garaż już teraz."
+            description="Zespół Sharago pracuje nad pierwszymi wpisami. Zajrzyj za chwilę albo załóż garaż już teraz."
             action={<Link to="/register" className="vehiq-btn-primary">Załóż konto</Link>}
             dataTestId="blog-empty"
           />
@@ -140,7 +140,7 @@ export default function Blog() {
         )}
 
         <footer className="text-center pt-10 pb-6 text-xs text-vehiq-muted">
-          <Link to="/" className="hover:text-vehiq-gold">Powrót do VEHIQ</Link>
+          <Link to="/" className="hover:text-vehiq-gold">Powrót do Sharago</Link>
         </footer>
       </main>
     </div>

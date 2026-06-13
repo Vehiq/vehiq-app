@@ -1,5 +1,5 @@
 """
-VEHIQ Iteration 4 backend tests.
+Sharago Iteration 4 backend tests.
 Covers:
   - Bug fix 1: DELETE /api/forum/threads/{id} (owner)
   - Bug fix 2: GET /api/admin/profile + password_changes audit history

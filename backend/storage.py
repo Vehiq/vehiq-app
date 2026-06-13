@@ -1,4 +1,4 @@
-"""Cloudflare R2 storage abstraction + image processing for VEHIQ.
+"""Cloudflare R2 storage abstraction + image processing for Sharago.
 
 Settings are loaded from MongoDB `app_settings` collection (admin enters via
 /gv91-admin → API Keys). When R2 is not configured, get_storage() returns None

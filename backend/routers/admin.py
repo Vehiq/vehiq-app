@@ -210,18 +210,18 @@ async def admin_forgot_password(payload: ForgotPasswordIn, request: Request):
         if origin:
             from urllib.parse import urlparse
             p = urlparse(origin)
-            app_url = f"{p.scheme}://{p.netloc}" if p.scheme and p.netloc else os.environ.get("APP_URL", "https://vehiq.pl")
+            app_url = f"{p.scheme}://{p.netloc}" if p.scheme and p.netloc else os.environ.get("APP_URL", "https://sharago.pl")
         else:
-            app_url = os.environ.get("APP_URL", "https://vehiq.pl")
+            app_url = os.environ.get("APP_URL", "https://sharago.pl")
         link = f"{app_url}/gv91-admin/reset-password?token={token}"
         body = (
-            f'<h2 style="font-family:Georgia,serif;color:#0D0F1A;font-size:24px;margin:0 0 12px;">VEHIQ Admin — reset hasła</h2>'
-            f'<p>Otrzymaliśmy prośbę o zresetowanie hasła do panelu administracyjnego VEHIQ.</p>'
+            f'<h2 style="font-family:Georgia,serif;color:#0D0F1A;font-size:24px;margin:0 0 12px;">Sharago Admin — reset hasła</h2>'
+            f'<p>Otrzymaliśmy prośbę o zresetowanie hasła do panelu administracyjnego Sharago.</p>'
             f'<p><strong>Link wygasa za 15 minut.</strong> Jeśli to nie Ty — zignoruj tę wiadomość.</p>'
             f'{_btn("Ustaw nowe hasło", link)}'
             f'<p style="color:#666;font-size:12px;word-break:break-all;">Link: {link}</p>'
         )
-        subject = "VEHIQ Admin — reset hasła"
+        subject = "Sharago Admin — reset hasła"
         html = _wrap_html(subject, body, "pl")
         await send_email(ADMIN_EMAIL, subject, html)
     except Exception:

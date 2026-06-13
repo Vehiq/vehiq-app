@@ -35,7 +35,7 @@ export default function AdminResetPassword() {
     try {
       await adminApi.post("/admin/reset-password", { token, new_password: pwd });
       toast.success("Password reset. Please log in.");
-      localStorage.removeItem("vehiq_admin_token");
+      localStorage.removeItem("sharago_admin_token");
       navigate("/gv91-admin");
     } catch (e) {
       toast.error(e?.response?.data?.detail || "Reset failed");

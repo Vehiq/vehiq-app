@@ -1,4 +1,4 @@
-"""VEHIQ Phase A (Iteration 8) backend tests — 20 cases.
+"""Sharago Phase A (Iteration 8) backend tests — 20 cases.
 
 Scope:
   - apiErrorMessage helper indirect: 422 responses are well-formed (frontend-side render coverage).

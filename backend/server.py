@@ -1,4 +1,4 @@
-"""VEHIQ Backend - FastAPI application"""
+"""Sharago Backend - FastAPI application"""
 from fastapi import FastAPI, APIRouter, HTTPException, Depends, Request, UploadFile, File, Header
 from fastapi.responses import JSONResponse
 from dotenv import load_dotenv
@@ -89,7 +89,7 @@ from routers import public_share as public_share_router
 from routers import blog as blog_router
 from seed import seed_database
 
-app = FastAPI(title="VEHIQ API", version=APP_VERSION)
+app = FastAPI(title="Sharago API", version=APP_VERSION)
 
 api_router = APIRouter(prefix="/api")
 
@@ -121,7 +121,7 @@ class VisitTrackingMiddleware(BaseHTTPMiddleware):
 
 @api_router.get("/")
 async def root():
-    return {"message": "VEHIQ API is running", "version": APP_VERSION}
+    return {"message": "Sharago API is running", "version": APP_VERSION}
 
 @api_router.get("/health")
 async def health():
@@ -184,8 +184,8 @@ app.include_router(api_router)
 
 # ---- CORS configuration (production-ready) ----
 DEFAULT_ALLOWED_ORIGINS = [
-    "https://vehiq.pl",
-    "https://www.vehiq.pl",
+    "https://sharago.pl",
+    "https://www.sharago.pl",
     "http://localhost:3000",
     "http://localhost:5173",  # Vite dev (in case)
 ]
@@ -270,7 +270,7 @@ async def on_startup():
                 logger.info("SMTP migration: smtp_port 587 → 465 (Render Free compat)")
         except Exception as e:
             logger.warning(f"smtp_port migration failed: {e}")
-    logger.info(f"VEHIQ backend ready. version={APP_VERSION}")
+    logger.info(f"Sharago backend ready. version={APP_VERSION}")
 
 
 @app.on_event("shutdown")

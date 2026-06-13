@@ -8,7 +8,7 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        // VEHIQ brand palette
+        // Sharago brand palette
         "vehiq-bg": "#0D0F1A",
         "vehiq-card": "#161829",
         "vehiq-nav": "#1E2035",

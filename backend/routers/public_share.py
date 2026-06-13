@@ -19,7 +19,7 @@ from db_helper import get_db
 
 router = APIRouter(tags=["public-share"])
 
-APP_URL = os.environ.get("APP_URL", "https://vehiq.pl").rstrip("/")
+APP_URL = os.environ.get("APP_URL", "https://sharago.pl").rstrip("/")
 R2_PUBLIC_URL = os.environ.get("R2_PUBLIC_URL", "").rstrip("/")
 
 
@@ -126,7 +126,7 @@ _OG_TEMPLATE = """<!DOCTYPE html>
 <meta name="description" content="{description}">
 
 <meta property="og:type" content="article">
-<meta property="og:site_name" content="VEHIQ">
+<meta property="og:site_name" content="Sharago">
 <meta property="og:title" content="{title}">
 <meta property="og:description" content="{description}">
 <meta property="og:image" content="{image}">
@@ -143,7 +143,7 @@ _OG_TEMPLATE = """<!DOCTYPE html>
 <body>
 <h1>{title}</h1>
 <p>{description}</p>
-<p><a href="{url}">Otwórz w VEHIQ</a></p>
+<p><a href="{url}">Otwórz w Sharago</a></p>
 </body>
 </html>"""
 
@@ -157,9 +157,9 @@ async def og_vehicle(short_id: str):
     """
     v = await _find_vehicle_by_short_id(short_id)
     if not v:
-        # Return a generic OG page so social shares of dead links still show VEHIQ brand
+        # Return a generic OG page so social shares of dead links still show Sharago brand
         h = _OG_TEMPLATE.format(
-            title="VEHIQ — Wirtualny garaż",
+            title="Sharago — Wirtualny garaż",
             description="Premium platforma dla właścicieli pojazdów. Historia serwisowa, AI mechanik, giełda.",
             image=f"{APP_URL}/og-default.jpg",
             url=f"{APP_URL}/v/{html_lib.escape(short_id)}",
@@ -169,7 +169,7 @@ async def og_vehicle(short_id: str):
     if privacy.get("profile_visible") is False:
         return HTMLResponse(
             _OG_TEMPLATE.format(
-                title="VEHIQ — Profil prywatny",
+                title="Sharago — Profil prywatny",
                 description="Ten pojazd jest prywatny.",
                 image=f"{APP_URL}/og-default.jpg",
                 url=f"{APP_URL}/v/{v['id'][:8]}",
@@ -179,7 +179,7 @@ async def og_vehicle(short_id: str):
     make = v.get("make") or ""
     model = v.get("model") or ""
     year = v.get("year") or ""
-    title = f"{make} {model} {year}".strip(" -") + " — VEHIQ"
+    title = f"{make} {model} {year}".strip(" -") + " — Sharago"
     bits = []
     if year:
         bits.append(str(year))
@@ -187,7 +187,7 @@ async def og_vehicle(short_id: str):
         bits.append(f"{v['mileage_current']:,} km".replace(",", " "))
     if v.get("fuel"):
         bits.append(v["fuel"])
-    description = " · ".join(bits) or "Profil pojazdu w wirtualnym garażu VEHIQ"
+    description = " · ".join(bits) or "Profil pojazdu w wirtualnym garażu Sharago"
     photos = v.get("photos") or []
     idx = min(v.get("cover_photo_index") or 0, max(0, len(photos) - 1))
     image = _photo_url(photos[idx]) if photos else f"{APP_URL}/og-default.jpg"

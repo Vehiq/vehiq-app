@@ -26,7 +26,7 @@ export default function AddService() {
     if (q.length < 5) { toast.error(t("services.fillAddress")); return; }
     setGeoBusy(true);
     try {
-      const r = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=1&accept-language=pl`, { headers: { "User-Agent": "VEHIQ/1.0" } });
+      const r = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=1&accept-language=pl`, { headers: { "User-Agent": "Sharago/1.0" } });
       const data = await r.json();
       if (Array.isArray(data) && data.length > 0) {
         setLoc("lat", parseFloat(data[0].lat));

@@ -16,7 +16,7 @@ import { useEffect } from "react";
  *   useDocumentHead({
  *     title: "Page title",
  *     description: "...",
- *     canonical: "https://vehiq.pl/blog/foo",
+ *     canonical: "https://sharago.pl/blog/foo",
  *     ogImage: "https://...",
  *     ogType: "article",
  *   });

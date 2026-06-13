@@ -47,7 +47,7 @@ export default function VehicleShort() {
           <CarIcon size={48} className="mx-auto text-vehiq-gold/40" />
           <h1 className="vehiq-display text-3xl text-vehiq-text mt-4">{t("share.notFoundTitle")}</h1>
           <p className="text-vehiq-muted mt-2">{t("share.notFoundDesc")}</p>
-          <Link to="/" className="vehiq-btn-primary inline-block mt-6">VEHIQ</Link>
+          <Link to="/" className="vehiq-btn-primary inline-block mt-6">Sharago</Link>
         </div>
       </div>
     );

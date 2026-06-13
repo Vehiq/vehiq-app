@@ -4,7 +4,7 @@
 
 @layer base {
   :root {
-    /* shadcn tokens mapped to VEHIQ dark palette */
+    /* shadcn tokens mapped to Sharago dark palette */
     --background: 230 31% 8%;          /* #0D0F1A */
     --foreground: 36 36% 94%;          /* #F4F1EC */
     --card: 232 30% 12%;               /* #161829 */
@@ -26,7 +26,7 @@
     --ring: 44 53% 54%;
     --radius: 0.5rem;
   }
-  .dark { /* same as :root for VEHIQ dark-only */
+  .dark { /* same as :root for Sharago dark-only */
     --background: 230 31% 8%;
     --foreground: 36 36% 94%;
     --card: 232 30% 12%;

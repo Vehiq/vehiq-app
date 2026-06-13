@@ -1,4 +1,4 @@
-"""VEHIQ Phase B backend tests (iter9):
+"""Sharago Phase B backend tests (iter9):
 - Units persistence on /auth/me
 - Public vehicle short-id lookup
 - QR PNG endpoint

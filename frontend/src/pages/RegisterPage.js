@@ -23,7 +23,7 @@ export default function RegisterPage() {
     }
     setBusy(true);
     try {
-      await register({ ...form, accept_tos: true, accept_marketing: acceptMarketing, language: localStorage.getItem("vehiq_lang") || "pl" });
+      await register({ ...form, accept_tos: true, accept_marketing: acceptMarketing, language: localStorage.getItem("sharago_lang") || "pl" });
       toast.success(t("common.success"));
       navigate("/onboarding");
     } catch (err) {

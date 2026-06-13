@@ -1,4 +1,4 @@
-"""VEHIQ Iteration 3 backend tests — admin auto-seed, marketplace filters, forum vehicle/tags, legal date, messages."""
+"""Sharago Iteration 3 backend tests — admin auto-seed, marketplace filters, forum vehicle/tags, legal date, messages."""
 import os
 import uuid
 import pytest

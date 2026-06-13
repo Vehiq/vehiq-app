@@ -1,4 +1,4 @@
-"""VEHIQ Iteration 4 round 2 backend tests.
+"""Sharago Iteration 4 round 2 backend tests.
 Covers:
 - GET /api/vehicles & /api/vehicles/{id} include `active_listing`
 - POST /api/vehicles/{id}/share validates platform + records shares

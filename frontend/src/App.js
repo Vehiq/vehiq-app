@@ -16,6 +16,7 @@ import Garage from "@/pages/Garage";
 import AddVehicle from "@/pages/AddVehicle";
 import VehicleProfile from "@/pages/VehicleProfile";
 import Marketplace from "@/pages/Marketplace";
+import Rentals from "@/pages/Rentals";
 import MyListings from "@/pages/MyListings";
 import CreateListing from "@/pages/CreateListing";
 import ListingDetail from "@/pages/ListingDetail";
@@ -64,8 +65,8 @@ import { PasswordResetRequest, PasswordResetConfirm } from "@/pages/PasswordRese
 
 function PageTracker() {
   useEffect(() => {
-    const sid = localStorage.getItem("vehiq_session") || crypto.randomUUID();
-    localStorage.setItem("vehiq_session", sid);
+    const sid = localStorage.getItem("sharago_session") || crypto.randomUUID();
+    localStorage.setItem("sharago_session", sid);
     const send = () => {
       api.post("/track", {
         path: window.location.pathname,
@@ -170,6 +171,8 @@ function App() {
             <Route path="/marketplace/messages" element={<Messages />} />
             <Route path="/marketplace/new" element={<CreateListing />} />
             <Route path="/marketplace/:id" element={<ListingDetail />} />
+            <Route path="/wynajem" element={<Rentals />} />
+            <Route path="/rentals" element={<Rentals />} />
             <Route path="/forum" element={<Forum />} />
             <Route path="/forum/new" element={<NewThread />} />
             <Route path="/forum/:id" element={<ThreadDetail />} />

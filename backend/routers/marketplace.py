@@ -21,8 +21,30 @@ class DesiredSwap(BaseModel):
     condition: Optional[str] = None  # any | running | clean
 
 
+class RentalDetails(BaseModel):
+    """Rental-specific fields (only relevant when category is rental_car / rental_garage)."""
+    price_per_day: Optional[float] = None
+    price_per_week: Optional[float] = None
+    price_per_month: Optional[float] = None
+    currency: str = "PLN"
+    availability_text: Optional[str] = None
+    pickup_location: Optional[str] = None  # rental_car
+    garage_address: Optional[str] = None   # rental_garage
+    requirements: Optional[str] = None
+    owner_type: Optional[str] = None       # private | business
+    business_name: Optional[str] = None
+
+
+RENTAL_CATEGORIES = {"rental_car", "rental_garage"}
+ALL_CATEGORIES = RENTAL_CATEGORIES  # future: extend here for non-rental categories
+
+
 class ListingIn(BaseModel):
     type: str = "car"  # car | parts | swap | full_parts | project | rental
+    # New field parallel to `type` — initially used for rental classification
+    # (rental_car / rental_garage). Leave None for classic listings — `type` stays
+    # the source of truth there. See docs/listings.md for the migration plan.
+    category: Optional[str] = None
     title: str = ""
     description: Optional[str] = ""
     price: float = 0
@@ -41,6 +63,8 @@ class ListingIn(BaseModel):
     parts_subcategory: Optional[str] = None  # subcategory id
     # Swap
     desired_swaps: Optional[List[DesiredSwap]] = None  # max 5
+    # Rental-only nested object
+    rental: Optional[RentalDetails] = None
 
 
 class MessageIn(BaseModel):
@@ -56,6 +80,7 @@ def _strip_owner(l: dict) -> dict:
 @router.get("/listings")
 async def list_listings(
     type: Optional[str] = None,
+    category: Optional[str] = None,
     q: Optional[str] = None,
     make: Optional[str] = None,
     model: Optional[str] = None,
@@ -79,6 +104,13 @@ async def list_listings(
         # Allow comma-separated multi-select e.g. ?type=car,parts
         types = [t.strip() for t in type.split(",") if t.strip()]
         f["type"] = {"$in": types} if len(types) > 1 else types[0]
+    if category:
+        # `rental` shorthand → matches both rental_car + rental_garage
+        if category == "rental":
+            f["category"] = {"$in": ["rental_car", "rental_garage"]}
+        else:
+            cats = [c.strip() for c in category.split(",") if c.strip()]
+            f["category"] = {"$in": cats} if len(cats) > 1 else cats[0]
     if make:
         f["make"] = {"$regex": f"^{make}$", "$options": "i"}
     if model:
@@ -118,7 +150,8 @@ async def list_listings(
         "_id": 0,
         "id": 1, "title": 1, "price": 1,
         "make": 1, "model": 1, "year": 1, "mileage": 1,
-        "type": 1, "status": 1, "condition": 1,
+        "type": 1, "category": 1, "status": 1, "condition": 1,
+        "rental": 1,
         "photos": {"$slice": 1},  # only first photo for card thumbnail
         "location": 1, "city": 1,
         "created_at": 1, "featured": 1,
@@ -176,8 +209,36 @@ async def create_listing(payload: ListingIn, user=Depends(get_current_user)):
     valid_types = {"car", "parts", "swap", "full_parts", "project", "rental"}
     if payload.type not in valid_types:
         raise HTTPException(status_code=400, detail=f"Invalid type. Allowed: {sorted(valid_types)}")
+    if payload.category and payload.category not in RENTAL_CATEGORIES:
+        raise HTTPException(status_code=400, detail=f"Invalid category. Allowed: {sorted(RENTAL_CATEGORIES)}")
     if payload.desired_swaps and len(payload.desired_swaps) > 5:
         raise HTTPException(status_code=400, detail="Max 5 desired swaps")
+
+    # Free-tier limit for rental listings — 1 active rental_car + rental_garage combined.
+    # Premium / B2B users skip this check.
+    is_rental = payload.category in RENTAL_CATEGORIES
+    if is_rental:
+        plan = (user.get("plan") or "free").lower()
+        is_business = (
+            (payload.rental and payload.rental.owner_type == "business")
+            or user.get("business")
+            or plan in {"premium", "business", "b2b"}
+        )
+        if not is_business and plan == "free":
+            active_rentals = await db.listings.count_documents({
+                "user_id": user["id"],
+                "status": "active",
+                "category": {"$in": list(RENTAL_CATEGORIES)},
+            })
+            if active_rentals >= 1:
+                raise HTTPException(
+                    status_code=402,
+                    detail={
+                        "code": "rental_limit_free",
+                        "message": "Free tier limited to 1 active rental listing. Upgrade to Premium for unlimited rentals.",
+                    },
+                )
+
     settings = await db.app_settings.find_one({"key": "max_listings_per_user"})
     max_l = int(settings["value"]) if settings else 10
     count = await db.listings.count_documents({"user_id": user["id"], "status": "active"})

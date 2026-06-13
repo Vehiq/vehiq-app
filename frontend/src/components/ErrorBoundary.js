@@ -11,7 +11,7 @@ export default class ErrorBoundary extends React.Component {
   }
   componentDidCatch(error, info) {
     // eslint-disable-next-line no-console
-    console.error("VEHIQ boundary caught:", error, info);
+    console.error("Sharago boundary caught:", error, info);
   }
   render() {
     if (this.state.hasError) {

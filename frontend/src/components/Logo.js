@@ -1,5 +1,5 @@
 /**
- * VEHIQ wordmark — "Veh" in light/white, "IQ" in amber gold (#F59E0B).
+ * Sharago wordmark — "Shar" in light/white, "ago" in amber gold (#F59E0B).
  * Use everywhere a text logo is rendered. Accepts a size variant for layout.
  */
 export default function Logo({ size = "md", showTagline = false, className = "" }) {
@@ -11,21 +11,21 @@ export default function Logo({ size = "md", showTagline = false, className = "" 
   }[size] || { box: "h-10 w-10 text-lg", word: "text-2xl" };
 
   return (
-    <div className={`inline-flex items-center gap-2 ${className}`} data-testid="vehiq-logo">
+    <div className={`inline-flex items-center gap-2 ${className}`} data-testid="sharago-logo">
       <div
         className={`${sizes.box} rounded-md bg-vehiq-gold flex items-center justify-center text-vehiq-bg font-bold`}
         aria-hidden="true"
       >
-        V
+        S
       </div>
       <div className="leading-none">
         <div className={`vehiq-display tracking-wider ${sizes.word}`}>
-          <span className="text-vehiq-text">Veh</span>
-          <span style={{ color: "#F59E0B" }}>IQ</span>
+          <span className="text-vehiq-text">Shar</span>
+          <span style={{ color: "#F59E0B" }}>ago</span>
         </div>
         {showTagline && (
           <div className="text-[10px] uppercase tracking-[0.25em] text-vehiq-gold mt-1">
-            Virtual Garage
+            Platforma motoryzacyjna
           </div>
         )}
       </div>

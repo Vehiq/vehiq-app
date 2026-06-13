@@ -6,7 +6,7 @@ export const API = `${BACKEND_URL}/api`;
 const api = axios.create({ baseURL: API });
 
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem("vehiq_token");
+  const token = localStorage.getItem("sharago_token");
   if (token) config.headers.Authorization = `Bearer ${token}`;
   return config;
 });
@@ -15,7 +15,7 @@ api.interceptors.response.use(
   (r) => r,
   (err) => {
     if (err?.response?.status === 401 && !window.location.pathname.startsWith("/gv91-admin")) {
-      localStorage.removeItem("vehiq_token");
+      localStorage.removeItem("sharago_token");
     }
     return Promise.reject(err);
   }

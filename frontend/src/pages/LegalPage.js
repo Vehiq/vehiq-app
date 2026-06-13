@@ -33,7 +33,7 @@ export default function LegalPage() {
         <div className="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-2">
             <div className="h-8 w-8 rounded-md bg-vehiq-gold flex items-center justify-center text-vehiq-bg font-bold">V</div>
-            <span className="vehiq-display text-2xl">VEHIQ</span>
+            <span className="vehiq-display text-2xl">Sharago</span>
           </Link>
           <LanguageSwitcher />
         </div>

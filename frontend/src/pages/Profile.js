@@ -40,7 +40,7 @@ export default function Profile() {
     try {
       await updateProfile(form);
       i18n.changeLanguage(form.language);
-      localStorage.setItem("vehiq_lang", form.language);
+      localStorage.setItem("sharago_lang", form.language);
       toast.success(t("common.success"));
     } catch { toast.error(t("common.error")); }
   };

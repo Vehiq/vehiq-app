@@ -15,7 +15,7 @@ export default function LanguageSwitcher({ compact = false }) {
   const current = i18n.language?.startsWith("en") ? "en" : "pl";
   const change = (lng) => {
     i18n.changeLanguage(lng);
-    localStorage.setItem("vehiq_lang", lng);
+    localStorage.setItem("sharago_lang", lng);
     setOpen(false);
   };
 

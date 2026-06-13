@@ -19,7 +19,7 @@ from email_service import (
 )
 
 router = APIRouter(prefix="/auth", tags=["auth"])
-APP_URL = os.environ.get("APP_URL", "https://vehiq.pl")
+APP_URL = os.environ.get("APP_URL", "https://sharago.pl")
 
 
 class RegisterIn(BaseModel):

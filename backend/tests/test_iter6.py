@@ -1,4 +1,4 @@
-"""Iter6 — VEHIQ bug fixes & changes regression tests.
+"""Iter6 — Sharago bug fixes & changes regression tests.
 Covers:
   BUG1 password reset (request always 200, confirm token works)
   BUG2 admin /test-email JSON shape (success/error/to)

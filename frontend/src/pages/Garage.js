@@ -34,7 +34,7 @@ export default function Dashboard() {
       {/* Header */}
       <div className="flex items-end justify-between flex-wrap gap-4">
         <div>
-          <div className="vehiq-overline">VEHIQ Garage</div>
+          <div className="vehiq-overline">Sharago Garage</div>
           <h1 className="vehiq-display text-4xl sm:text-5xl text-vehiq-text mt-1">{t("garage.title")}</h1>
           <p className="text-sm text-vehiq-muted mt-1">
             {lang === "en" ? `Welcome back, ${user?.name?.split(" ")[0]}` : `Witaj ponownie, ${user?.name?.split(" ")[0]}`}

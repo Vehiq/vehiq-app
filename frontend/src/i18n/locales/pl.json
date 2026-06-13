@@ -55,6 +55,7 @@
     "garage": "Garaż",
     "service": "Serwis",
     "marketplace": "Giełda",
+    "rentals": "Wynajem",
     "messages": "Wiadomości",
     "services": "Usługi",
     "events": "Wydarzenia",
@@ -66,8 +67,8 @@
   },
   "auth": {
     "loginTitle": "Witaj ponownie",
-    "loginSubtitle": "Zaloguj się do swojego garażu VEHIQ",
-    "registerTitle": "Stwórz konto VEHIQ",
+    "loginSubtitle": "Zaloguj się do swojego garażu Sharago",
+    "registerTitle": "Stwórz konto Sharago",
     "registerSubtitle": "Twój wirtualny garaż czeka",
     "email": "Adres e-mail",
     "password": "Hasło",
@@ -209,7 +210,7 @@
     "loss": "Strata"
   },
   "ai": {
-    "title": "AI Mechanik VEHIQ",
+    "title": "AI Mechanik Sharago",
     "subtitle": "Claude Sonnet 4.5 — z kontekstem Twojego pojazdu",
     "placeholder": "Opisz problem ze swoim pojazdem...",
     "send": "Wyślij",
@@ -321,7 +322,7 @@
   "userSearch": {
     "overline": "Społeczność",
     "title": "Znajdź użytkowników",
-    "subtitle": "Wyszukaj kierowców w społeczności VEHIQ po marce, modelu i roczniku pojazdu. Pokazujemy tylko pojazdy oznaczone jako publiczne.",
+    "subtitle": "Wyszukaj kierowców w społeczności Sharago po marce, modelu i roczniku pojazdu. Pokazujemy tylko pojazdy oznaczone jako publiczne.",
     "make": "Marka",
     "model": "Model",
     "yearFrom": "Rok od",
@@ -479,7 +480,7 @@
     "cookies": "Cookies",
     "marketplace": "Regulamin giełdy",
     "contact": "Kontakt",
-    "copyright": "© 2026 VEHIQ. Wszelkie prawa zastrzeżone."
+    "copyright": "© 2026 Sharago. Wszelkie prawa zastrzeżone."
   },
   "cookies": {
     "title": "Używamy plików cookies",
@@ -494,7 +495,7 @@
   },
   "onboarding": {
     "welcomeTitle": "Witaj w swoim wirtualnym garażu",
-    "welcomeDesc": "VEHIQ to centrum Twoich pojazdów — historia serwisowa, koszty, AI Mechanik i marketplace w jednym miejscu.",
+    "welcomeDesc": "Sharago to centrum Twoich pojazdów — historia serwisowa, koszty, AI Mechanik i marketplace w jednym miejscu.",
     "addFirstVehicle": "Dodaj pierwszy pojazd",
     "skipAndExplore": "Pomiń, eksploruj sam",
     "step": "Krok",
@@ -523,12 +524,12 @@
       "ai": { "title": "AI Mechanik", "desc": "Diagnoza problemów" },
       "marketplace": { "title": "Giełda", "desc": "Kup, sprzedaj, zamień" }
     },
-    "step1Title": "Witaj w VEHIQ",
+    "step1Title": "Witaj w Sharago",
     "step1Desc": "Twój wirtualny garaż premium. Wybierz język, by rozpocząć.",
     "step2Title": "Dodaj pierwszy pojazd",
     "step2Desc": "Twój garaż czeka — zacznij od swojego najważniejszego auta.",
     "step3Title": "Wszystko gotowe",
-    "step3Desc": "Eksploruj funkcje VEHIQ.",
+    "step3Desc": "Eksploruj funkcje Sharago.",
     "skip": "Pomiń"
   },
   "tooltips": {

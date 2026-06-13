@@ -1,4 +1,4 @@
-"""VEHIQ Iteration 7 Phase B backend tests.
+"""Sharago Iteration 7 Phase B backend tests.
 
 Scope:
   - PHOTOS R2 (Services + Events): 503 when R2 not configured (acceptable);

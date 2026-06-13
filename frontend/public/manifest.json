@@ -1,6 +1,6 @@
 {
-  "short_name": "VEHIQ",
-  "name": "VEHIQ — Twój wirtualny garaż",
+  "short_name": "Sharago",
+  "name": "Sharago — Twój wirtualny garaż",
   "icons": [
     { "src": "favicon.ico", "sizes": "64x64 32x32 24x24 16x16", "type": "image/x-icon" }
   ],

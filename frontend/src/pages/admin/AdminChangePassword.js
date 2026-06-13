@@ -29,7 +29,7 @@ export default function AdminChangePassword() {
       await adminApi.post("/admin/change-password", { current_password: pwd.current, new_password: pwd.next });
       toast.success("Password changed");
       // Force fresh login per spec
-      localStorage.removeItem("vehiq_admin_token");
+      localStorage.removeItem("sharago_admin_token");
       navigate("/gv91-admin");
     } catch (e) { toast.error(e?.response?.data?.detail || "Failed"); } finally { setBusy(false); }
   };

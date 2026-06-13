@@ -22,7 +22,7 @@ const R2_FIELDS = [
   { key: "r2_access_key_id", label: "R2 Access Key ID" },
   { key: "r2_secret_access_key", label: "R2 Secret Access Key" },
   { key: "r2_bucket_name", label: "R2 Bucket Name", placeholder: "vehiq-storage" },
-  { key: "r2_public_url", label: "R2 Public URL", placeholder: "https://storage.vehiq.pl" },
+  { key: "r2_public_url", label: "R2 Public URL", placeholder: "https://storage.sharago.pl" },
 ];
 
 export default function AdminApiKeys() {

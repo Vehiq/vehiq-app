@@ -44,7 +44,7 @@ export default function AITab({ vehicle }) {
   const exportPdf = () => {
     const doc = new jsPDF();
     doc.setFontSize(16);
-    doc.text(`VEHIQ AI Mechanic — ${vehicle.make} ${vehicle.model} ${vehicle.year || ""}`, 10, 15);
+    doc.text(`Sharago AI Mechanic — ${vehicle.make} ${vehicle.model} ${vehicle.year || ""}`, 10, 15);
     doc.setFontSize(10);
     let y = 25;
     messages.forEach((m) => {

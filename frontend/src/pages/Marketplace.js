@@ -125,7 +125,7 @@ export default function Marketplace() {
     <div className="space-y-6 animate-fade-in" data-testid="marketplace-page">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <div className="vehiq-overline">VEHIQ Marketplace</div>
+          <div className="vehiq-overline">Sharago Marketplace</div>
           <h1 className="vehiq-display text-4xl sm:text-5xl text-vehiq-text mt-1">{t("marketplace.title")}</h1>
           <p className="text-sm text-vehiq-muted mt-1">{t("marketplace.subtitle")}</p>
         </div>

@@ -33,7 +33,7 @@ def _build_system_prompt(vehicle: dict, services: list, language: str) -> str:
     services_block = "\n".join(last_services) if last_services else "(no service entries yet)"
 
     return (
-        f"You are VEHIQ AI, an expert automotive mechanic with 30 years of experience. "
+        f"You are Sharago AI, an expert automotive mechanic with 30 years of experience. "
         f"You always respond in {lang_label}. Be direct, practical and avoid filler.\n\n"
         f"USER VEHICLE CONTEXT:\n"
         f"- Make: {vehicle.get('make')}\n"

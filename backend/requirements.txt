@@ -1,4 +1,4 @@
-# VEHIQ backend — Python 3.11 — direct dependencies only
+# Sharago backend — Python 3.11 — direct dependencies only
 # (transitive deps are resolved by pip; pinned exact versions for reproducibility)
 
 # Web framework

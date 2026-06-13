@@ -10,7 +10,7 @@ export default function CookieBanner() {
   const [marketing, setMarketing] = useState(false);
 
   useEffect(() => {
-    if (!localStorage.getItem("vehiq_cookie_consent")) {
+    if (!localStorage.getItem("sharago_cookie_consent")) {
       const t = setTimeout(() => setShow(true), 500);
       return () => clearTimeout(t);
     }
@@ -18,9 +18,9 @@ export default function CookieBanner() {
 
   const save = async (analyticsVal, marketingVal) => {
     const choice = { necessary: true, analytics: analyticsVal, marketing: marketingVal };
-    localStorage.setItem("vehiq_cookie_consent", JSON.stringify(choice));
+    localStorage.setItem("sharago_cookie_consent", JSON.stringify(choice));
     try {
-      await api.post("/notifications/cookie-consent", { ...choice, session_id: localStorage.getItem("vehiq_session") || crypto.randomUUID() });
+      await api.post("/notifications/cookie-consent", { ...choice, session_id: localStorage.getItem("sharago_session") || crypto.randomUUID() });
     } catch {}
     setShow(false);
   };

@@ -1,4 +1,4 @@
-"""VEHIQ backend regression tests covering all major endpoints."""
+"""Sharago backend regression tests covering all major endpoints."""
 import os
 import time
 import uuid

@@ -7,4 +7,4 @@ Disallow: /admin
 Disallow: /api/admin
 
 # Public sitemap
-Sitemap: https://vehiq.pl/sitemap.xml
+Sitemap: https://sharago.pl/sitemap.xml

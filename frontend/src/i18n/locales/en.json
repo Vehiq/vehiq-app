@@ -55,6 +55,7 @@
     "garage": "Garage",
     "service": "Service",
     "marketplace": "Marketplace",
+    "rentals": "Rentals",
     "messages": "Messages",
     "services": "Services",
     "events": "Events",
@@ -66,8 +67,8 @@
   },
   "auth": {
     "loginTitle": "Welcome back",
-    "loginSubtitle": "Sign in to your VEHIQ garage",
-    "registerTitle": "Create VEHIQ account",
+    "loginSubtitle": "Sign in to your Sharago garage",
+    "registerTitle": "Create Sharago account",
     "registerSubtitle": "Your virtual garage awaits",
     "email": "Email address",
     "password": "Password",
@@ -209,7 +210,7 @@
     "loss": "Loss"
   },
   "ai": {
-    "title": "VEHIQ AI Mechanic",
+    "title": "Sharago AI Mechanic",
     "subtitle": "Claude Sonnet 4.5 — with your vehicle context",
     "placeholder": "Describe the problem with your vehicle...",
     "send": "Send",
@@ -321,7 +322,7 @@
   "userSearch": {
     "overline": "Community",
     "title": "Find users",
-    "subtitle": "Search VEHIQ drivers by vehicle make, model and year. We only show vehicles that are marked as public.",
+    "subtitle": "Search Sharago drivers by vehicle make, model and year. We only show vehicles that are marked as public.",
     "make": "Make",
     "model": "Model",
     "yearFrom": "Year from",
@@ -479,7 +480,7 @@
     "cookies": "Cookies",
     "marketplace": "Marketplace Terms",
     "contact": "Contact",
-    "copyright": "© 2026 VEHIQ. All rights reserved."
+    "copyright": "© 2026 Sharago. All rights reserved."
   },
   "cookies": {
     "title": "We use cookies",
@@ -494,7 +495,7 @@
   },
   "onboarding": {
     "welcomeTitle": "Welcome to your virtual garage",
-    "welcomeDesc": "VEHIQ is the home of your vehicles — service history, costs, AI Mechanic and marketplace in one place.",
+    "welcomeDesc": "Sharago is the home of your vehicles — service history, costs, AI Mechanic and marketplace in one place.",
     "addFirstVehicle": "Add your first vehicle",
     "skipAndExplore": "Skip, I'll explore on my own",
     "step": "Step",
@@ -523,12 +524,12 @@
       "ai": { "title": "AI Mechanic", "desc": "Diagnose issues fast" },
       "marketplace": { "title": "Marketplace", "desc": "Buy, sell, swap" }
     },
-    "step1Title": "Welcome to VEHIQ",
+    "step1Title": "Welcome to Sharago",
     "step1Desc": "Your premium virtual garage. Choose your language to begin.",
     "step2Title": "Add your first vehicle",
     "step2Desc": "Your garage awaits — start with your most important car.",
     "step3Title": "All set",
-    "step3Desc": "Explore VEHIQ features.",
+    "step3Desc": "Explore Sharago features.",
     "skip": "Skip"
   },
   "tooltips": {

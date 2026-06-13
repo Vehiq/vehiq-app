@@ -11,10 +11,10 @@ import { useAuth } from "@/contexts/AuthContext";
 import { fmtDistance, fmtPrice, getUnits } from "@/lib/units";
 
 function getOrCreateSessionId() {
-  let sid = localStorage.getItem("vehiq_session");
+  let sid = localStorage.getItem("sharago_session");
   if (!sid) {
     sid = crypto.randomUUID();
-    localStorage.setItem("vehiq_session", sid);
+    localStorage.setItem("sharago_session", sid);
   }
   return sid;
 }
@@ -64,7 +64,7 @@ export default function PublicVehicle() {
   // Set OG-style document meta dynamically
   useEffect(() => {
     if (!v) return;
-    const title = `${v.make} ${v.model}${v.year ? " " + v.year : ""} — VEHIQ`;
+    const title = `${v.make} ${v.model}${v.year ? " " + v.year : ""} — Sharago`;
     document.title = title;
     const setMeta = (name, content) => {
       let el = document.querySelector(`meta[property="${name}"]`) || document.querySelector(`meta[name="${name}"]`);
@@ -76,8 +76,8 @@ export default function PublicVehicle() {
       el.setAttribute("content", content);
     };
     const desc = (lang === "en"
-      ? `Check out this ${v.make} ${v.model} on VEHIQ — virtual garage with service history and listings.`
-      : `Zobacz ${v.make} ${v.model} na VEHIQ — wirtualny garaż z historią serwisową i ogłoszeniem.`);
+      ? `Check out this ${v.make} ${v.model} on Sharago — virtual garage with service history and listings.`
+      : `Zobacz ${v.make} ${v.model} na Sharago — wirtualny garaż z historią serwisową i ogłoszeniem.`);
     setMeta("og:title", title);
     setMeta("og:description", desc);
     setMeta("og:type", "website");
@@ -118,7 +118,7 @@ export default function PublicVehicle() {
           <CarIcon size={48} className="mx-auto text-vehiq-gold/40" />
           <h1 className="vehiq-display text-3xl text-vehiq-text mt-4">{t("share.notFoundTitle")}</h1>
           <p className="text-vehiq-muted mt-2">{t("share.notFoundDesc")}</p>
-          <Link to="/" className="vehiq-btn-primary inline-block mt-6">VEHIQ</Link>
+          <Link to="/" className="vehiq-btn-primary inline-block mt-6">Sharago</Link>
         </div>
       </div>
     );
@@ -145,7 +145,7 @@ export default function PublicVehicle() {
           </button>
           <Link to="/" className="flex items-center gap-2">
             <div className="h-8 w-8 rounded-md bg-vehiq-gold flex items-center justify-center text-vehiq-bg font-bold">V</div>
-            <span className="vehiq-display tracking-wider">VEHIQ</span>
+            <span className="vehiq-display tracking-wider">Sharago</span>
           </Link>
           <button onClick={copy} className="vehiq-btn-secondary inline-flex items-center gap-2 text-xs" data-testid="public-share-btn">
             {copied ? <Check size={14} /> : <Share2 size={14} />} {t("share.share")}
@@ -272,7 +272,7 @@ export default function PublicVehicle() {
         )}
 
         <footer className="text-center pt-6 pb-4 text-xs text-vehiq-muted">
-          <Link to="/" className="hover:text-vehiq-gold">{lang === "en" ? "Powered by VEHIQ — your virtual garage" : "Wspierane przez VEHIQ — Twój wirtualny garaż"}</Link>
+          <Link to="/" className="hover:text-vehiq-gold">{lang === "en" ? "Powered by Sharago — your virtual garage" : "Wspierane przez Sharago — Twój wirtualny garaż"}</Link>
         </footer>
       </main>
     </div>

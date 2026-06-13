@@ -1,4 +1,4 @@
-"""VEHIQ Iteration 7 backend tests.
+"""Sharago Iteration 7 backend tests.
 
 Scope:
   - PRIVACY: public profile + garage card filtering (show_total_km/show_forum/show_listings)

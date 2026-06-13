@@ -1,4 +1,4 @@
-"""VEHIQ Iteration 2 tests — Dashboard, Password Reset, Test Email, Activity logging."""
+"""Sharago Iteration 2 tests — Dashboard, Password Reset, Test Email, Activity logging."""
 import os
 import time
 import uuid

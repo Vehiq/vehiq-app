@@ -13,6 +13,7 @@ export default function MyListings() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [items, setItems] = useState(null);
+  const [filter, setFilter] = useState("all"); // all | classic | rental
 
   const load = async () => {
     try {
@@ -24,7 +25,16 @@ export default function MyListings() {
     }
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    load();
+  }, []);
+
+  const visible = (items || []).filter((l) => {
+    if (filter === "rental") return l.category === "rental_car" || l.category === "rental_garage";
+    if (filter === "classic") return l.category !== "rental_car" && l.category !== "rental_garage";
+    return true;
+  });
 
   const remove = async (l) => {
     if (!window.confirm(t("marketplace.confirmDelete"))) return;
@@ -55,7 +65,7 @@ export default function MyListings() {
 
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <div className="vehiq-overline">VEHIQ Marketplace</div>
+          <div className="vehiq-overline">Sharago Marketplace</div>
           <h1 className="vehiq-display text-4xl sm:text-5xl text-vehiq-text mt-1">{t("marketplace.myListings")}</h1>
           <p className="text-sm text-vehiq-muted mt-1">{t("marketplace.myListingsSubtitle")}</p>
         </div>
@@ -64,9 +74,29 @@ export default function MyListings() {
         </Link>
       </div>
 
+      <div className="inline-flex rounded-md border border-vehiq-border bg-vehiq-card p-1" data-testid="my-listings-filter">
+        {[
+          { v: "all", label: "Wszystkie" },
+          { v: "classic", label: "Klasyczne" },
+          { v: "rental", label: "Wynajem" },
+        ].map((opt) => (
+          <button
+            key={opt.v}
+            type="button"
+            onClick={() => setFilter(opt.v)}
+            className={`px-3 py-1.5 text-xs rounded transition-colors ${
+              filter === opt.v ? "bg-vehiq-gold text-vehiq-bg font-medium" : "text-vehiq-muted hover:text-vehiq-text"
+            }`}
+            data-testid={`my-listings-filter-${opt.v}`}
+          >
+            {opt.label}
+          </button>
+        ))}
+      </div>
+
       {items === null ? (
         <SkeletonListingGrid count={4} />
-      ) : items.length === 0 ? (
+      ) : visible.length === 0 ? (
         <EmptyState
           icon={Store}
           title={t("marketplace.noMyListings")}
@@ -76,7 +106,7 @@ export default function MyListings() {
         />
       ) : (
         <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-6" data-testid="my-listings-grid">
-          {items.map((l) => (
+          {visible.map((l) => (
             <div key={l.id} className="vehiq-card overflow-hidden flex flex-col" data-testid={`my-listing-${l.id}`}>
               <Link to={`/marketplace/${l.id}`} className="block">
                 <LazyImage
