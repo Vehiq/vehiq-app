@@ -16,7 +16,7 @@ if not BASE_URL:
 
 API = f"{BASE_URL}/api"
 
-ADMIN_EMAIL = "kontakt@vehiq.pl"
+ADMIN_EMAIL = "kontakt@sharago.com"
 ADMIN_PASSWORD = "VehiqAdmin2026#Temp!"
 PUBLIC_SLUG = "test-public-2020"
 

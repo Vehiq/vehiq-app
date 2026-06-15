@@ -15,7 +15,7 @@ import pytest
 import requests
 
 BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "https://vehicle-hub-301.preview.emergentagent.com").rstrip("/")
-ADMIN_EMAIL = "kontakt@vehiq.pl"
+ADMIN_EMAIL = "kontakt@sharago.com"
 ADMIN_PASSWORD = "VehiqAdmin2026#Temp!"
 
 

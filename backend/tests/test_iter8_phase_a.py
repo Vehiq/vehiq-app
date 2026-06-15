@@ -47,7 +47,7 @@ def user_token():
 @pytest.fixture(scope="module")
 def admin_token():
     r = requests.post(f"{API}/admin/login", json={
-        "email": "kontakt@vehiq.pl",
+        "email": "kontakt@sharago.com",
         "password": "VehiqAdmin2026#Temp!",
     }, timeout=10)
     if r.status_code != 200:

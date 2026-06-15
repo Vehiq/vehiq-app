@@ -19,7 +19,7 @@ from datetime import datetime, timedelta, timezone
 BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "https://vehicle-hub-301.preview.emergentagent.com").rstrip("/")
 API = f"{BASE_URL}/api"
 
-ADMIN_EMAIL = "kontakt@vehiq.pl"
+ADMIN_EMAIL = "kontakt@sharago.com"
 ADMIN_PASSWORD = "VehiqAdmin2026#Temp!"
 
 

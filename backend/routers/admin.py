@@ -72,9 +72,27 @@ def _get_ip(request: Request) -> str:
 
 @router.get("/setup-status")
 async def setup_status():
-    """Returns whether the admin account requires initial password setup or change-password (first login)."""
+    """Returns whether the admin account requires initial password setup or change-password (first login).
+
+    Side-effect: if a singleton admin doc exists under a *different* email than
+    the current `ADMIN_EMAIL` env value (e.g. after a domain rebrand), it is
+    transparently aligned here. Password hash is preserved. This makes the
+    rebranding migration zero-touch from the operator's perspective — the next
+    GET on /setup-status auto-heals the credentials.
+    """
     db = get_db()
     admin = await db.admin_account.find_one({"email": ADMIN_EMAIL})
+    if not admin:
+        # Try to find a stale doc under a different email.
+        stale = await db.admin_account.find_one({"password_hash": {"$exists": True, "$ne": None}})
+        if stale and (stale.get("email") or "").lower() != ADMIN_EMAIL:
+            # Drop any empty placeholder with the new email, then rename.
+            await db.admin_account.delete_one({"email": ADMIN_EMAIL, "_id": {"$ne": stale["_id"]}})
+            await db.admin_account.update_one(
+                {"_id": stale["_id"]},
+                {"$set": {"email": ADMIN_EMAIL}},
+            )
+            admin = await db.admin_account.find_one({"email": ADMIN_EMAIL})
     return {
         "needs_setup": not admin or not admin.get("password_hash"),
         "first_login": bool(admin and admin.get("first_login")),
