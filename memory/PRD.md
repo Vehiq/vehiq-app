@@ -963,3 +963,61 @@ Po przeniesieniu na sharago.pl: zmień `GOOGLE_REDIRECT_URI` + `FRONTEND_URL` + 
 - Defaults load przy braku env `CORS_ORIGINS` → cztery domeny + 2 localhost ✓
 - Lint Python: clean.
 
+
+---
+
+## Iter 28 — Migracja na sharago.pl + logo + rental_garage fix (Feb 2026)
+
+### CZĘŚĆ 1 — Pełna migracja domeny (sharago.pl jako jedyna produkcja)
+**Backend** (`backend/.env`):
+- `FRONTEND_URL=https://sharago.pl`
+- `APP_URL=https://sharago.pl`
+- `ADMIN_EMAIL=kontakt@sharago.com`
+- `GOOGLE_REDIRECT_URI=https://vehiq-app.onrender.com/api/auth/google/callback` (zostaje — backend nie zmienia adresu)
+
+**CORS** (`backend/server.py`): `DEFAULT_ALLOWED_ORIGINS` przepisane — usunięte `vehiq.pl`/`www.vehiq.pl`, dodane `sharago.com`/`www.sharago.com`. Lista zawiera teraz tylko sharago.pl/.com + localhost. Override przez env `CORS_ORIGINS`.
+
+**Email sender** (`email_service.py`): `from_email` default = `noreply@sharago.com`. Fallback: env `SMTP_FROM_EMAIL` → admin SMTP settings. Jeśli sharago.com nie jest jeszcze zweryfikowana w Brevo, ustaw `SMTP_FROM_EMAIL=<verified-address>` na Render.
+
+**Code-level**: sed na wszystkie pozostałe `vehiq.pl` w `seed.py`, `email_service.py`, `server.py`, `routers/blog.py`, `routers/admin.py`, `routers/auth.py`, `frontend/src/pages/ErrorPage.js` → `sharago.pl`. `kontakt@vehiq.pl` → `kontakt@sharago.com`.
+
+**MongoDB**: re-run `scripts/mongo_rebrand_to_sharago.py` — 0 dokumentów zmienionych (już clean z iter24).
+
+**Konfiguracja po stronie użytkownika (Render env + Vercel + Google Console)**:
+1. **Render Environment Variables** → set `FRONTEND_URL=https://sharago.pl`, `APP_URL=https://sharago.pl`, `SMTP_FROM_EMAIL` (jeśli sharago.com niezweryfikowana).
+2. **Vercel** → ustaw sharago.pl jako primary domain, www.sharago.pl → 301 do sharago.pl, sharago.com + www.sharago.com → 301 do sharago.pl, vehiq.pl → 301 do sharago.pl.
+3. **Google Cloud Console** → OAuth consent screen: **App name = "Sharago"** + upload Logo.png (Emergent NIE może tego zrobić, zostaje ekran "Vehiq" dopóki nie zmienisz ręcznie). Dodaj `https://sharago.pl` + `https://www.sharago.pl` do Authorized JavaScript origins. Authorized redirect URIs zostaje `https://vehiq-app.onrender.com/api/auth/google/callback`.
+
+### CZĘŚĆ 2 — Logo (powiększone)
+`components/Logo.js` size variants powiększone:
+- `sm: h-9` (36px) — inline footers
+- `md: h-12` (48px) — desktop header
+- `lg: h-28` (112px) — auth pages ✓ verified Playwright
+- `xl: h-32` (128px) — sidebar ✓ verified Playwright
+
+Inline `<img src="/logo.png" h-7|h-8>` w `Footer.js`, `Blog.js`, `BlogPost.js`, `LegalPage.js`, `PublicVehicle.js` zamienione na `h-12 md:h-14`.
+
+### CZĘŚĆ 3 — Formularz rental_garage (bez pól pojazdu)
+`pages/CreateListing.js`:
+- `showVehicleFields` przeliczone: dodano warunek `!isRentalGarage` (`category !== 'rental_garage'`). Wcześniej: dla `type=rental` showVehicleFields zawsze true → garaż pokazywał pola auta.
+- Sekcja make/model owinięta w `{showVehicleFields && ...}` (był to wcześniej niezagnieżdżony blok render-always). Dodano `data-testid="listing-make-model"` dla testów.
+
+### Weryfikacja (Playwright):
+- Login logo height = **112px** ✓
+- Sidebar logo height = **128px** ✓ (widoczna pełna nazwa Sharago + ikona)
+- /marketplace/new?category=rental_garage → make=0, model=0, vehicle-fields-block=0, make-model-wrap=0, pickup=0 ✓
+- Adres garażu (`rental-address`) widoczny, cena/doba, dostępność, wymagania, typ ogłoszeniodawcy ✓
+- Lint Python + JS: clean.
+
+### OAuth consent screen — wymaga akcji użytkownika
+Emergent NIE może zmienić nazwy "Vehiq" wyświetlanej na ekranie zgody Google. User wchodzi w **console.cloud.google.com → projekt Sharago → APIs & Services → OAuth consent screen → Edit App**: zmiana App name na "Sharago" + upload logo Sharago jako App logo → Save.
+
+### Pliki:
+- **MOD**: `backend/.env`, `backend/server.py` (CORS defaults), `backend/email_service.py` (from_email default + SMTP_FROM_EMAIL env), `backend/seed.py`, `backend/routers/{auth,admin,blog}.py`, `frontend/src/pages/ErrorPage.js`, `frontend/src/components/Logo.js`, `frontend/src/pages/CreateListing.js`, `frontend/src/components/layout/Footer.js`, `frontend/src/pages/{Blog,BlogPost,LegalPage,PublicVehicle}.js`
+
+### Backlog następnej iteracji:
+- 🔴 **Push na main / Force push** — kliknij **"Save to GitHub"** w UI Emergent.
+- 🔴 **Konfiguracja Vercel + Render env vars + Google Console** (kroki wyżej).
+- 🟡 Po Vercel domain switch → E2E test logowania Google na `https://sharago.pl/login`.
+- 🔴 P1 Stripe / GPS / Push notifications / Project Mode / Facebook OAuth.
+

@@ -16,7 +16,7 @@ export default function ErrorPage({ error, reset }) {
           {reset && <button onClick={reset} className="vehiq-btn-secondary" data-testid="error-retry">{t("common.confirm")}</button>}
           <Link to="/garage" className="vehiq-btn-primary inline-flex items-center gap-2"><Home size={14}/> {t("errors.goHome")}</Link>
         </div>
-        <a href="mailto:kontakt@vehiq.pl" className="text-xs text-vehiq-muted hover:text-vehiq-gold inline-flex items-center gap-1 mt-6"><Mail size={12}/> kontakt@vehiq.pl</a>
+        <a href="mailto:kontakt@sharago.com" className="text-xs text-vehiq-muted hover:text-vehiq-gold inline-flex items-center gap-1 mt-6"><Mail size={12}/> kontakt@sharago.com</a>
       </div>
     </div>
   );

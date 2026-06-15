@@ -184,7 +184,14 @@ export default function CreateListing() {
   };
 
   const modelOptions = form.make && POPULAR_MODELS[form.make] ? POPULAR_MODELS[form.make] : [];
-  const showVehicleFields = ["car", "project", "rental", "full_parts"].includes(form.type);
+  // Vehicle-specific fields (make/model/year/mileage/condition) make sense for:
+  //   - classic car listing (type=car / project / full_parts)
+  //   - rental_car (vehicle is being rented)
+  // NOT for rental_garage (parking spot — no vehicle attached).
+  const isRentalGarage = form.category === "rental_garage";
+  const showVehicleFields =
+    !isRentalGarage &&
+    ["car", "project", "rental", "full_parts"].includes(form.type);
   const showPartsFields = form.type === "parts";
   const showSwapFields = form.type === "swap";
   const activeCategory = PARTS_CATEGORIES.find((c) => c.id === form.parts_category);
@@ -242,33 +249,37 @@ export default function CreateListing() {
           </div>
         )}
 
-        <div>
-          <label className="vehiq-overline mb-2 block">{t("marketplace.title_field")}</label>
-          <input required value={form.title} onChange={(e) => setForm({...form, title: e.target.value})} className="vehiq-input" data-testid="listing-title" />
-        </div>
-
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label className="vehiq-overline mb-2 block">{t("vehicle.make")}</label>
-            <input list="cl-makes" value={form.make} onChange={(e) => setForm({...form, make: e.target.value, model: ""})} className="vehiq-input" data-testid="listing-make" />
-            <datalist id="cl-makes">
-              {MAKES.map(m => <option key={m} value={m} />)}
-            </datalist>
-          </div>
-          <div>
-            <label className="vehiq-overline mb-2 block">{t("vehicle.model")}</label>
-            {modelOptions.length > 0 ? (
-              <>
-                <input list={`cl-models-${form.make}`} value={form.model} onChange={(e) => setForm({...form, model: e.target.value})} className="vehiq-input" data-testid="listing-model" placeholder={t("marketplace.modelPlaceholder")} />
-                <datalist id={`cl-models-${form.make}`}>
-                  {modelOptions.map((m) => <option key={m} value={m} />)}
-                </datalist>
-              </>
-            ) : (
-              <input value={form.model} onChange={(e) => setForm({...form, model: e.target.value})} className="vehiq-input" data-testid="listing-model" />
-            )}
+            <label className="vehiq-overline mb-2 block">{t("marketplace.title_field")}</label>
+            <input required value={form.title} onChange={(e) => setForm({...form, title: e.target.value})} className="vehiq-input" data-testid="listing-title" />
           </div>
         </div>
+
+        {showVehicleFields && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4" data-testid="listing-make-model">
+            <div>
+              <label className="vehiq-overline mb-2 block">{t("vehicle.make")}</label>
+              <input list="cl-makes" value={form.make} onChange={(e) => setForm({...form, make: e.target.value, model: ""})} className="vehiq-input" data-testid="listing-make" />
+              <datalist id="cl-makes">
+                {MAKES.map(m => <option key={m} value={m} />)}
+              </datalist>
+            </div>
+            <div>
+              <label className="vehiq-overline mb-2 block">{t("vehicle.model")}</label>
+              {modelOptions.length > 0 ? (
+                <>
+                  <input list={`cl-models-${form.make}`} value={form.model} onChange={(e) => setForm({...form, model: e.target.value})} className="vehiq-input" data-testid="listing-model" placeholder={t("marketplace.modelPlaceholder")} />
+                  <datalist id={`cl-models-${form.make}`}>
+                    {modelOptions.map((m) => <option key={m} value={m} />)}
+                  </datalist>
+                </>
+              ) : (
+                <input value={form.model} onChange={(e) => setForm({...form, model: e.target.value})} className="vehiq-input" data-testid="listing-model" />
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Vehicle-specific fields */}
         {showVehicleFields && (

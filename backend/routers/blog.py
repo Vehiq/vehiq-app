@@ -171,7 +171,7 @@ async def blog_rss_feed():
       <link>{xml_escape(link)}</link>
       <guid isPermaLink="true">{xml_escape(link)}</guid>
       <description>{xml_escape(p.get('excerpt') or '')}</description>
-      <author>noreply@vehiq.pl ({xml_escape(author)})</author>
+      <author>noreply@sharago.com ({xml_escape(author)})</author>
       <dc:creator>{xml_escape(author)}</dc:creator>
       <pubDate>{_rfc2822(p.get('published_at'))}</pubDate>"""
         cover = p.get("cover_image")

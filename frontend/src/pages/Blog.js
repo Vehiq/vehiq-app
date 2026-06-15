@@ -79,7 +79,7 @@ export default function Blog() {
       <header className="border-b border-vehiq-border bg-vehiq-bg/90 backdrop-blur sticky top-0 z-20">
         <div className="max-w-5xl mx-auto px-4 md:px-6 py-3 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-2" data-testid="blog-home-link">
-            <img src="/logo.png" alt="Sharago" className="h-8 w-auto object-contain" draggable="false" />
+            <img src="/logo.png" alt="Sharago" className="h-12 md:h-14 w-auto object-contain" draggable="false" />
           </Link>
           <Link to="/register" className="vehiq-btn-secondary text-xs" data-testid="blog-cta-register">Załóż garaż</Link>
         </div>

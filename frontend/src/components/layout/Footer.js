@@ -9,7 +9,7 @@ export default function Footer() {
     <footer className="border-t border-vehiq-border bg-vehiq-nav/40 mt-auto" data-testid="footer">
       <div className="max-w-7xl mx-auto px-6 py-8 flex flex-col md:flex-row md:items-center gap-6 md:gap-3">
         <div className="flex items-center gap-2">
-          <img src="/logo.png" alt="Sharago" className="h-7 w-auto object-contain" draggable="false" />
+          <img src="/logo.png" alt="Sharago" className="h-12 md:h-14 w-auto object-contain" draggable="false" />
           <div className="vehiq-display text-xl tracking-wide text-vehiq-text">Sharago</div>
         </div>
         <nav className="flex flex-wrap gap-x-5 gap-y-2 text-sm md:mx-auto">

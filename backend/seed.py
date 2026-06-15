@@ -7,7 +7,7 @@ LEGAL_SEED = [
         "title_pl": "Polityka Prywatności",
         "title_en": "Privacy Policy",
         "content_pl": """<h2>Polityka Prywatności Sharago</h2>
-<p><strong>Administrator danych:</strong> Sharago, e-mail: kontakt@vehiq.pl, https://sharago.pl</p>
+<p><strong>Administrator danych:</strong> Sharago, e-mail: kontakt@sharago.com, https://sharago.pl</p>
 <h3>1. Jakie dane zbieramy</h3>
 <ul><li>Dane konta: imię, e-mail, hasło (zaszyfrowane), avatar, lokalizacja.</li>
 <li>Dane pojazdów i historia serwisowa.</li>
@@ -17,7 +17,7 @@ LEGAL_SEED = [
 <li>Marketing własny — za zgodą (art. 6 ust. 1 lit. a).</li>
 <li>Bezpieczeństwo i wykrywanie nadużyć (art. 6 ust. 1 lit. f).</li></ul>
 <h3>3. Twoje prawa (RODO art. 13)</h3>
-<p>Masz prawo do dostępu, sprostowania, usunięcia, ograniczenia przetwarzania, przenoszenia danych oraz wniesienia sprzeciwu. Skontaktuj się: kontakt@vehiq.pl.</p>
+<p>Masz prawo do dostępu, sprostowania, usunięcia, ograniczenia przetwarzania, przenoszenia danych oraz wniesienia sprzeciwu. Skontaktuj się: kontakt@sharago.com.</p>
 <h3>4. Okres przechowywania</h3>
 <p>Dane konta przechowujemy do momentu jego usunięcia. Dane rozliczeniowe — 5 lat (wymóg podatkowy).</p>
 <h3>5. Bezpieczeństwo</h3>
@@ -25,7 +25,7 @@ LEGAL_SEED = [
 <h3>6. Cookies</h3>
 <p>Zob. <a href="/pl/polityka-cookies">Polityka Cookies</a>.</p>""",
         "content_en": """<h2>Sharago Privacy Policy</h2>
-<p><strong>Data controller:</strong> Sharago, email: kontakt@vehiq.pl, https://sharago.pl</p>
+<p><strong>Data controller:</strong> Sharago, email: kontakt@sharago.com, https://sharago.pl</p>
 <h3>1. What data we collect</h3>
 <ul><li>Account data: name, email, password (hashed), avatar, location.</li>
 <li>Vehicle data and service history.</li>
@@ -35,7 +35,7 @@ LEGAL_SEED = [
 <li>Own marketing — with consent (art. 6(1)(a)).</li>
 <li>Security and abuse detection (art. 6(1)(f)).</li></ul>
 <h3>3. Your rights (GDPR art. 13)</h3>
-<p>You have the right to access, rectify, erase, restrict processing, data portability and to object. Contact: kontakt@vehiq.pl.</p>
+<p>You have the right to access, rectify, erase, restrict processing, data portability and to object. Contact: kontakt@sharago.com.</p>
 <h3>4. Retention period</h3>
 <p>Account data is kept until you delete it. Billing data — 5 years (tax requirement).</p>
 <h3>5. Security</h3>
@@ -65,7 +65,7 @@ LEGAL_SEED = [
 <h3>6. Rozwiązanie umowy</h3>
 <p>Możesz w każdej chwili usunąć konto. Możemy zawiesić konto w przypadku naruszeń.</p>
 <h3>7. Kontakt</h3>
-<p>kontakt@vehiq.pl</p>""",
+<p>kontakt@sharago.com</p>""",
         "content_en": """<h2>Sharago Terms of Service</h2>
 <h3>1. General provisions</h3>
 <p>These terms govern the use of the Sharago virtual garage platform at https://sharago.pl.</p>
@@ -84,7 +84,7 @@ LEGAL_SEED = [
 <h3>6. Termination</h3>
 <p>You may delete your account at any time. We may suspend accounts violating these terms.</p>
 <h3>7. Contact</h3>
-<p>kontakt@vehiq.pl</p>""",
+<p>kontakt@sharago.com</p>""",
     },
     {
         "slug": "cookie-policy",
@@ -152,12 +152,12 @@ LEGAL_SEED = [
         "title_en": "Contact",
         "content_pl": """<h2>Skontaktuj się z Sharago</h2>
 <p><strong>Firma:</strong> Sharago</p>
-<p><strong>E-mail:</strong> <a href="mailto:kontakt@vehiq.pl">kontakt@vehiq.pl</a></p>
+<p><strong>E-mail:</strong> <a href="mailto:kontakt@sharago.com">kontakt@sharago.com</a></p>
 <p><strong>Strona:</strong> <a href="https://sharago.pl">https://sharago.pl</a></p>
 <p><strong>Czas odpowiedzi:</strong> do 48h w dni robocze.</p>""",
         "content_en": """<h2>Contact Sharago</h2>
 <p><strong>Company:</strong> Sharago</p>
-<p><strong>Email:</strong> <a href="mailto:kontakt@vehiq.pl">kontakt@vehiq.pl</a></p>
+<p><strong>Email:</strong> <a href="mailto:kontakt@sharago.com">kontakt@sharago.com</a></p>
 <p><strong>Website:</strong> <a href="https://sharago.pl">https://sharago.pl</a></p>
 <p><strong>Response time:</strong> up to 48h on business days.</p>""",
     },

@@ -15,7 +15,7 @@ from auth_utils import (
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
-ADMIN_EMAIL = os.environ.get("ADMIN_EMAIL", "kontakt@vehiq.pl").lower()
+ADMIN_EMAIL = os.environ.get("ADMIN_EMAIL", "kontakt@sharago.com").lower()
 # Track failed logins per IP in memory (resets on backend restart).
 _failed_attempts = {}
 _lockouts = {}

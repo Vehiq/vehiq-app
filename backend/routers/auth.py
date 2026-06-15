@@ -296,7 +296,7 @@ async def google_login(next: Optional[str] = ""):
 def _frontend_url() -> str:
     """Resolve the public frontend host for OAuth post-login redirects.
 
-    Order: FRONTEND_URL env > APP_URL env > hardcoded vehiq.pl.
+    Order: FRONTEND_URL env > APP_URL env > hardcoded sharago.pl.
 
     Defensive: if any of these accidentally point to *.onrender.com (e.g. the
     Render service URL got copy-pasted), we fall through to the next one.
@@ -318,7 +318,7 @@ def _frontend_url() -> str:
             log.warning("Skipping onrender.com frontend candidate: %s", cand)
             continue
         return cand.rstrip("/")
-    return "https://vehiq.pl"
+    return "https://sharago.pl"
 
 
 def _callback_error_redirect(reason: str) -> RedirectResponse:

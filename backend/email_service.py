@@ -33,9 +33,11 @@ async def _get_smtp_config():
         "login": cfg.get("smtp_login"),
         "password": cfg.get("smtp_password"),
         "from_name": cfg.get("smtp_from_name") or "Sharago",
-        # Sender domain stays vehiq.pl until sharago.pl is verified in Brevo (SPF/DKIM).
-        # Override in admin SMTP settings once the new domain is ready.
-        "from_email": cfg.get("smtp_from_email") or "kontakt@vehiq.pl",
+        # Iter 28: switched to noreply@sharago.com. If sharago.com is NOT yet
+        # verified in Brevo (SPF/DKIM), set `smtp_from_email` in the admin
+        # SMTP settings (or the SMTP_FROM_EMAIL env var) to a verified address
+        # — otherwise outbound emails will be rejected.
+        "from_email": cfg.get("smtp_from_email") or os.environ.get("SMTP_FROM_EMAIL") or "noreply@sharago.com",
     }
 
 
