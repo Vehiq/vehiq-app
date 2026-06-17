@@ -648,3 +648,89 @@ async def admin_migrate_photos(admin=Depends(get_admin)):
         "failed_items": failed_items[:50],
         "duration_seconds": round(duration, 2),
     }
+
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# TEMPORARY: force-reset-singleton
+# Created in Iter 29c to recover from a corrupted/duplicated admin_account state
+# on production (Render Atlas) after the VEHIQ→Sharago email migration.
+# Gated by the RESET_KEY env var so it cannot be invoked without out-of-band
+# coordination. REMOVE THIS ENDPOINT after the one-shot reset is verified.
+# ─────────────────────────────────────────────────────────────────────────────
+class ForceResetSingletonIn(BaseModel):
+    reset_key: str
+    new_password: str
+
+
+@router.post("/force-reset-singleton")
+async def force_reset_singleton(payload: ForceResetSingletonIn, request: Request):
+    """One-shot admin recovery: nuke admin_account, recreate singleton.
+
+    Security:
+    - Requires `RESET_KEY` env var to be set on the server (no default).
+    - Constant-time comparison of the supplied key against the env value.
+    - Password must be >= 16 chars (matches /admin/setup policy).
+    - Writes an audit row to admin_login_history regardless of outcome.
+
+    Behaviour:
+    - Deletes ALL docs in `admin_account`.
+    - Inserts a single new doc:
+        email          = ADMIN_EMAIL (env)
+        password_hash  = bcrypt(new_password)
+        first_login    = True  (UI will force change on next login)
+        created_at     = now()
+    """
+    import hmac
+    db = get_db()
+    ip = _get_ip(request)
+    ua = request.headers.get("user-agent", "")
+
+    expected_key = os.environ.get("RESET_KEY")
+    if not expected_key:
+        # Endpoint is dormant until the operator sets RESET_KEY in env.
+        await db.admin_login_history.insert_one({
+            "id": str(uuid.uuid4()),
+            "ip": ip, "ua": ua,
+            "status": "force_reset_disabled",
+            "ts": datetime.now(timezone.utc).isoformat(),
+        })
+        raise HTTPException(status_code=503, detail="Force-reset is disabled (RESET_KEY not set)")
+
+    if not hmac.compare_digest(payload.reset_key or "", expected_key):
+        await db.admin_login_history.insert_one({
+            "id": str(uuid.uuid4()),
+            "ip": ip, "ua": ua,
+            "status": "force_reset_bad_key",
+            "ts": datetime.now(timezone.utc).isoformat(),
+        })
+        raise HTTPException(status_code=401, detail="Invalid reset key")
+
+    if len(payload.new_password) < 16:
+        raise HTTPException(status_code=400, detail="Password must be at least 16 characters")
+
+    deleted = await db.admin_account.delete_many({})
+    now_iso = datetime.now(timezone.utc).isoformat()
+    await db.admin_account.insert_one({
+        "email": ADMIN_EMAIL,
+        "password_hash": hash_password(payload.new_password),
+        "first_login": True,
+        "created_at": now_iso,
+        "password_changes": [{"ts": now_iso, "ip": ip, "via": "force_reset_singleton"}],
+    })
+    await db.admin_login_history.insert_one({
+        "id": str(uuid.uuid4()),
+        "ip": ip, "ua": ua,
+        "status": "force_reset_success",
+        "deleted_count": deleted.deleted_count,
+        "new_email": ADMIN_EMAIL,
+        "ts": now_iso,
+    })
+
+    return {
+        "ok": True,
+        "deleted_admin_docs": deleted.deleted_count,
+        "new_admin_email": ADMIN_EMAIL,
+        "first_login": True,
+        "message": "Singleton recreated. Log in via POST /api/admin/login with the new password. REMOVE THIS ENDPOINT after verifying.",
+    }
