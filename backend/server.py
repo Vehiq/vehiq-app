@@ -275,6 +275,35 @@ async def on_startup():
                 logger.info("SMTP migration: smtp_port 587 → 465 (Render Free compat)")
         except Exception as e:
             logger.warning(f"smtp_port migration failed: {e}")
+        # Admin singleton audit + auto-clean of stale duplicates from VEHIQ→Sharago rebrand
+        try:
+            desired = (os.environ.get("ADMIN_EMAIL") or "kontakt@sharago.com").lower()
+            admin_docs = await db.admin_account.find({}).to_list(50)
+            if len(admin_docs) > 1:
+                emails = [(d.get("email") or "").lower() for d in admin_docs]
+                logger.warning(
+                    f"admin_account audit: {len(admin_docs)} docs found "
+                    f"({emails}) — expected exactly 1 for {desired!r}."
+                )
+                keeper = next(
+                    (d for d in admin_docs
+                     if (d.get("email") or "").lower() == desired and d.get("password_hash")),
+                    None,
+                )
+                if keeper:
+                    stale_ids = [d["_id"] for d in admin_docs if d["_id"] != keeper["_id"]]
+                    res = await db.admin_account.delete_many({"_id": {"$in": stale_ids}})
+                    logger.warning(
+                        f"admin_account audit: auto-cleaned {res.deleted_count} stale doc(s); "
+                        f"kept email={desired!r}."
+                    )
+                else:
+                    logger.error(
+                        f"admin_account audit: no doc matches ADMIN_EMAIL={desired!r} with a "
+                        f"password_hash. Run scripts.cleanup_admin_duplicates or POST /api/admin/setup."
+                    )
+        except Exception as e:
+            logger.warning(f"admin_account audit failed (non-fatal): {e}")
     logger.info(f"Sharago backend ready. version={APP_VERSION}")
 
 
