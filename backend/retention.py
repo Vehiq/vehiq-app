@@ -9,7 +9,7 @@ from typing import Optional
 import os
 
 from db_helper import get_db
-from email_service import send_email, _wrap_html, _btn
+from email_service import send_email, _wrap_html, _btn, notifications_enabled
 
 logger = logging.getLogger(__name__)
 APP_URL = os.environ.get("APP_URL", "https://sharago.pl")
@@ -101,6 +101,10 @@ async def _send(user, subject, html, kind, period=None):
         return
     # Skip if already sent
     if await _has_marker(db, user["id"], kind, period):
+        return
+    # Respect global admin toggle for lifecycle/notification emails (Iter 31)
+    if not await notifications_enabled():
+        logger.info(f"retention {kind} skipped for {user.get('email')}: notifications_disabled")
         return
     ok, err = await send_email(user["email"], subject, html)
     if ok:

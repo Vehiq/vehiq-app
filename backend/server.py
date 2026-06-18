@@ -275,6 +275,24 @@ async def on_startup():
                 logger.info("SMTP migration: smtp_port 587 → 465 (Render Free compat)")
         except Exception as e:
             logger.warning(f"smtp_port migration failed: {e}")
+        # Iter 31: clean up stale VEHIQ-era SMTP sender so Brevo accepts outbound mail.
+        # Old override `kontakt@vehiq.pl` / `VEHIQ` lingers in DB and shadows the new
+        # default `kontakt@sharago.com`, causing silent password-reset failures.
+        try:
+            stale = await db.api_keys.find_one(
+                {"id": "default"},
+                {"_id": 0, "smtp_from_email": 1, "smtp_from_name": 1},
+            ) or {}
+            updates = {}
+            if (stale.get("smtp_from_email") or "").lower().endswith("@vehiq.pl"):
+                updates["smtp_from_email"] = "kontakt@sharago.com"
+            if (stale.get("smtp_from_name") or "").strip().upper() == "VEHIQ":
+                updates["smtp_from_name"] = "Sharago"
+            if updates:
+                await db.api_keys.update_one({"id": "default"}, {"$set": updates}, upsert=True)
+                logger.warning(f"SMTP sender migration: {updates}")
+        except Exception as e:
+            logger.warning(f"smtp_from migration failed: {e}")
         # Admin singleton audit + auto-clean of stale duplicates from VEHIQ→Sharago rebrand
         try:
             desired = (os.environ.get("ADMIN_EMAIL") or "kontakt@sharago.com").lower()

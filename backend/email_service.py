@@ -33,11 +33,12 @@ async def _get_smtp_config():
         "login": cfg.get("smtp_login"),
         "password": cfg.get("smtp_password"),
         "from_name": cfg.get("smtp_from_name") or "Sharago",
-        # Iter 28: switched to noreply@sharago.com. If sharago.com is NOT yet
-        # verified in Brevo (SPF/DKIM), set `smtp_from_email` in the admin
-        # SMTP settings (or the SMTP_FROM_EMAIL env var) to a verified address
-        # — otherwise outbound emails will be rejected.
-        "from_email": cfg.get("smtp_from_email") or os.environ.get("SMTP_FROM_EMAIL") or "noreply@sharago.com",
+        # Iter 31: sender switched to kontakt@sharago.com (verified in Brevo).
+        # Earlier `noreply@sharago.com` was NOT verified there, causing Brevo to
+        # silently reject outbound mail (e.g. password reset). Override via
+        # admin SMTP settings (`smtp_from_email`) or `SMTP_FROM_EMAIL` env var
+        # if a different verified sender is needed.
+        "from_email": cfg.get("smtp_from_email") or os.environ.get("SMTP_FROM_EMAIL") or "kontakt@sharago.com",
     }
 
 
@@ -250,3 +251,86 @@ def fire_and_forget(coro):
         except Exception as e:
             logger.warning(f"Email task error: {e}")
     asyncio.create_task(_wrap())
+
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Iter 31 — Notification throttling
+#
+# Goal: stop flooding users (and the admin) with reminder/notification emails.
+# Each (user_id, email_type) pair may receive at most one email per 168h (7 d).
+# Transactional emails (welcome, password_reset, email_verification) bypass
+# this and the global toggle — they must always go out.
+#
+# A global on/off toggle lives in `app_settings.notification_emails_enabled`
+# (admin-controlled). Default = ON.
+# ─────────────────────────────────────────────────────────────────────────────
+from datetime import datetime, timezone, timedelta
+
+NOTIFICATION_COOLDOWN_HOURS = 168  # 7 days
+TRANSACTIONAL_TYPES = {"welcome", "password_reset", "email_verification", "smtp_test", "admin_password_reset"}
+
+
+async def notifications_enabled() -> bool:
+    """Global admin kill-switch for non-transactional notification emails."""
+    try:
+        db = get_db()
+        doc = await db.app_settings.find_one({"key": "notification_emails_enabled"})
+        if not doc:
+            return True  # default ON
+        v = doc.get("value")
+        return str(v).lower() not in ("false", "0", "off", "no")
+    except Exception:
+        return True
+
+
+async def _within_cooldown(user_id: str, email_type: str) -> bool:
+    """Return True if a same-type email was sent to this user within cooldown window."""
+    try:
+        db = get_db()
+        cutoff = (datetime.now(timezone.utc) - timedelta(hours=NOTIFICATION_COOLDOWN_HOURS)).isoformat()
+        recent = await db.email_log.find_one(
+            {"user_id": user_id, "email_type": email_type, "sent_at": {"$gt": cutoff}},
+            {"_id": 1},
+        )
+        return recent is not None
+    except Exception as e:
+        logger.warning(f"email cooldown lookup failed (allowing send): {e}")
+        return False
+
+
+async def _log_email_sent(user_id: str, email_type: str, to: str) -> None:
+    try:
+        db = get_db()
+        await db.email_log.insert_one({
+            "user_id": user_id,
+            "email_type": email_type,
+            "to": to,
+            "sent_at": datetime.now(timezone.utc).isoformat(),
+        })
+    except Exception as e:
+        logger.warning(f"email_log insert failed: {e}")
+
+
+async def send_notification(user_id: str, email_type: str, to: str, subject: str, html: str) -> tuple[bool, str]:
+    """Send a non-transactional notification email, honoring rate limit + admin toggle.
+
+    Returns (ok, reason_if_skipped_or_empty).
+    """
+    if email_type in TRANSACTIONAL_TYPES:
+        # Caller misuse — transactional should go via send_email directly.
+        logger.info(f"send_notification called for transactional type {email_type!r}; forwarding without throttle")
+        return await send_email(to, subject, html)
+
+    if not await notifications_enabled():
+        logger.info(f"NOTIF skipped (globally disabled): user={user_id} type={email_type} to={to}")
+        return False, "notifications_disabled"
+
+    if user_id and await _within_cooldown(user_id, email_type):
+        logger.info(f"NOTIF skipped (cooldown 7d): user={user_id} type={email_type} to={to}")
+        return False, "cooldown"
+
+    ok, err = await send_email(to, subject, html)
+    if ok and user_id:
+        await _log_email_sent(user_id, email_type, to)
+    return ok, err
