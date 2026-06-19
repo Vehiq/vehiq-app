@@ -87,6 +87,7 @@ from routers import events as events_router
 from routers import search as search_router
 from routers import public_share as public_share_router
 from routers import blog as blog_router
+from routers import demo as demo_router
 from seed import seed_database
 
 app = FastAPI(title="Sharago API", version=APP_VERSION)
@@ -159,6 +160,7 @@ async def track_visit(payload: dict):
 
 # Include all routers
 api_router.include_router(auth_router.router)
+api_router.include_router(demo_router.router)
 api_router.include_router(vehicles_router.router)
 api_router.include_router(service_router.router)
 api_router.include_router(mileage_router.router)

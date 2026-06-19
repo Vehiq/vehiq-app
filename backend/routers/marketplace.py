@@ -100,6 +100,14 @@ async def list_listings(
 ):
     db = get_db()
     f = {"status": status}
+    # Hide demo seed data from public marketplace browsing (Iter 30).
+    # Demo users see public listings + their own demo seeds (not other demos').
+    if not user:
+        f["is_demo"] = {"$ne": True}
+    elif user.get("is_demo"):
+        f["$or"] = [{"is_demo": {"$ne": True}}, {"user_id": user["id"]}]
+    else:
+        f["is_demo"] = {"$ne": True}
     if type:
         # Allow comma-separated multi-select e.g. ?type=car,parts
         types = [t.strip() for t in type.split(",") if t.strip()]
@@ -155,7 +163,7 @@ async def list_listings(
         "photos": {"$slice": 1},  # only first photo for card thumbnail
         "location": 1, "city": 1,
         "created_at": 1, "featured": 1,
-        "user_id": 1,
+        "user_id": 1, "is_demo": 1,
     }
     # allow_disk_use: fallback to disk if sort exceeds 32MB RAM (e.g. when indexes
     # aren't yet built on a fresh Atlas cluster). Indexes on featured+created_at
@@ -252,6 +260,7 @@ async def create_listing(payload: ListingIn, user=Depends(get_current_user)):
         "status": "active",
         "featured": False,
         "report_count": 0,
+        "is_demo": bool(user.get("is_demo")),
         "created_at": datetime.now(timezone.utc).isoformat(),
     })
     await db.listings.insert_one(doc)
@@ -369,9 +378,10 @@ async def send_message(payload: MessageIn, user=Depends(get_current_user)):
     }
     await db.messages.insert_one(doc)
     doc.pop("_id", None)
-    # Notify recipient (best effort, throttled to 1/week per user)
-    receiver = await db.profiles.find_one({"id": payload.receiver_id}, {"_id": 0, "id": 1, "email": 1, "language": 1, "marketing_consent": 1})
-    if receiver and receiver.get("email"):
+    # Notify recipient (best effort, throttled to 1/week per user).
+    # Demo users never trigger outbound email to real users (Iter 30).
+    receiver = await db.profiles.find_one({"id": payload.receiver_id}, {"_id": 0, "id": 1, "email": 1, "language": 1, "marketing_consent": 1, "is_demo": 1})
+    if receiver and receiver.get("email") and not user.get("is_demo") and not receiver.get("is_demo"):
         preview = (payload.content or "")[:120]
         subject, html = tpl_new_message(user.get("name") or "Someone", listing.get("title") or "—", preview, payload.listing_id, user["id"], receiver.get("language", "pl"))
         fire_and_forget(send_notification(receiver["id"], "new_message", receiver["email"], subject, html))

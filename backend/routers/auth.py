@@ -73,6 +73,8 @@ def _public_user(u: dict) -> dict:
         "slug": u.get("slug"),
         "privacy_settings": u.get("privacy_settings") or DEFAULT_PRIVACY,
         "units": u.get("units") or {"distance": "km", "currency": "PLN"},
+        "is_demo": bool(u.get("is_demo", False)),
+        "plan": u.get("plan") or ("premium" if u.get("is_demo") else "free"),
     }
 
 

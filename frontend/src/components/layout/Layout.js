@@ -6,6 +6,7 @@ import Footer from "./Footer";
 import BottomNav from "@/components/BottomNav";
 import FAB from "@/components/FAB";
 import FirstUseTooltips from "@/components/FirstUseTooltips";
+import DemoBanner from "@/components/DemoBanner";
 
 export default function Layout() {
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -25,6 +26,7 @@ export default function Layout() {
       )}
 
       <div className="flex-1 flex flex-col min-w-0">
+        <DemoBanner />
         <TopBar onMenu={() => setMobileOpen(true)} />
         <main className="flex-1 px-4 md:px-8 py-6 md:py-10 max-w-[1400px] w-full mx-auto pb-24 md:pb-10" data-testid="main-content">
           <Outlet />

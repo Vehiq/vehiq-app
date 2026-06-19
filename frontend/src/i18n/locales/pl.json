@@ -91,7 +91,18 @@
     "tosRequired": "Musisz zaakceptować Regulamin i Politykę Prywatności",
     "loginFailed": "Nieprawidłowy e-mail lub hasło",
     "registerFailed": "Rejestracja nie powiodła się",
-    "logoutSuccess": "Wylogowano"
+    "logoutSuccess": "Wylogowano",
+    "tryDemo": "Wypróbuj demo bez rejestracji",
+    "demoLoading": "Tworzenie demo…",
+    "demoHint": "Pełny dostęp do platformy. Dane czyszczone po 24h.",
+    "demoStarted": "Demo gotowe! Twój wirtualny garaż czeka.",
+    "demoFailed": "Nie udało się utworzyć demo. Spróbuj za chwilę.",
+    "demoRateLimited": "Zbyt wiele kont demo. Spróbuj ponownie za godzinę."
+  },
+  "demo": {
+    "bannerText": "To wersja demo — Twoje zmiany nie są zapisywane na stałe.",
+    "bannerRegister": "Zarejestruj się, aby zachować dane",
+    "bannerExit": "Zakończ demo"
   },
   "garage": {
     "title": "Mój Garaż",

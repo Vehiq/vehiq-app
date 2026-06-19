@@ -246,6 +246,7 @@ async def create_vehicle(payload: VehicleIn, user=Depends(get_current_user)):
         "user_id": user["id"],
         "public": bool(doc.get("public") or False),
         "public_show_service": bool(doc.get("public_show_service") or False),
+        "is_demo": bool(user.get("is_demo")),
         "created_at": datetime.now(timezone.utc).isoformat(),
         "updated_at": datetime.now(timezone.utc).isoformat(),
     })

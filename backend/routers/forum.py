@@ -41,9 +41,18 @@ async def list_threads(
     q: Optional[str] = None,
     make: Optional[str] = None,
     model: Optional[str] = None,
+    user=Depends(get_optional_user),
 ):
     db = get_db()
     and_clauses: list = []
+    # Hide demo seed threads from non-demo users (Iter 30).
+    # Demo users see public threads + their own demo seeds (not other demos').
+    if not user:
+        and_clauses.append({"is_demo": {"$ne": True}})
+    elif user.get("is_demo"):
+        and_clauses.append({"$or": [{"is_demo": {"$ne": True}}, {"user_id": user["id"]}]})
+    else:
+        and_clauses.append({"is_demo": {"$ne": True}})
     if category and category != "all":
         and_clauses.append({"category": category})
     if q:
@@ -113,6 +122,7 @@ async def create_thread(payload: ThreadIn, user=Depends(get_current_user)):
         "id": str(uuid.uuid4()),
         "user_id": user["id"],
         "pinned": False,
+        "is_demo": bool(user.get("is_demo")),
         "created_at": datetime.now(timezone.utc).isoformat(),
     })
     await db.forum_threads.insert_one(doc)
@@ -165,10 +175,11 @@ async def create_comment(payload: CommentIn, user=Depends(get_current_user)):
     doc.pop("_id", None)
     doc["author"] = {"id": user["id"], "name": user.get("name"), "avatar": user.get("avatar")}
     await log_activity(user["id"], "comment.add", "thread", t["id"], t.get("title"))
-    # Notify thread author if not self-reply (throttled to 1/week per user)
-    if t.get("user_id") and t["user_id"] != user["id"]:
-        author = await db.profiles.find_one({"id": t["user_id"]}, {"_id": 0, "id": 1, "email": 1, "language": 1})
-        if author and author.get("email"):
+    # Notify thread author if not self-reply (throttled to 1/week per user).
+    # Demo users never trigger outbound email to real users (Iter 30).
+    if t.get("user_id") and t["user_id"] != user["id"] and not user.get("is_demo"):
+        author = await db.profiles.find_one({"id": t["user_id"]}, {"_id": 0, "id": 1, "email": 1, "language": 1, "is_demo": 1})
+        if author and author.get("email") and not author.get("is_demo"):
             preview = (payload.content or "")[:120]
             subject, html = tpl_forum_reply(t.get("title") or "—", user.get("name") or "Someone", preview, t["id"], author.get("language", "pl"))
             fire_and_forget(send_notification(author["id"], "forum_reply", author["email"], subject, html))

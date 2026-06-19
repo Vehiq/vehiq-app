@@ -63,13 +63,22 @@ export const AuthProvider = ({ children }) => {
     return data;
   };
 
+  const loginAsDemo = async () => {
+    const { data } = await api.post("/auth/demo");
+    localStorage.setItem("sharago_token", data.token);
+    // Hydrate full user from /auth/me so we get all fields the provider expects
+    const me = await api.get("/auth/me");
+    setUser(me.data);
+    return me.data;
+  };
+
   const logout = () => {
     localStorage.removeItem("sharago_token");
     setUser(null);
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, loginWithGoogleSession, adoptToken, updateProfile, logout, refresh: fetchMe }}>
+    <AuthContext.Provider value={{ user, loading, login, register, loginWithGoogleSession, adoptToken, loginAsDemo, updateProfile, logout, refresh: fetchMe }}>
       {children}
     </AuthContext.Provider>
   );

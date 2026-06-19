@@ -91,7 +91,18 @@
     "tosRequired": "You must accept the Terms of Service and Privacy Policy",
     "loginFailed": "Invalid email or password",
     "registerFailed": "Registration failed",
-    "logoutSuccess": "Logged out"
+    "logoutSuccess": "Logged out",
+    "tryDemo": "Try the demo without signing up",
+    "demoLoading": "Creating demo…",
+    "demoHint": "Full platform access. Data is wiped after 24h.",
+    "demoStarted": "Demo ready! Your virtual garage awaits.",
+    "demoFailed": "Couldn't create demo. Please try again.",
+    "demoRateLimited": "Too many demo accounts. Try again in an hour."
+  },
+  "demo": {
+    "bannerText": "This is a demo — your changes are not saved permanently.",
+    "bannerRegister": "Sign up to keep your data",
+    "bannerExit": "Exit demo"
   },
   "garage": {
     "title": "My Garage",

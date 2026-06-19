@@ -8,11 +8,12 @@ import { toast } from "sonner";
 
 export default function LoginPage() {
   const { t } = useTranslation();
-  const { login } = useAuth();
+  const { login, loginAsDemo } = useAuth();
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
+  const [demoBusy, setDemoBusy] = useState(false);
 
   const submit = async (e) => {
     e.preventDefault();
@@ -25,6 +26,21 @@ export default function LoginPage() {
       toast.error(t("auth.loginFailed"));
     } finally {
       setBusy(false);
+    }
+  };
+
+  const startDemo = async () => {
+    if (demoBusy) return;
+    setDemoBusy(true);
+    try {
+      await loginAsDemo();
+      toast.success(t("auth.demoStarted"));
+      navigate("/garage");
+    } catch (err) {
+      const code = err?.response?.status;
+      toast.error(code === 429 ? t("auth.demoRateLimited") : t("auth.demoFailed"));
+    } finally {
+      setDemoBusy(false);
     }
   };
 
@@ -91,6 +107,34 @@ export default function LoginPage() {
               <Link to="/register" className="text-vehiq-gold hover:text-vehiq-gold-hover" data-testid="login-register-link">{t("auth.register")}</Link>
             </div>
           </div>
+
+          <div className="flex items-center gap-3 my-6">
+            <div className="h-px flex-1 bg-vehiq-border" />
+            <span className="text-xs uppercase tracking-widest text-vehiq-muted">{t("auth.or")}</span>
+            <div className="h-px flex-1 bg-vehiq-border" />
+          </div>
+
+          <button
+            onClick={startDemo}
+            disabled={demoBusy}
+            data-testid="login-demo-button"
+            className="w-full border border-vehiq-gold/60 text-vehiq-gold hover:bg-vehiq-gold hover:text-vehiq-bg disabled:opacity-50 transition-colors font-medium py-2.5 px-4 rounded-md flex items-center justify-center gap-2"
+          >
+            {demoBusy ? (
+              <>
+                <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" className="opacity-25" /><path d="M4 12a8 8 0 018-8" stroke="currentColor" strokeWidth="3" strokeLinecap="round" /></svg>
+                {t("auth.demoLoading")}
+              </>
+            ) : (
+              <>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 5l7 7-7 7" /></svg>
+                {t("auth.tryDemo")}
+              </>
+            )}
+          </button>
+          <p className="text-[11px] text-vehiq-muted text-center mt-2 leading-snug">
+            {t("auth.demoHint")}
+          </p>
         </div>
       </div>
     </div>
