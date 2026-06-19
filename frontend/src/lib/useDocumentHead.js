@@ -65,6 +65,7 @@ export default function useDocumentHead({
   twitterCard = "summary_large_image",
   rssFeed,
   rssTitle,
+  jsonLd,
 } = {}) {
   useEffect(() => {
     if (title) document.title = title;
@@ -96,10 +97,24 @@ export default function useDocumentHead({
       rssEl.setAttribute("title", rssTitle || "RSS");
     }
 
+    // JSON-LD structured data — scoped to the page that provides `jsonLd`.
+    // Removed on cleanup so other routes don't leak stale structured data.
+    let jsonLdEl = null;
+    if (jsonLd) {
+      jsonLdEl = document.createElement("script");
+      jsonLdEl.setAttribute("type", "application/ld+json");
+      jsonLdEl.setAttribute("data-vehiq-jsonld", "true");
+      jsonLdEl.textContent = typeof jsonLd === "string" ? jsonLd : JSON.stringify(jsonLd);
+      document.head.appendChild(jsonLdEl);
+    }
+
     return () => {
       if (rssEl && rssEl.parentNode) {
         rssEl.parentNode.removeChild(rssEl);
       }
+      if (jsonLdEl && jsonLdEl.parentNode) {
+        jsonLdEl.parentNode.removeChild(jsonLdEl);
+      }
     };
-  }, [title, description, canonical, ogTitle, ogDescription, ogImage, ogUrl, ogType, twitterCard, rssFeed, rssTitle]);
+  }, [title, description, canonical, ogTitle, ogDescription, ogImage, ogUrl, ogType, twitterCard, rssFeed, rssTitle, jsonLd]);
 }

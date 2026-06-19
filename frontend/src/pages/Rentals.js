@@ -11,6 +11,62 @@ import { photoThumb } from "@/lib/photos";
 import { useAuth } from "@/contexts/AuthContext";
 import { fmtPrice, getUnits } from "@/lib/units";
 import RentalsMap from "@/components/RentalsMap";
+import useDocumentHead from "@/lib/useDocumentHead";
+
+const RENTALS_JSON_LD = {
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "WebPage",
+      "@id": "https://sharago.pl/wynajem",
+      "name": "Wynajem aut i garaży — Sharago",
+      "description": "Wynajmij samochód lub garaż od prywatnych właścicieli i firm. Sharago — polska platforma motoryzacyjna.",
+      "url": "https://sharago.pl/wynajem",
+      "inLanguage": "pl-PL",
+      "isPartOf": {
+        "@type": "WebSite",
+        "@id": "https://sharago.pl",
+        "name": "Sharago",
+        "url": "https://sharago.pl",
+      },
+    },
+    {
+      "@type": "Service",
+      "name": "Wynajem samochodów P2P",
+      "serviceType": "CarRental",
+      "provider": {
+        "@type": "Organization",
+        "name": "Sharago",
+        "url": "https://sharago.pl",
+        "logo": "https://sharago.pl/logo.png",
+      },
+      "areaServed": { "@type": "Country", "name": "Polska" },
+      "description": "Platforma ogłoszeniowa do wynajmu samochodów między prywatnymi właścicielami i firmami.",
+      "url": "https://sharago.pl/wynajem",
+    },
+    {
+      "@type": "Service",
+      "name": "Wynajem garaży i miejsc parkingowych",
+      "serviceType": "ParkingFacility",
+      "provider": {
+        "@type": "Organization",
+        "name": "Sharago",
+        "url": "https://sharago.pl",
+        "logo": "https://sharago.pl/logo.png",
+      },
+      "areaServed": { "@type": "Country", "name": "Polska" },
+      "description": "Wynajem garaży i miejsc parkingowych między prywatnymi właścicielami.",
+      "url": "https://sharago.pl/wynajem",
+    },
+    {
+      "@type": "BreadcrumbList",
+      "itemListElement": [
+        { "@type": "ListItem", "position": 1, "name": "Sharago", "item": "https://sharago.pl" },
+        { "@type": "ListItem", "position": 2, "name": "Wynajem", "item": "https://sharago.pl/wynajem" },
+      ],
+    },
+  ],
+};
 
 const TABS = [
   { value: "rental_car", labelPl: "Samochody", labelEn: "Cars", Icon: Car },
@@ -20,6 +76,16 @@ const TABS = [
 export default function Rentals() {
   const { t, i18n } = useTranslation();
   const lang = i18n.language?.startsWith("en") ? "en" : "pl";
+  useDocumentHead({
+    title: "Wynajem aut i garaży — Sharago",
+    description: "Wynajmij samochód lub garaż od prywatnych właścicieli i firm w Polsce. Bezpośredni kontakt, bez pośredników. Sharago — platforma motoryzacyjna.",
+    canonical: "https://sharago.pl/wynajem",
+    ogTitle: "Wynajem aut i garaży — Sharago",
+    ogDescription: "Wynajmij samochód lub garaż od prywatnych właścicieli i firm w Polsce.",
+    ogUrl: "https://sharago.pl/wynajem",
+    ogImage: "https://sharago.pl/logo.png",
+    jsonLd: RENTALS_JSON_LD,
+  });
   const { user } = useAuth();
   const units = getUnits(user);
   const [params, setParams] = useSearchParams();

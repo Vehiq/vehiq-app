@@ -31,7 +31,7 @@ export default function Dashboard() {
   const archivedCount = vehicles ? vehicles.filter((v) => isArchived(v)).length : 0;
 
   return (
-    <div className="space-y-8 animate-fade-in" data-testid="dashboard-page">
+    <div className="space-y-8 animate-fade-in overflow-x-hidden" data-testid="dashboard-page">
       {/* Header */}
       <div className="flex items-end justify-between flex-wrap gap-4">
         <div>
@@ -95,9 +95,9 @@ export default function Dashboard() {
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6" data-testid="garage-grid">
               {filtered.slice(0, visibleCount).map((v, idx) => <VehicleCard key={v.id} v={v} t={t} eager={idx < 8} lang={lang} />)}
               {tab === "active" && (
-                <Link to="/garage/new" data-testid="garage-add-card" className="border-2 border-dashed border-vehiq-gold rounded-lg flex flex-col items-center justify-center min-h-[200px] hover:bg-vehiq-gold-dim transition-colors aspect-[4/3]">
+                <Link to="/garage/new" data-testid="garage-add-card" className="group h-full min-h-[200px] border-2 border-dashed border-vehiq-gold rounded-lg flex flex-col items-center justify-center hover:bg-vehiq-gold-dim transition-colors p-4 box-border">
                   <div className="h-12 w-12 rounded-full bg-vehiq-gold-dim flex items-center justify-center mb-2"><Plus size={24} className="text-vehiq-gold" /></div>
-                  <div className="text-sm uppercase tracking-widest text-vehiq-gold">{t("garage.addVehicle")}</div>
+                  <div className="text-sm uppercase tracking-widest text-vehiq-gold text-center">{t("garage.addVehicle")}</div>
                 </Link>
               )}
             </div>
