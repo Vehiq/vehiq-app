@@ -104,6 +104,15 @@
     "bannerRegister": "Zarejestruj się, aby zachować dane",
     "bannerExit": "Zakończ demo"
   },
+  "blur": {
+    "title": "Zamaż tablicę rejestracyjną",
+    "help": "Narysuj prostokąt na tablicy rejestracyjnej, aby ją zamazać. Możesz dodać kilka prostokątów. Ten krok jest opcjonalny.",
+    "undo": "Cofnij",
+    "clear": "Wyczyść",
+    "count": "Zamazań: {{count}}",
+    "upload": "Wgraj zdjęcie",
+    "loadError": "Nie udało się załadować zdjęcia."
+  },
   "garage": {
     "title": "Mój Garaż",
     "subtitle": "Twoje pojazdy, jeden ekran",
@@ -117,7 +126,8 @@
     "addVehicle": "Dodaj pojazd",
     "totalVehicles": "Pojazdy",
     "totalKm": "Łącznie km",
-    "totalSpent": "Wydatki łącznie"
+    "totalSpent": "Wydatki łącznie",
+    "loadMore": "Pokaż więcej ({{count}})"
   },
   "vehicle": {
     "make": "Marka",

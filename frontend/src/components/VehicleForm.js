@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import api from "@/lib/api";
 import { toast } from "sonner";
 import { ArrowLeft, Upload, X } from "lucide-react";
+import PlateBlurDialog from "@/components/PlateBlurDialog";
 
 // All popular brands. Pinned (Polish market) first, alphabetical rest.
 // "other" is a free-form option translated via i18n.
@@ -41,19 +42,37 @@ export default function VehicleForm({ initial, onSaved }) {
     photos: [], cover_photo_index: 0,
   });
   const [busy, setBusy] = useState(false);
+  // Iter 32: blur dialog queue — files picked but not yet reviewed/base64-encoded.
+  const [blurQueue, setBlurQueue] = useState([]);
 
-  const handleFiles = async (e) => {
-    const files = Array.from(e.target.files || []);
-    const newPhotos = [];
-    for (const f of files) {
-      if (f.size > 5 * 1024 * 1024) { toast.error(`File ${f.name} > 5MB`); continue; }
-      newPhotos.push(await new Promise((res) => {
-        const reader = new FileReader();
-        reader.onloadend = () => res(reader.result);
-        reader.readAsDataURL(f);
+  const handleFiles = (e) => {
+    const files = Array.from(e.target.files || []).filter((f) => {
+      if (f.size > 5 * 1024 * 1024) {
+        toast.error(`File ${f.name} > 5MB`);
+        return false;
+      }
+      return true;
+    });
+    e.target.value = "";
+    if (files.length === 0) return;
+    setBlurQueue((q) => [...q, ...files]);
+  };
+
+  const blurConfirm = (outFile) => {
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setForm((prev) => ({
+        ...prev,
+        photos: [...(prev.photos || []), reader.result].slice(0, 20),
       }));
-    }
-    setForm({ ...form, photos: [...(form.photos || []), ...newPhotos].slice(0, 20) });
+    };
+    reader.readAsDataURL(outFile);
+    setBlurQueue((q) => q.slice(1));
+  };
+
+  const blurCancel = () => {
+    // Discard rest of queue (user can re-pick later)
+    setBlurQueue([]);
   };
 
   const removePhoto = (idx) => {
@@ -206,6 +225,14 @@ export default function VehicleForm({ initial, onSaved }) {
         </button>
         <button type="button" onClick={() => navigate(-1)} className="vehiq-btn-secondary">{t("common.cancel")}</button>
       </div>
+
+      {blurQueue.length > 0 && (
+        <PlateBlurDialog
+          file={blurQueue[0]}
+          onConfirm={blurConfirm}
+          onCancel={blurCancel}
+        />
+      )}
     </form>
   );
 }

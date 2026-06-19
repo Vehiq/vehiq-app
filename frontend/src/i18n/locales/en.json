@@ -104,6 +104,15 @@
     "bannerRegister": "Sign up to keep your data",
     "bannerExit": "Exit demo"
   },
+  "blur": {
+    "title": "Blur the license plate",
+    "help": "Draw a rectangle over the license plate to blur it. You can add multiple rectangles. This step is optional.",
+    "undo": "Undo",
+    "clear": "Clear",
+    "count": "Blurs: {{count}}",
+    "upload": "Upload photo",
+    "loadError": "Failed to load image."
+  },
   "garage": {
     "title": "My Garage",
     "subtitle": "Your vehicles, one screen",
@@ -117,7 +126,8 @@
     "addVehicle": "Add vehicle",
     "totalVehicles": "Vehicles",
     "totalKm": "Total km",
-    "totalSpent": "Total spent"
+    "totalSpent": "Total spent",
+    "loadMore": "Show more ({{count}})"
   },
   "vehicle": {
     "make": "Make",

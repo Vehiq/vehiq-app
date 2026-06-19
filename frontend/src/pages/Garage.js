@@ -16,6 +16,7 @@ export default function Dashboard() {
   const [stats, setStats] = useState(null);
   const [dash, setDash] = useState(null);
   const [tab, setTab] = useState("active");
+  const [visibleCount, setVisibleCount] = useState(12);
   const lang = i18n.language?.startsWith("en") ? "en" : "pl";
 
   useEffect(() => {
@@ -92,13 +93,25 @@ export default function Dashboard() {
             />
           ) : (
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6" data-testid="garage-grid">
-              {filtered.map((v, idx) => <VehicleCard key={v.id} v={v} t={t} eager={idx < 8} lang={lang} />)}
+              {filtered.slice(0, visibleCount).map((v, idx) => <VehicleCard key={v.id} v={v} t={t} eager={idx < 8} lang={lang} />)}
               {tab === "active" && (
                 <Link to="/garage/new" data-testid="garage-add-card" className="border-2 border-dashed border-vehiq-gold rounded-lg flex flex-col items-center justify-center min-h-[200px] hover:bg-vehiq-gold-dim transition-colors aspect-[4/3]">
                   <div className="h-12 w-12 rounded-full bg-vehiq-gold-dim flex items-center justify-center mb-2"><Plus size={24} className="text-vehiq-gold" /></div>
                   <div className="text-sm uppercase tracking-widest text-vehiq-gold">{t("garage.addVehicle")}</div>
                 </Link>
               )}
+            </div>
+          )}
+          {filtered && filtered.length > visibleCount && (
+            <div className="mt-6 flex justify-center">
+              <button
+                type="button"
+                onClick={() => setVisibleCount((n) => n + 12)}
+                data-testid="garage-load-more"
+                className="vehiq-btn-secondary px-6 py-2 text-sm uppercase tracking-widest"
+              >
+                {t("garage.loadMore", { count: Math.min(12, filtered.length - visibleCount) })}
+              </button>
             </div>
           )}
         </section>

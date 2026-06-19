@@ -40,8 +40,9 @@ def process_image(file_data: bytes, image_type: str = "full") -> bytes:
         img = img.convert("RGB")
 
     if image_type == "thumbnail":
-        # 200x200 square center-crop for uniform grid cards
-        img = ImageOps.fit(img, (200, 200), Image.LANCZOS, centering=(0.5, 0.5))
+        # 400x300 (4:3) center-crop for marketplace/garage grid cards.
+        # WebP @ q=85 → ~15-30 KB per thumb (vs 2-5 MB for the original).
+        img = ImageOps.fit(img, (400, 300), Image.LANCZOS, centering=(0.5, 0.5))
     else:
         if img.width > 1920:
             ratio = 1920 / img.width

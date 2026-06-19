@@ -649,3 +649,75 @@ async def admin_migrate_photos(admin=Depends(get_admin)):
         "duration_seconds": round(duration, 2),
     }
 
+
+@router.post("/migrate/generate-missing-thumbnails")
+async def admin_generate_missing_thumbs(admin=Depends(get_admin)):
+    """Iter 32: backfill 400x300 WebP thumbnails for every R2 vehicle photo that
+    is missing `thumb_url`. Idempotent — already-thumbed photos are skipped.
+
+    Downloads each original from R2, regenerates the thumbnail via
+    `process_image(..., 'thumbnail')`, uploads as `{photo_id}_thumb.webp`, and
+    patches `vehicles.photos[]` with the new `thumb_url`/`thumb_key`.
+
+    Base64-only photos (legacy) are skipped — run /migrate/photos-to-r2 first.
+    """
+    import httpx
+    db = get_db()
+    storage = await r2_storage.get_storage()
+    if not storage:
+        raise HTTPException(status_code=503, detail="R2 not configured")
+
+    started = datetime.now(timezone.utc)
+    patched_vehicles = 0
+    thumbs_generated = 0
+    skipped_no_url = 0
+    failed = 0
+    failures = []
+
+    async with httpx.AsyncClient(timeout=30.0) as http:
+        async for v in db.vehicles.find({}, {"_id": 0, "id": 1, "photos": 1}):
+            photos = v.get("photos") or []
+            if not photos:
+                continue
+            new_photos = []
+            changed = False
+            for p in photos:
+                if not isinstance(p, dict):
+                    new_photos.append(p)
+                    continue
+                if p.get("thumb_url") and p.get("thumb_key"):
+                    new_photos.append(p)
+                    continue
+                full_url = p.get("url")
+                if not full_url or not full_url.startswith("http"):
+                    skipped_no_url += 1
+                    new_photos.append(p)
+                    continue
+                try:
+                    resp = await http.get(full_url)
+                    resp.raise_for_status()
+                    thumb_bytes = r2_storage.process_image(resp.content, "thumbnail")
+                    photo_id = p.get("id") or uuid.uuid4().hex
+                    thumb_key = f"vehicles/{v['id']}/{photo_id}_thumb.webp"
+                    thumb_url = storage.upload(thumb_bytes, thumb_key)
+                    p = {**p, "id": photo_id, "thumb_key": thumb_key, "thumb_url": thumb_url}
+                    thumbs_generated += 1
+                    changed = True
+                except Exception as e:
+                    failed += 1
+                    failures.append({"vehicle_id": v["id"], "photo_id": p.get("id"), "error": str(e)[:200]})
+                new_photos.append(p)
+            if changed:
+                await db.vehicles.update_one({"id": v["id"]}, {"$set": {"photos": new_photos}})
+                patched_vehicles += 1
+
+    return {
+        "patched_vehicles": patched_vehicles,
+        "thumbs_generated": thumbs_generated,
+        "skipped_base64_or_no_url": skipped_no_url,
+        "failed": failed,
+        "failures": failures[:50],
+        "duration_seconds": round((datetime.now(timezone.utc) - started).total_seconds(), 2),
+    }
+
+
