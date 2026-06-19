@@ -4,8 +4,10 @@
  */
 import jsPDF from "jspdf";
 
-const GOLD = [201, 168, 76];
-const DARK = [13, 15, 26];
+// Sharago brand palette (Iter 34: navy #0D1626 + blue #2B7FE8)
+const BLUE = [43, 127, 232];   // #2B7FE8
+const DARK = [13, 22, 38];     // #0D1626
+const GOLD = BLUE;             // backwards-compat alias for legacy code paths in this file
 const TEXT = [34, 34, 34];
 const MUTED = [107, 112, 144];
 
@@ -45,25 +47,25 @@ export function exportServicePdf({ vehicle, entries, pl: plData, lang = "pl" }) 
   const M = 14;
   let y = 0;
 
-  // ---------- HEADER (dark + gold) ----------
+  // ---------- HEADER (navy + blue accent) ----------
   doc.setFillColor(...DARK);
   doc.rect(0, 0, W, 30, "F");
   // Logo box
-  doc.setFillColor(...GOLD);
+  doc.setFillColor(...BLUE);
   doc.rect(M, 9, 11, 12, "F");
-  doc.setTextColor(...DARK);
+  doc.setTextColor(255, 255, 255);
   doc.setFont("times", "bold");
   doc.setFontSize(15);
-  doc.text("V", M + 5.5, 17.5, { align: "center" });
+  doc.text("S", M + 5.5, 17.5, { align: "center" });
   // Brand
   doc.setTextColor(244, 241, 236);
   doc.setFont("times", "normal");
   doc.setFontSize(20);
   doc.text("Sharago", M + 16, 17);
-  doc.setTextColor(...GOLD);
+  doc.setTextColor(...BLUE);
   doc.setFont("helvetica", "normal");
   doc.setFontSize(7);
-  doc.text("VIRTUAL GARAGE", M + 16, 22);
+  doc.text("WIRTUALNY GARAŻ", M + 16, 22);
   // Title + generated date
   doc.setFont("helvetica", "bold");
   doc.setFontSize(11);
@@ -213,7 +215,7 @@ export function exportServicePdf({ vehicle, entries, pl: plData, lang = "pl" }) 
 
   addFooter(doc, L);
 
-  const fname = `VEHIQ_${(vehicle.make || "").replace(/\s+/g, "")}_${(vehicle.model || "").replace(/\s+/g, "")}_${vehicle.year || ""}_${lang === "en" ? "service" : "serwis"}.pdf`;
+  const fname = `Sharago_${(vehicle.make || "").replace(/\s+/g, "")}_${(vehicle.model || "").replace(/\s+/g, "")}_${vehicle.year || ""}_${lang === "en" ? "service" : "serwis"}.pdf`;
   doc.save(fname);
 }
 
@@ -230,3 +232,4 @@ function addFooter(doc, L) {
   const page = doc.internal.getNumberOfPages();
   doc.text(`${L.page} ${page}`, W - 14, H - 8, { align: "right" });
 }
+

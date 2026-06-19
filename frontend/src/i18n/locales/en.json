@@ -66,8 +66,8 @@
     "search": "Search"
   },
   "auth": {
-    "loginTitle": "Welcome back",
-    "loginSubtitle": "Sign in to your Sharago garage",
+    "loginTitle": "Your virtual garage online",
+    "loginSubtitle": "Manage your cars, track service history, rent and sell. AI Mechanic and motoring forum in one place.",
     "registerTitle": "Create Sharago account",
     "registerSubtitle": "Your virtual garage awaits",
     "email": "Email address",

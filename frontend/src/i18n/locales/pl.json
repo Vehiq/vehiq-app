@@ -66,8 +66,8 @@
     "search": "Szukaj"
   },
   "auth": {
-    "loginTitle": "Witaj ponownie",
-    "loginSubtitle": "Zaloguj się do swojego garażu Sharago",
+    "loginTitle": "Twój wirtualny garaż w internecie",
+    "loginSubtitle": "Zarządzaj autami, śledź historię serwisową, wynajmuj i sprzedawaj. AI Mechanic i forum motoryzacyjne w jednym miejscu.",
     "registerTitle": "Stwórz konto Sharago",
     "registerSubtitle": "Twój wirtualny garaż czeka",
     "email": "Adres e-mail",
