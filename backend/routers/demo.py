@@ -172,8 +172,11 @@ SEED_THREAD = {
 async def _cleanup_expired_demos(db) -> int:
     """Delete demo profiles older than DEMO_TTL_HOURS and their owned data.
 
-    Returns the number of profiles deleted.
+    Iter 35: delegates to `user_cleanup.cascade_delete_users` so the fan-out
+    list stays in sync with admin user deletes. Returns the number of profiles
+    deleted.
     """
+    from user_cleanup import cascade_delete_users
     cutoff_iso = (datetime.now(timezone.utc) - timedelta(hours=DEMO_TTL_HOURS)).isoformat()
     expired = await db.profiles.find(
         {"is_demo": True, "created_at": {"$lt": cutoff_iso}},
@@ -182,19 +185,8 @@ async def _cleanup_expired_demos(db) -> int:
     if not expired:
         return 0
     user_ids = [u["id"] for u in expired]
-    # Best-effort fan-out — each collection may or may not exist; ignore errors.
-    for coll in (
-        "vehicles", "listings", "service_records", "service_history",
-        "messages", "email_log", "notifications", "page_views",
-        "forum_threads", "forum_comments", "ai_chats", "reminders",
-        "vehicle_views", "activities",
-    ):
-        try:
-            await db[coll].delete_many({"user_id": {"$in": user_ids}})
-        except Exception:
-            pass
-    res = await db.profiles.delete_many({"id": {"$in": user_ids}, "is_demo": True})
-    return res.deleted_count or 0
+    counts = await cascade_delete_users(db, user_ids)
+    return counts.get("profiles", 0)
 
 
 async def _rate_limit_check(db) -> None:

@@ -9,6 +9,7 @@ import Layout from "@/components/layout/Layout";
 import CookieBanner from "@/components/CookieBanner";
 
 import LoginPage from "@/pages/LoginPage";
+import Landing from "@/pages/Landing";
 import RegisterPage from "@/pages/RegisterPage";
 import AuthCallback from "@/pages/AuthCallback";
 import Onboarding from "@/pages/Onboarding";
@@ -95,7 +96,10 @@ function PrivateRoute({ children }) {
 function PublicHomeRedirect() {
   const { user, loading } = useAuth();
   if (loading) return <div className="min-h-screen flex items-center justify-center bg-vehiq-bg text-vehiq-muted">Loading…</div>;
-  return <Navigate to={user ? "/garage" : "/login"} replace />;
+  // Iter 35: authenticated visitors still go to their garage. Anonymous visitors
+  // see the public marketing landing page (was previously a redirect to /login).
+  if (user) return <Navigate to="/garage" replace />;
+  return <Landing />;
 }
 
 function LangSync() {

@@ -365,13 +365,17 @@ async def update_user(user_id: str, payload: UserUpdateIn, admin=Depends(get_adm
     return {"ok": True}
 
 
+async def _cascade_delete_user(db, user_id: str) -> dict:
+    """Deprecated thin wrapper — delegates to user_cleanup.cascade_delete_user."""
+    from user_cleanup import cascade_delete_user
+    return await cascade_delete_user(db, user_id)
+
+
 @router.delete("/users/{user_id}")
 async def delete_user(user_id: str, admin=Depends(get_admin)):
     db = get_db()
-    await db.profiles.delete_one({"id": user_id})
-    await db.vehicles.delete_many({"user_id": user_id})
-    await db.service_entries.delete_many({"user_id": user_id})
-    return {"ok": True}
+    deleted = await _cascade_delete_user(db, user_id)
+    return {"ok": True, "deleted": deleted}
 
 
 @router.get("/vehicles")
@@ -399,11 +403,92 @@ async def admin_delete_vehicle(vehicle_id: str, admin=Depends(get_admin)):
 
 
 @router.get("/listings")
-async def list_all_listings(reported: bool = False, admin=Depends(get_admin)):
+async def list_all_listings(
+    reported: bool = False,
+    orphaned: bool = False,
+    type: Optional[str] = None,
+    limit: int = 20,
+    offset: int = 0,
+    admin=Depends(get_admin),
+):
+    """List marketplace listings for the admin panel.
+
+    Iter 35 additions:
+    - Returns `owner_email` per listing (None for orphaned rows).
+    - `orphaned=true` filters to listings whose `user_id` does not match any
+      profile — these are typically left behind by demo cleanup or
+      hard-deleted users and should be cleaned up.
+    - `type` filter (sale / rental / wanted / swap...).
+    - `limit` + `offset` for pagination (default 20).
+    """
     db = get_db()
-    f = {"report_count": {"$gt": 0}} if reported else {}
-    items = await db.listings.find(f, {"_id": 0}).sort([("report_count", -1), ("created_at", -1)]).to_list(500)
-    return items
+    f: dict = {}
+    if reported:
+        f["report_count"] = {"$gt": 0}
+    if type:
+        f["type"] = type
+    total = await db.listings.count_documents(f)
+    items = await db.listings.find(f, {"_id": 0}).sort([("report_count", -1), ("created_at", -1)]).skip(offset).limit(limit).to_list(limit)
+
+    # Owner lookup
+    user_ids = list({i.get("user_id") for i in items if i.get("user_id")})
+    owners = {}
+    if user_ids:
+        async for u in db.profiles.find({"id": {"$in": user_ids}}, {"_id": 0, "id": 1, "name": 1, "email": 1, "is_demo": 1}):
+            owners[u["id"]] = u
+    for it in items:
+        owner = owners.get(it.get("user_id"))
+        it["owner_email"] = owner["email"] if owner else None
+        it["owner_name"] = owner["name"] if owner else None
+        it["owner_is_demo"] = bool(owner.get("is_demo")) if owner else None
+        it["is_orphaned"] = owner is None
+
+    if orphaned:
+        items = [i for i in items if i["is_orphaned"]]
+    return {"items": items, "total": total, "offset": offset, "limit": limit}
+
+
+@router.post("/cleanup-orphaned-data")
+async def admin_cleanup_orphaned(admin=Depends(get_admin)):
+    """Iter 35: sweep listings / vehicles / forum threads whose `user_id` no
+    longer matches an existing profile and delete them.
+
+    Used to recover from past lazy-cleanup runs that removed profiles but left
+    children behind, and from any future hard-deletes that bypass the cascade
+    helper. Idempotent.
+    """
+    db = get_db()
+    started = datetime.now(timezone.utc)
+    # Collect valid user IDs in chunks to avoid loading too many at once.
+    valid_ids = set()
+    async for p in db.profiles.find({}, {"_id": 0, "id": 1}):
+        if p.get("id"):
+            valid_ids.add(p["id"])
+
+    report = {}
+    for coll in ("listings", "vehicles", "forum_threads", "forum_comments",
+                 "service_entries", "service_records", "reminders",
+                 "vehicle_views", "ai_chats", "messages"):
+        try:
+            # Find docs whose user_id is set but not in valid set.
+            stale_ids = []
+            async for d in db[coll].find(
+                {"user_id": {"$exists": True, "$nin": [None, ""]}},
+                {"_id": 1, "user_id": 1},
+            ):
+                uid = d.get("user_id")
+                if uid and uid not in valid_ids:
+                    stale_ids.append(d["_id"])
+            if stale_ids:
+                res = await db[coll].delete_many({"_id": {"$in": stale_ids}})
+                report[coll] = res.deleted_count
+        except Exception as e:
+            report[f"{coll}__error"] = str(e)[:120]
+    return {
+        "report": report,
+        "valid_users_count": len(valid_ids),
+        "duration_seconds": round((datetime.now(timezone.utc) - started).total_seconds(), 2),
+    }
 
 
 @router.post("/listings/{listing_id}/feature")
