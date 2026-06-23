@@ -1,6 +1,7 @@
 """Sharago Backend - FastAPI application"""
 from fastapi import FastAPI, APIRouter, HTTPException, Depends, Request, UploadFile, File, Header
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
+from xml.sax.saxutils import escape as xml_escape
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -156,6 +157,106 @@ async def track_visit(payload: dict):
     }
     await db.page_views.insert_one(doc)
     return {"ok": True}
+
+
+# ---- Sitemap (Iter 36) ----
+# Dynamic sitemap.xml aggregating published blog posts, public vehicle slugs,
+# and core static routes. Boosts Google indexing of the new landing page +
+# user-generated content. Cached at the edge for 10 minutes.
+SITEMAP_BASE_URL = os.environ.get("SITEMAP_BASE_URL", "https://sharago.pl").rstrip("/")
+SITEMAP_STATIC_ROUTES = [
+    ("/",            "daily",   "1.0"),
+    ("/wynajem",     "daily",   "0.9"),
+    ("/marketplace", "daily",   "0.9"),
+    ("/forum",       "daily",   "0.7"),
+    ("/blog",        "daily",   "0.8"),
+    ("/login",       "monthly", "0.3"),
+    ("/register",    "monthly", "0.4"),
+]
+
+
+def _w3c_date(value) -> str:
+    """Coerce ISO/datetime to W3C date format (YYYY-MM-DD) for sitemaps."""
+    if not value:
+        return datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    if isinstance(value, datetime):
+        return value.strftime("%Y-%m-%d")
+    s = str(value)
+    # take first 10 chars of an ISO 8601 string ("2026-02-15T...")
+    return s[:10] if len(s) >= 10 else datetime.now(timezone.utc).strftime("%Y-%m-%d")
+
+
+@api_router.get("/sitemap.xml")
+async def sitemap_xml():
+    """Aggregate sitemap of static routes, published blog posts and public vehicles."""
+    now_w3c = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    urls: List[str] = []
+
+    # ---- Static routes ----
+    for path, changefreq, priority in SITEMAP_STATIC_ROUTES:
+        urls.append(
+            f"  <url>\n"
+            f"    <loc>{xml_escape(SITEMAP_BASE_URL + path)}</loc>\n"
+            f"    <lastmod>{now_w3c}</lastmod>\n"
+            f"    <changefreq>{changefreq}</changefreq>\n"
+            f"    <priority>{priority}</priority>\n"
+            f"  </url>"
+        )
+
+    if db is not None:
+        # ---- Published blog posts ----
+        try:
+            async for p in db.blog_posts.find(
+                {"published": True},
+                {"_id": 0, "slug": 1, "published_at": 1, "updated_at": 1},
+            ).sort("published_at", -1).limit(2000):
+                slug = p.get("slug")
+                if not slug:
+                    continue
+                lastmod = _w3c_date(p.get("updated_at") or p.get("published_at"))
+                urls.append(
+                    f"  <url>\n"
+                    f"    <loc>{xml_escape(f'{SITEMAP_BASE_URL}/blog/{slug}')}</loc>\n"
+                    f"    <lastmod>{lastmod}</lastmod>\n"
+                    f"    <changefreq>weekly</changefreq>\n"
+                    f"    <priority>0.7</priority>\n"
+                    f"  </url>"
+                )
+        except Exception as e:
+            logger.warning(f"sitemap: blog_posts query failed: {e}")
+
+        # ---- Public vehicles ----
+        try:
+            async for v in db.vehicles.find(
+                {"public": True, "slug": {"$exists": True, "$nin": [None, ""]}},
+                {"_id": 0, "slug": 1, "updated_at": 1, "created_at": 1},
+            ).sort("updated_at", -1).limit(5000):
+                slug = v.get("slug")
+                if not slug:
+                    continue
+                lastmod = _w3c_date(v.get("updated_at") or v.get("created_at"))
+                urls.append(
+                    f"  <url>\n"
+                    f"    <loc>{xml_escape(f'{SITEMAP_BASE_URL}/vehicles/{slug}')}</loc>\n"
+                    f"    <lastmod>{lastmod}</lastmod>\n"
+                    f"    <changefreq>weekly</changefreq>\n"
+                    f"    <priority>0.6</priority>\n"
+                    f"  </url>"
+                )
+        except Exception as e:
+            logger.warning(f"sitemap: vehicles query failed: {e}")
+
+    body = (
+        '<?xml version="1.0" encoding="UTF-8"?>\n'
+        '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
+        + "\n".join(urls)
+        + "\n</urlset>\n"
+    )
+    return Response(
+        content=body,
+        media_type="application/xml; charset=utf-8",
+        headers={"Cache-Control": "public, max-age=600"},
+    )
 
 
 # Include all routers

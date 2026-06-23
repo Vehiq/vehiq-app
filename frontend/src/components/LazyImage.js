@@ -1,10 +1,14 @@
 import { useEffect, useRef, useState } from "react";
 
 /**
- * Lazy-loaded image. Uses IntersectionObserver to defer loading the actual src
- * until the element is near the viewport. Falls back to native loading=lazy.
+ * Lazy-loaded image with shimmer skeleton.
  *
- * Intended for vehicle cover photos and listing thumbnails (often base64 data URLs).
+ * Behaviour:
+ *  - Defers loading until the element nears the viewport (IntersectionObserver).
+ *  - While the actual <img> is decoding, a shimmer skeleton covers it.
+ *  - Skeleton fades out only after the browser fires `onLoad` for the image.
+ *
+ * Used for vehicle cover photos and listing thumbnails (often base64 data URLs).
  */
 export default function LazyImage({
   src,
@@ -18,6 +22,7 @@ export default function LazyImage({
 }) {
   const ref = useRef(null);
   const [visible, setVisible] = useState(eager);
+  const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
     if (eager || visible) return;
@@ -42,19 +47,38 @@ export default function LazyImage({
     return () => obs.disconnect();
   }, [eager, visible, threshold, rootMargin]);
 
+  // Reset loaded state whenever the src changes so the shimmer reappears.
+  useEffect(() => {
+    setLoaded(false);
+  }, [src]);
+
   if (!src) return fallback;
 
   return (
-    <div ref={ref} className={className.includes("absolute") ? className : `${className}`} {...rest}>
-      {visible ? (
+    <div
+      ref={ref}
+      className={`${className} relative overflow-hidden`}
+      data-testid="lazy-image"
+      {...rest}
+    >
+      {visible && (
         <img
           src={src}
           alt={alt}
           loading="lazy"
-          className="w-full h-full object-cover transition-opacity duration-300"
+          onLoad={() => setLoaded(true)}
+          onError={() => setLoaded(true)}
+          className={`w-full h-full object-cover transition-opacity duration-500 ${
+            loaded ? "opacity-100" : "opacity-0"
+          }`}
         />
-      ) : (
-        <div className="w-full h-full bg-vehiq-nav animate-pulse" aria-hidden />
+      )}
+      {!loaded && (
+        <div
+          aria-hidden
+          data-testid="lazy-image-skeleton"
+          className="absolute inset-0 lazy-image-shimmer"
+        />
       )}
     </div>
   );

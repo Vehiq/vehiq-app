@@ -176,3 +176,24 @@
 @layer base {
   [data-debug-wrapper="true"] { display: contents !important; }
 }
+
+
+/* LazyImage shimmer skeleton — Iter 36 */
+@keyframes lazy-image-shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position:  200% 0; }
+}
+.lazy-image-shimmer {
+  background-color: #162035;
+  background-image: linear-gradient(
+    90deg,
+    rgba(22, 32, 53, 0)   0%,
+    rgba(43, 127, 232, 0.12) 50%,
+    rgba(22, 32, 53, 0) 100%
+  );
+  background-size: 200% 100%;
+  animation: lazy-image-shimmer 1.4s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .lazy-image-shimmer { animation: none; }
+}

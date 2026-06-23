@@ -20,34 +20,34 @@ import {
 const FEATURES = [
   { key: "garage", Icon: Home,
     pl_title: "Wirtualny Garaż",
-    pl_desc: "Wszystkie Twoje auta w jednym miejscu z pełną historią.",
+    pl_desc: "Wszystkie Twoje auta w jednym miejscu. Pełna historia, dokumenty i zdjęcia zawsze pod ręką.",
     en_title: "Virtual Garage",
-    en_desc: "All your vehicles in one place with full history." },
+    en_desc: "All your vehicles in one place. Full history, documents and photos always at hand." },
   { key: "service", Icon: Wrench,
     pl_title: "Historia serwisowa",
-    pl_desc: "Śledź naprawy, koszty i terminy przeglądów.",
+    pl_desc: "Zapisuj naprawy i przeglądy na bieżąco. Sharago przypomni kiedy czas na kolejny serwis.",
     en_title: "Service history",
-    en_desc: "Track repairs, costs and inspection dates." },
+    en_desc: "Log repairs and inspections as they happen. Sharago reminds you when the next one is due." },
   { key: "ai", Icon: Bot,
     pl_title: "AI Mechanik",
-    pl_desc: "Zadaj pytanie o swoje auto i otrzymaj odpowiedź w sekundy.",
+    pl_desc: "Masz pytanie o swoje auto? Zapytaj AI Mechanika — odpowie w kilka sekund, 24/7.",
     en_title: "AI Mechanic",
-    en_desc: "Ask anything about your car and get an answer in seconds." },
+    en_desc: "Got a question about your car? Ask the AI Mechanic — answers in seconds, 24/7." },
   { key: "marketplace", Icon: ShoppingBag,
     pl_title: "Marketplace",
-    pl_desc: "Kup lub sprzedaj auto bez pośredników.",
+    pl_desc: "Kup lub sprzedaj auto bezpośrednio. Żadnych pośredników, żadnych ukrytych kosztów.",
     en_title: "Marketplace",
-    en_desc: "Buy or sell your car directly, no middlemen." },
+    en_desc: "Buy or sell directly. No middlemen, no hidden fees." },
   { key: "rentals", Icon: Warehouse,
     pl_title: "Wynajem",
-    pl_desc: "Wynajmij auto lub garaż od prywatnych właścicieli.",
+    pl_desc: "Wynajmij swoje auto lub garaż sąsiadom. Ty ustalasz cenę, Ty decydujesz komu.",
     en_title: "Rentals",
-    en_desc: "Rent a car or a garage from private owners." },
+    en_desc: "Rent your car or garage to neighbours. You set the price, you choose who." },
   { key: "forum", Icon: MessageSquare,
     pl_title: "Forum",
-    pl_desc: "Społeczność motoryzacyjna, porady i dyskusje.",
+    pl_desc: "Społeczność kierowców którzy wiedzą co mówią. Porady, recenzje i rozmowy o motoryzacji.",
     en_title: "Forum",
-    en_desc: "Motoring community, tips and discussions." },
+    en_desc: "A community of drivers who know what they're talking about. Advice, reviews, motoring talk." },
 ];
 
 const SOCIALS = [
@@ -93,43 +93,51 @@ export default function Landing() {
 
   const tx = {
     pl: {
-      heroH1: "Twój wirtualny garaż w internecie",
-      heroSub: "Zarządzaj autami, śledź historię serwisową, wynajmuj i sprzedawaj. AI Mechanic i forum motoryzacyjne w jednym miejscu.",
-      tryDemo: "Wypróbuj demo",
-      register: "Zarejestruj się za darmo",
+      heroH1: "Samochodowy Facebook. Twoje auto wreszcie ma swoje miejsce w sieci.",
+      heroSub: "A Ty — jakie auto skrywasz w garażu?",
+      tryDemo: "Zobacz demo",
+      register: "Wypróbuj za darmo",
       login: "Zaloguj się",
       featuresTitle: "Wszystko czego potrzebujesz",
       featuresSub: "Sharago łączy najważniejsze narzędzia dla każdego właściciela auta.",
-      howTitle: "Jak to działa",
-      howSub: "Trzy proste kroki — zaczynasz w minutę.",
-      step1Title: "Dodaj swoje auto", step1Desc: "Tablice, VIN, zdjęcia. Wszystko w jednym widoku.",
-      step2Title: "Prowadź historię",  step2Desc: "Wpisz przeglądy, naprawy i koszty na bieżąco.",
-      step3Title: "Wynajmij lub sprzedaj", step3Desc: "Wystaw ogłoszenie w 30 sekund — bez pośredników.",
+      howTitle: "Zacznij w 3 minuty",
+      howSub: "Trzy proste kroki — gotowe szybciej niż kawa.",
+      step1Title: "Stwórz profil auta",
+      step1Desc: "Twoje auto wreszcie ma swoje miejsce w sieci. Dodaj zdjęcia i podstawowe dane — gotowe w 30 sekund.",
+      step2Title: "Prowadź historię",
+      step2Desc: "Każda naprawa, każdy przegląd, każdy wydatek — zapisany i zawsze pod ręką. Koniec z szufladą pełną paragonów.",
+      step3Title: "Wynajmij lub sprzedaj",
+      step3Desc: "Jeden klik i Twoje auto trafia na giełdę. Bez pośredników, bez prowizji, bez czekania.",
       ctaTitle: "Nie musisz się rejestrować żeby sprawdzić Sharago",
       ctaBtn: "Wypróbuj demo teraz",
-      ctaSub: "Pełny dostęp · Dane czyszczone po 24h · Zero karty kredytowej",
-      footerCopy: "© 2026 Sharago — Wirtualny Garaż",
+      ctaSub: "Pełny dostęp do wszystkich funkcji. Bez karty kredytowej. Dane czyszczone po 24h.",
+      ctaJoin: "Dołącz do kierowców którzy już zarządzają swoimi autami w Sharago.",
+      footerCopy: "Sharago — Wirtualny Garaż dla każdego kierowcy w Polsce.",
       legalPriv: "Polityka prywatności",
       legalTerm: "Regulamin",
       legalCont: "Kontakt",
     },
     en: {
-      heroH1: "Your virtual garage online",
-      heroSub: "Manage your cars, track service history, rent and sell. AI Mechanic and motoring forum in one place.",
-      tryDemo: "Try the demo",
-      register: "Sign up for free",
+      heroH1: "Facebook for cars. Your vehicle finally has its place online.",
+      heroSub: "And you — what's parked in your garage?",
+      tryDemo: "See the demo",
+      register: "Try for free",
       login: "Sign in",
       featuresTitle: "Everything you need",
       featuresSub: "Sharago combines the essentials for every car owner.",
-      howTitle: "How it works",
-      howSub: "Three simple steps — start in a minute.",
-      step1Title: "Add your car", step1Desc: "Plates, VIN, photos. Everything in one view.",
-      step2Title: "Track history",  step2Desc: "Log inspections, repairs and costs as they happen.",
-      step3Title: "Rent or sell", step3Desc: "Post a listing in 30 seconds — no middlemen.",
+      howTitle: "Get started in 3 minutes",
+      howSub: "Three simple steps — done faster than your coffee.",
+      step1Title: "Create your car profile",
+      step1Desc: "Your car finally has a home online. Add photos and basic specs — ready in 30 seconds.",
+      step2Title: "Track its history",
+      step2Desc: "Every repair, every inspection, every cost — logged and always at hand. No more drawers full of receipts.",
+      step3Title: "Rent or sell",
+      step3Desc: "One click and your car hits the marketplace. No middlemen, no commission, no waiting.",
       ctaTitle: "You don't need to register to try Sharago",
       ctaBtn: "Try the demo now",
-      ctaSub: "Full access · Data wiped after 24h · No credit card",
-      footerCopy: "© 2026 Sharago — Virtual Garage",
+      ctaSub: "Full access to every feature. No credit card. Data wiped after 24h.",
+      ctaJoin: "Join the drivers already managing their cars on Sharago.",
+      footerCopy: "Sharago — Virtual Garage for every driver in Poland.",
       legalPriv: "Privacy policy",
       legalTerm: "Terms of service",
       legalCont: "Contact",
@@ -142,7 +150,7 @@ export default function Landing() {
       <header className="relative">
         <nav className="max-w-6xl mx-auto px-6 pt-6 flex items-center justify-between text-sm">
           <div className="flex items-center gap-2">
-            <img src="/logo.png" alt="Sharago" className="h-8 w-auto" />
+            <img src="/logo.png" alt="Sharago" className="h-12 md:h-14 w-auto object-contain" />
           </div>
           <div className="flex items-center gap-3">
             <button
@@ -159,7 +167,7 @@ export default function Landing() {
         </nav>
 
         <div className="max-w-3xl mx-auto px-6 pt-16 pb-20 text-center">
-          <img src="/logo.png" alt="Sharago" className="h-16 sm:h-20 mx-auto mb-8" />
+          <img src="/logo.png" alt="Sharago" className="h-20 md:h-24 w-auto mx-auto mb-8 object-contain" />
           <h1 className="text-4xl sm:text-5xl lg:text-6xl font-semibold leading-tight mb-6">
             {tx.heroH1}
           </h1>
@@ -167,22 +175,22 @@ export default function Landing() {
             {tx.heroSub}
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+            <Link
+              to="/register"
+              data-testid="landing-cta-register"
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-md bg-[#2B7FE8] hover:bg-[#1F6FD8] text-white font-medium transition-colors"
+            >
+              {tx.register} <ArrowRight size={16} />
+            </Link>
             <button
               onClick={startDemo}
               disabled={demoBusy}
               data-testid="landing-cta-demo"
-              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-md bg-[#2B7FE8] hover:bg-[#1F6FD8] text-white font-medium transition-colors disabled:opacity-60"
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-md border border-[#2B7FE8]/60 text-[#2B7FE8] hover:bg-[#2B7FE8]/10 font-medium transition-colors disabled:opacity-60"
             >
               {demoBusy ? <Loader2 size={16} className="animate-spin" /> : null}
-              {tx.tryDemo} <ArrowRight size={16} />
+              {tx.tryDemo}
             </button>
-            <Link
-              to="/register"
-              data-testid="landing-cta-register"
-              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-md border border-[#2B7FE8]/60 text-[#2B7FE8] hover:bg-[#2B7FE8]/10 font-medium transition-colors"
-            >
-              {tx.register}
-            </Link>
           </div>
         </div>
       </header>
@@ -250,7 +258,8 @@ export default function Landing() {
       {/* DEMO CTA STRIP */}
       <section className="bg-gradient-to-r from-[#1F4FB8] via-[#2B7FE8] to-[#1F4FB8] text-white">
         <div className="max-w-3xl mx-auto px-6 py-16 text-center">
-          <h2 className="text-2xl sm:text-3xl font-semibold mb-6">{tx.ctaTitle}</h2>
+          <h2 className="text-2xl sm:text-3xl font-semibold mb-3">{tx.ctaTitle}</h2>
+          <p className="text-sm text-white/85 mb-6 leading-relaxed">{tx.ctaSub}</p>
           <button
             onClick={startDemo}
             disabled={demoBusy}
@@ -260,9 +269,7 @@ export default function Landing() {
             {demoBusy ? <Loader2 size={16} className="animate-spin" /> : null}
             {tx.ctaBtn} <ArrowRight size={16} />
           </button>
-          <p className="text-xs uppercase tracking-widest text-white/80 mt-4">
-            {tx.ctaSub}
-          </p>
+          <p className="text-xs text-white/70 mt-4">{tx.ctaJoin}</p>
         </div>
       </section>
 
@@ -270,7 +277,7 @@ export default function Landing() {
       <footer className="bg-vehiq-nav border-t border-vehiq-border">
         <div className="max-w-6xl mx-auto px-6 py-10 flex flex-col md:flex-row items-center justify-between gap-6 text-sm">
           <div className="flex items-center gap-3 text-vehiq-muted">
-            <img src="/logo.png" alt="Sharago" className="h-7 w-auto" />
+            <img src="/logo.png" alt="Sharago" className="h-10 w-auto object-contain" />
             <span>{tx.footerCopy}</span>
           </div>
           <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-vehiq-muted">

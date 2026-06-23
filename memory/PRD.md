@@ -17,6 +17,21 @@ Build a full-stack web + mobile-responsive SaaS application called VEHIQ. A prem
 
 ## What's Implemented (2026-05-02)
 
+### Iter 36 — Dynamic sitemap.xml + LazyImage shimmer (DONE 2026-06-23 — fork-agent)
+
+**Problem:** Landing page i nowe treści blogowe/pojazdy publiczne nie miały dynamicznego sitemap.xml dla Google indexing. LazyImage pokazywał pulsujący placeholder tylko do momentu wejścia w viewport, ale po wczytaniu `<img>` nie maskował fazy dekodowania — krótki "blink" przed pojawieniem się zdjęcia.
+
+**Co zrobiono:**
+- `GET /api/sitemap.xml` (backend `server.py`) — agreguje 7 tras statycznych (`/`, `/wynajem`, `/marketplace`, `/forum`, `/blog`, `/login`, `/register`) + opublikowane posty blogowe (`blog/{slug}`, limit 2000) + publiczne pojazdy (`vehicles/{slug}`, limit 5000). Zwraca `application/xml`, `Cache-Control: public, max-age=600`, prawidłowy `<urlset>` z `<lastmod>`, `<changefreq>`, `<priority>` per URL. Base URL konfigurowalny przez `SITEMAP_BASE_URL` env var (default `https://sharago.pl`).
+- `LazyImage.js` — dodano stan `loaded`, overlay shimmer (`absolute inset-0 lazy-image-shimmer`) widoczny aż do `onLoad`/`onError` faktycznego `<img>`. CSS animation w `index.css` (`@keyframes lazy-image-shimmer`, 1.4s ease-in-out infinite + respekt dla `prefers-reduced-motion`).
+- Test regresji: `/app/backend/tests/test_iter36_sitemap.py` (3/3 PASS) — sprawdza status, headery, well-formed XML, obecność tras statycznych.
+
+**Pliki:**
+- `/app/backend/server.py` (+`/api/sitemap.xml` endpoint, +`xml_escape`, +`_w3c_date`)
+- `/app/frontend/src/components/LazyImage.js` (rewrite — stan `loaded`, skeleton overlay, data-testid)
+- `/app/frontend/src/index.css` (+`@keyframes lazy-image-shimmer`, +`.lazy-image-shimmer` class)
+- `/app/backend/tests/test_iter36_sitemap.py` (NEW)
+
 ### Iter 11 — Vercel deploy fix: package.json conflicts (DONE 2026-05-09 — fork-agent)
 
 **Problem 1:** `date-fns@^4.1.0` ↔ `react-day-picker@8.10.1` (wymaga date-fns v2/v3) → ERESOLVE.
