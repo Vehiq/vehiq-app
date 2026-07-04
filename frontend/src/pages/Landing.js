@@ -167,7 +167,7 @@ export default function Landing() {
         </nav>
 
         <div className="max-w-3xl mx-auto px-6 pt-16 pb-20 text-center">
-          <img src="/logo.png" alt="Sharago" className="h-20 md:h-24 w-auto mx-auto mb-8 object-contain" />
+          <img src="/logo.png" alt="Sharago" className="h-24 md:h-32 w-auto mx-auto mb-8 object-contain" />
           <h1 className="text-4xl sm:text-5xl lg:text-6xl font-semibold leading-tight mb-6">
             {tx.heroH1}
           </h1>

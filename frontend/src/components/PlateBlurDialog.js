@@ -74,29 +74,35 @@ export default function PlateBlurDialog({ file, onCancel, onConfirm }) {
   }, [imgLoaded, rects, dragRect]);
 
   const paintBlur = (ctx, img, r, isPreview = false) => {
-    if (r.w < 4 || r.h < 4) return;
-    ctx.save();
-    ctx.filter = "blur(14px)";
-    // Draw the underlying image region clipped, scaled up slightly so the blur
-    // doesn't show ugly seams at the edge of the rect.
-    const pad = 6;
-    ctx.beginPath();
-    ctx.rect(r.x, r.y, r.w, r.h);
-    ctx.clip();
-    ctx.drawImage(
-      img,
-      Math.max(0, r.x - pad), Math.max(0, r.y - pad),
-      r.w + pad * 2, r.h + pad * 2,
-      Math.max(0, r.x - pad), Math.max(0, r.y - pad),
-      r.w + pad * 2, r.h + pad * 2,
-    );
-    ctx.restore();
-    if (isPreview) {
+    // Always render outline for previews so the user sees feedback from the
+    // very first pixel of the drag — even before the box is big enough to
+    // hold a meaningful blur.
+    const drawOutline = isPreview;
+    const hasArea = r.w >= 4 && r.h >= 4;
+    if (hasArea) {
+      ctx.save();
+      ctx.filter = "blur(14px)";
+      // Draw the underlying image region clipped, scaled up slightly so the blur
+      // doesn't show ugly seams at the edge of the rect.
+      const pad = 6;
+      ctx.beginPath();
+      ctx.rect(r.x, r.y, r.w, r.h);
+      ctx.clip();
+      ctx.drawImage(
+        img,
+        Math.max(0, r.x - pad), Math.max(0, r.y - pad),
+        r.w + pad * 2, r.h + pad * 2,
+        Math.max(0, r.x - pad), Math.max(0, r.y - pad),
+        r.w + pad * 2, r.h + pad * 2,
+      );
+      ctx.restore();
+    }
+    if (drawOutline) {
       ctx.save();
       ctx.strokeStyle = "#2B7FE8";
-      ctx.lineWidth = 3 / scale;
+      ctx.lineWidth = Math.max(2, 3 / scale);
       ctx.setLineDash([10 / scale, 6 / scale]);
-      ctx.strokeRect(r.x, r.y, r.w, r.h);
+      ctx.strokeRect(r.x, r.y, Math.max(1, r.w), Math.max(1, r.h));
       ctx.restore();
     }
   };
@@ -104,15 +110,29 @@ export default function PlateBlurDialog({ file, onCancel, onConfirm }) {
   const getNaturalPos = (e) => {
     const canvas = canvasRef.current;
     const rect = canvas.getBoundingClientRect();
-    const x = ((e.clientX - rect.left) / rect.width) * canvas.width;
-    const y = ((e.clientY - rect.top) / rect.height) * canvas.height;
-    return { x: Math.max(0, Math.min(canvas.width, x)), y: Math.max(0, Math.min(canvas.height, y)) };
+    // Guard against zero-sized rect (canvas not yet laid out) — division by 0
+    // would return NaN and freeze the drawing state machine.
+    if (!rect.width || !rect.height) return { x: 0, y: 0 };
+    const clientX = e.clientX ?? (e.touches && e.touches[0]?.clientX) ?? 0;
+    const clientY = e.clientY ?? (e.touches && e.touches[0]?.clientY) ?? 0;
+    const x = ((clientX - rect.left) / rect.width) * canvas.width;
+    const y = ((clientY - rect.top) / rect.height) * canvas.height;
+    return {
+      x: Math.max(0, Math.min(canvas.width, x)),
+      y: Math.max(0, Math.min(canvas.height, y)),
+    };
   };
 
   const onPointerDown = (e) => {
     if (!imgLoaded) return;
     e.preventDefault();
-    canvasRef.current.setPointerCapture(e.pointerId);
+    // Pointer capture can throw on iOS Safari when the pointerType isn't
+    // capturable — swallow the error and continue, since we don't strictly
+    // need capture for the draw to work (React re-render on setDragRect is
+    // enough for live preview).
+    try {
+      canvasRef.current.setPointerCapture?.(e.pointerId);
+    } catch (_) { /* ignore */ }
     const p = getNaturalPos(e);
     startRef.current = p;
     setDragRect({ x: p.x, y: p.y, w: 0, h: 0 });
@@ -121,6 +141,7 @@ export default function PlateBlurDialog({ file, onCancel, onConfirm }) {
 
   const onPointerMove = (e) => {
     if (!drawing) return;
+    e.preventDefault();
     const p = getNaturalPos(e);
     const s = startRef.current;
     if (!s) return;
@@ -137,7 +158,10 @@ export default function PlateBlurDialog({ file, onCancel, onConfirm }) {
     setDrawing(false);
     const r = dragRect;
     setDragRect(null);
-    if (r && r.w >= 10 && r.h >= 10) {
+    // Commit threshold relaxed from 10px → 6px in natural coords so tiny
+    // license-plate boxes on high-res images (where 10 natural px ≈ 2 CSS px)
+    // are accepted.
+    if (r && r.w >= 6 && r.h >= 6) {
       setRects((prev) => [...prev, r]);
     }
   };

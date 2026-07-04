@@ -1,0 +1,29 @@
+{
+  "summary": "Iter 38 tested end-to-end. Backend: 4/4 pytest passed (service create with fine-grained service_type=oil_change, legacy create without service_type returns None, list-by-vehicle returns both, missing legacy type=422). Frontend: Landing hero logo class 'h-24 md:h-32' verified, Login page Logo lg renders with 'h-20 md:h-24'. LanguageSwitcher present in authenticated TopBar (data-testid='language-switcher'). Service history form: dropdown is <select> with exactly 24 options, first option value='oil_change' label='Wymiana oleju i filtrów'; submitting service_type=brake_pads + long notes yields row with badge 'Klocki hamulcowe' and ellipsis '…' truncation. Table headers = ['Data','Typ','Opis','Koszt (PLN)',''] — no 'Warsztat'. Koszt th class = 'text-right p-3 vehiq-overline hidden sm:table-cell'; on 375px viewport Koszt th is not visible (offsetWidth=0) and inline mobile cost span '250 PLN' renders under Opis. No i18next 'missingKey' warnings on /marketplace, /wynajem, /profile. Iter 37 regressions OK: [data-testid='vehicle-print-qr-btn'] still present on /garage/{vid}. CreateListing page loads (PlateBlurDialog import path parses without runtime error).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter38.py",
+    "/app/test_reports/pytest/iter38.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "PlateBlurDialog canvas drawing (pointer down/move/up) is not E2E-testable in Playwright headless due to canvas + pointer capture — verified structurally only (all testids present, component compiles, no console errors on parent page mount). Consider adding a lightweight jsdom/vitest unit test for paintBlur math.",
+    "There are two LanguageSwitcher instances in the DOM at authenticated pages (desktop TopBar + mobile menu). Selector [data-testid='language-switcher-button'] matches 2 nodes; tests must filter by visibility. Non-blocking but worth adding data-testid suffixes ('language-switcher-button-desktop' / '-mobile').",
+    "Legacy `type` field on POST /api/service is still required (422 if missing). This is by design per spec and correctly handled by ServiceTab which auto-maps service_type→legacy type via LEGACY_TYPE_MAP."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter38.py"
+  ],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "test_credentials": "POST /api/auth/demo (no creds) — returns {token, user, is_demo:true, plan:premium}. LocalStorage key: sharago_token. Suppress onboarding: localStorage['sharago_first_use_tooltips_seen']='1' (via add_init_script so it applies pre-hydration).",
+  "seed_data_creation": "Each test run creates fresh demo user + 1 vehicle + 2 service entries (one with service_type=oil_change, one legacy without). TTL 24h; no manual cleanup.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "For Iter 38 fixture: set localStorage['sharago_first_use_tooltips_seen']='1' via page.add_init_script BEFORE first navigation, otherwise the tooltip overlay blocks clicks. When there are duplicate testids (mobile+desktop TopBar), iterate elements and pick the visible one. Sonner toasts can intercept clicks briefly — call wait_for_timeout(2500) or removeAll [data-sonner-toast] elements. Cloudflare rate limit / bot check may trigger after ~2 back-to-back demo logins — reuse tokens where possible.",
+  "rca of the issue": "N/A — no bugs found."
+}

@@ -7,10 +7,10 @@
  */
 export default function Logo({ size = "md", showTagline = false, className = "" }) {
   const heights = {
-    sm: "h-9",      // 36px — inline footers / breadcrumbs
-    md: "h-12",     // 48px — desktop header (default)
-    lg: "h-28",     // 112px — auth pages
-    xl: "h-32",     // 128px — sidebar wide hero
+    sm: "h-9",                  // 36px — inline footers / breadcrumbs
+    md: "h-12 md:h-14",         // 48/56px — desktop header (default)
+    lg: "h-20 md:h-24",         // 80/96px — auth pages (Iter 38)
+    xl: "h-24 md:h-32",         // 96/128px — sidebar wide hero (Iter 38)
   };
   return (
     <div className={`inline-flex items-center gap-2 ${className}`} data-testid="sharago-logo">

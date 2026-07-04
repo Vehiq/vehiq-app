@@ -14,7 +14,10 @@ router = APIRouter(prefix="/service", tags=["service"])
 class ServiceEntryIn(BaseModel):
     vehicle_id: str
     date: str
-    type: str  # oil, inspection, repair, tires, insurance, mot, other
+    type: str  # legacy 7-value type (oil/inspection/repair/tires/insurance/mot/other)
+    # Iter 38: fine-grained subcategory (24 values, see frontend SERVICE_CATEGORIES).
+    # Optional so legacy rows keep working — treat missing as "other".
+    service_type: Optional[str] = None
     workshop: Optional[str] = None
     cost: float = 0
     notes: Optional[str] = None
