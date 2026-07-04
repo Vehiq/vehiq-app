@@ -17,6 +17,47 @@ Build a full-stack web + mobile-responsive SaaS application called VEHIQ. A prem
 
 ## What's Implemented (2026-05-02)
 
+### Iter 38 — i18n auto-detect + Logo sizes + Blur fix + Service subcategories + Mobile table (DONE 2026-07-04 — fork-agent)
+
+**Problem statements:**
+- P1 i18n: potwierdzenie że automatyczna detekcja języka przeglądarki działa end-to-end.
+- P1 Logo: rozmiary logo w headerze / landing hero / login niespójne z docelową specyfikacją.
+- P1 Blur: `PlateBlurDialog.js` — użytkownicy raportowali że rysowanie prostokąta na tablicy rejestracyjnej nie działa (brak feedbacku, znikające pociągnięcia na iOS).
+- P1 Serwis: historia serwisowa miała tylko 7 ogólnych typów (`oil/inspection/repair/tires/insurance/mot/other`); brakowało bardziej precyzyjnej kategoryzacji dla użytkowników śledzących szczegółowe naprawy.
+- P1 Mobile: tabela historii serwisowej na telefonie miała kolumnę "Warsztat" która była pusta w >70% wpisów, a brakowało widoczności opisu.
+
+**Co zrobiono:**
+- **i18n auto-detect (WERYFIKACJA)** — infra była już skonfigurowana (`i18next-browser-languagedetector` v8, `order: [localStorage, navigator, htmlTag]`, cache: localStorage `sharago_lang`, fallback: `pl`). LanguageSwitcher (data-testid `language-switcher-button`) obecny w TopBar (auth), Footer, LoginPage, LegalPage, Landing. Testing agent potwierdził: brak ostrzeżeń `i18next::translator: missingKey` na `/marketplace`, `/wynajem`, `/profile`.
+- **Logo (`components/Logo.js`)** — nowe responsywne wysokości:
+  - `md` (default): `h-12 md:h-14` (48/56px)
+  - `lg` (login): `h-20 md:h-24` (80/96px)
+  - `xl` (sidebar wide/landing hero): `h-24 md:h-32` (96/128px)
+  - `Landing.js` hero: bezpośrednio `h-24 md:h-32`.
+- **PlateBlurDialog fix (`components/PlateBlurDialog.js`)** — 4 zmiany:
+  1. `paintBlur` rozdzielone: outline zawsze rysowany dla preview (nawet gdy `w×h < 4`), sam blur tylko gdy jest `hasArea`.
+  2. `getNaturalPos` — guard `rect.width === 0` zwraca `{0,0}` (unika NaN gdy canvas jeszcze nie zamontowany).
+  3. `onPointerDown` — `setPointerCapture` w try/catch (iOS Safari czasem odrzuca dla stylusa/dotyku).
+  4. `onPointerMove` — `e.preventDefault()`; próg commit obniżony z 10→6px w natywnych współrzędnych (obsługuje małe tablice na hi-res zdjęciach).
+- **Serwis subkategorie (`routers/service.py` + `constants/serviceCategories.js`)**:
+  - Backend: nowe pole `ServiceEntryIn.service_type: Optional[str] = None` obok legacy `type: str`.
+  - Frontend: nowy plik `serviceCategories.js` z 24 kategoriami (`oil_change`, `timing_belt`, `spark_plugs`, `air_filter`, `fuel_filter`, `coolant`, `brake_pads`, `brake_discs`, `brake_fluid`, `suspension`, `tires`, `wheel_alignment`, `steering`, `battery`, `alternator`, `lighting`, `inspection`, `insurance`, `registration`, `ac_service`, `gearbox`, `exhaust`, `bodywork`, `other`). `serviceTypeLabel(v)` z fallbackiem "Inne".
+  - `ServiceTab.js`: rewrite. Dropdown "Typ serwisu / części" (data-testid `service-form-type`) jako **pierwsze pole** formularza. `LEGACY_TYPE_MAP` auto-mapuje na stary `type` dla backward compat i statystyk. Badge (data-testid `service-type-badge-{id}`) obok każdego wpisu w tabeli.
+- **Mobile tabela serwisowa** — nagłówki: `Data / Typ / Opis / Koszt (hidden sm)`. Kolumna "Warsztat" usunięta. Kolumna "Opis" pokazuje `truncate(notes, 45)` z ellipsis "…". Na <640px kolumna "Koszt" ma klasę `hidden sm:table-cell`; koszt pokazywany inline w komórce Opis pod tekstem (`sm:hidden`).
+
+**Testowanie (100% PASS, iteration_14.json):**
+- Backend: 4/4 pytest (`test_iter38.py`) — service_type oil_change, legacy bez service_type, list-by-vehicle zwraca oba, brak legacy type=422.
+- Frontend: 24 opcje, first='oil_change', badge 'Klocki hamulcowe' na brake_pads, ellipsis '…' w Opis, brak 'Warsztat' w headerach, kolumna Koszt niewidoczna na 375px viewport, inline mobile cost renderuje się, Logo sizes ok, brak missing-key warnings.
+- Iter 37 regresja OK (Drukuj QR, tabs marketplace/mine).
+
+**Pliki:**
+- `/app/backend/routers/service.py` (+`service_type` field)
+- `/app/frontend/src/constants/serviceCategories.js` (NEW)
+- `/app/frontend/src/pages/vehicle-tabs/ServiceTab.js` (rewrite)
+- `/app/frontend/src/components/Logo.js` (responsywne wysokości)
+- `/app/frontend/src/pages/Landing.js` (hero h-24 md:h-32)
+- `/app/frontend/src/components/PlateBlurDialog.js` (4 fixy pointer + preview)
+- `/app/backend/tests/test_iter38.py` (NEW — 4 tests)
+
 ### Iter 37 — Listing validation fix + Service category + Print QR + robots.txt (DONE 2026-07-04 — fork-agent)
 
 **Problem statements:**
