@@ -1,13 +1,58 @@
 {
   "parts": {
-    "engine": { "title": "Silnik i osprzęt", "full": "Silnik kompletny", "head": "Głowica", "alternator": "Alternator", "timing": "Rozrząd", "other": "Inne części silnika" },
-    "transmission": { "title": "Skrzynia biegów", "manual": "Skrzynia manualna", "auto": "Skrzynia automatyczna", "clutch": "Sprzęgło" },
-    "suspension": { "title": "Zawieszenie i układ jezdny", "shocks": "Amortyzatory", "springs": "Sprężyny", "arms": "Wahacze", "wheels": "Koła i opony" },
-    "body": { "title": "Karoseria i nadwozie", "bumpers": "Zderzaki", "hoodFenders": "Maski i błotniki", "doors": "Drzwi", "glass": "Szyby", "other": "Inne elementy karoserii" },
-    "electrical": { "title": "Elektryka i elektronika", "alternator": "Alternator", "starter": "Rozrusznik", "ecu": "Sterowniki ECU", "lights": "Oświetlenie" },
-    "interior": { "title": "Wnętrze", "seats": "Fotele", "dashboard": "Deska rozdzielcza", "mats": "Dywaniki", "other": "Inne" },
-    "brakes": { "title": "Układ hamulcowy", "discs": "Tarcze i klocki", "calipers": "Zaciski", "other": "Inne" },
-    "other": { "title": "Inne / Nieprzypisane", "misc": "Inne" }
+    "engine": {
+      "title": "Silnik i osprzęt",
+      "full": "Silnik kompletny",
+      "head": "Głowica",
+      "alternator": "Alternator",
+      "timing": "Rozrząd",
+      "other": "Inne części silnika"
+    },
+    "transmission": {
+      "title": "Skrzynia biegów",
+      "manual": "Skrzynia manualna",
+      "auto": "Skrzynia automatyczna",
+      "clutch": "Sprzęgło"
+    },
+    "suspension": {
+      "title": "Zawieszenie i układ jezdny",
+      "shocks": "Amortyzatory",
+      "springs": "Sprężyny",
+      "arms": "Wahacze",
+      "wheels": "Koła i opony"
+    },
+    "body": {
+      "title": "Karoseria i nadwozie",
+      "bumpers": "Zderzaki",
+      "hoodFenders": "Maski i błotniki",
+      "doors": "Drzwi",
+      "glass": "Szyby",
+      "other": "Inne elementy karoserii"
+    },
+    "electrical": {
+      "title": "Elektryka i elektronika",
+      "alternator": "Alternator",
+      "starter": "Rozrusznik",
+      "ecu": "Sterowniki ECU",
+      "lights": "Oświetlenie"
+    },
+    "interior": {
+      "title": "Wnętrze",
+      "seats": "Fotele",
+      "dashboard": "Deska rozdzielcza",
+      "mats": "Dywaniki",
+      "other": "Inne"
+    },
+    "brakes": {
+      "title": "Układ hamulcowy",
+      "discs": "Tarcze i klocki",
+      "calipers": "Zaciski",
+      "other": "Inne"
+    },
+    "other": {
+      "title": "Inne / Nieprzypisane",
+      "misc": "Inne"
+    }
   },
   "common": {
     "save": "Zapisz",
@@ -250,7 +295,16 @@
     "filterType": "Typ",
     "filterPrice": "Cena",
     "filterLocation": "Lokalizacja",
-    "types": { "all": "Wszystkie", "car": "Sprzedam", "parts": "Sprzedam części", "swap": "Zamienię", "full_parts": "Cały na części", "project": "Projekt", "rental": "Wynajem" },
+    "types": {
+      "all": "Wszystkie",
+      "car": "Sprzedam",
+      "parts": "Sprzedam części",
+      "swap": "Zamienię",
+      "full_parts": "Cały na części",
+      "project": "Projekt",
+      "rental": "Wynajem",
+      "service": "Usługa motoryzacyjna"
+    },
     "conditions": {
       "running": "Sprawny",
       "needs_repair": "Wymaga naprawy",
@@ -262,8 +316,15 @@
       "damagedDead": "Uszkodzony (nie jeździ)",
       "restoration": "Do renowacji"
     },
-    "steering": { "left": "Lewa (standardowa)", "right": "Prawa (JDM/UK)" },
-    "swapCond": { "any": "Dowolny stan", "running": "Sprawny", "clean": "Zadbany" },
+    "steering": {
+      "left": "Lewa (standardowa)",
+      "right": "Prawa (JDM/UK)"
+    },
+    "swapCond": {
+      "any": "Dowolny stan",
+      "running": "Sprawny",
+      "clean": "Zadbany"
+    },
     "conditionLabel": "Stan pojazdu",
     "steeringLabel": "Kierownica",
     "partsCategory": "Kategoria części",
@@ -304,8 +365,13 @@
     "confirmDelete": "Czy na pewno chcesz usunąć to ogłoszenie?",
     "markSold": "Sprzedane",
     "relist": "Wystaw ponownie",
-    "status": { "active": "Aktywne", "sold": "Sprzedane", "archived": "Archiwum" },
-    "report": "Zgłoś"
+    "status": {
+      "active": "Aktywne",
+      "sold": "Sprzedane",
+      "archived": "Archiwum"
+    },
+    "report": "Zgłoś",
+    "serviceTitleDescRequired": "Tytuł i opis usługi są wymagane"
   },
   "forum": {
     "title": "Forum społeczności",
@@ -540,10 +606,22 @@
     "backToGarage": "Wróć do garażu",
     "makeModelRequired": "Wpisz markę i model",
     "features": {
-      "garage": { "title": "Garaż", "desc": "Twoje pojazdy w jednym miejscu" },
-      "service": { "title": "Serwis", "desc": "Historia napraw i koszty" },
-      "ai": { "title": "AI Mechanik", "desc": "Diagnoza problemów" },
-      "marketplace": { "title": "Giełda", "desc": "Kup, sprzedaj, zamień" }
+      "garage": {
+        "title": "Garaż",
+        "desc": "Twoje pojazdy w jednym miejscu"
+      },
+      "service": {
+        "title": "Serwis",
+        "desc": "Historia napraw i koszty"
+      },
+      "ai": {
+        "title": "AI Mechanik",
+        "desc": "Diagnoza problemów"
+      },
+      "marketplace": {
+        "title": "Giełda",
+        "desc": "Kup, sprzedaj, zamień"
+      }
     },
     "step1Title": "Witaj w Sharago",
     "step1Desc": "Twój wirtualny garaż premium. Wybierz język, by rozpocząć.",

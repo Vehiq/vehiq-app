@@ -8,3 +8,4 @@ Disallow: /api/admin
 
 # Public sitemap
 Sitemap: https://sharago.pl/sitemap.xml
+Sitemap: https://sharago.pl/api/sitemap.xml

@@ -27,6 +27,10 @@ export default function CreateListing() {
       availability_text: "", pickup_location: "", garage_address: "",
       requirements: "", owner_type: "private", business_name: "",
     },
+    service: {
+      pricing_type: "hourly", price_from: "", coverage_area: "",
+      contact_phone: "", contact_email: "",
+    },
   });
   const [busy, setBusy] = useState(false);
   const [limitModal, setLimitModal] = useState(false);
@@ -104,6 +108,7 @@ export default function CreateListing() {
       // "input should be a valid string" — this is the root cause of issue #1.
       const s = (v) => (v == null ? "" : String(v));
       const isRental = form.category === "rental_car" || form.category === "rental_garage";
+      const isService = form.type === "service" || form.category === "service";
       const payload = {
         type: s(form.type) || "car",
         category: form.category || null,
@@ -127,6 +132,15 @@ export default function CreateListing() {
       if (payload.type !== "parts") { payload.parts_category = null; payload.parts_subcategory = null; }
       if (payload.type !== "swap") { payload.desired_swaps = []; }
       if (!["car", "project", "rental", "full_parts"].includes(payload.type)) {
+        payload.condition = null;
+        payload.steering = null;
+      }
+      if (isService) {
+        // Service listings never carry vehicle-specific data
+        payload.make = null;
+        payload.model = null;
+        payload.year = null;
+        payload.mileage = null;
         payload.condition = null;
         payload.steering = null;
       }
@@ -155,15 +169,32 @@ export default function CreateListing() {
       } else {
         payload.rental = null;
       }
+      // Service-specific payload
+      if (isService) {
+        const sv = form.service || {};
+        if (!s(form.title).trim() || !s(form.description).trim()) {
+          toast.error(t("marketplace.serviceTitleDescRequired"));
+          return;
+        }
+        payload.service = {
+          pricing_type: sv.pricing_type || "hourly",
+          price_from: sv.price_from ? parseFloat(sv.price_from) : null,
+          coverage_area: s(sv.coverage_area) || null,
+          contact_phone: s(sv.contact_phone) || null,
+          contact_email: s(sv.contact_email) || null,
+        };
+      } else {
+        payload.service = null;
+      }
       // Title is required by backend — block empty submission early
       if (!payload.title.trim()) { toast.error(t("marketplace.titleRequired")); return; }
       await api.post("/marketplace/listings", payload);
       toast.success(t("common.success"));
-      navigate(isRental ? "/wynajem" : "/garage");
+      navigate(isRental ? "/wynajem" : (isService ? "/marketplace/mine" : "/garage"));
     } catch (err) {
       const detail = err?.response?.data?.detail;
-      if (err?.response?.status === 402 && detail?.code === "rental_limit_free") {
-        setLimitModal(true);
+      if (err?.response?.status === 402 && (detail?.code === "rental_limit_free" || detail?.code === "service_limit_free")) {
+        setLimitModal(detail.code === "service_limit_free" ? "service" : "rental");
         return;
       }
       toast.error(apiErrorMessage(err, t("common.error")));
@@ -187,10 +218,11 @@ export default function CreateListing() {
   // Vehicle-specific fields (make/model/year/mileage/condition) make sense for:
   //   - classic car listing (type=car / project / full_parts)
   //   - rental_car (vehicle is being rented)
-  // NOT for rental_garage (parking spot — no vehicle attached).
+  // NOT for rental_garage (parking spot — no vehicle attached) or service (not a vehicle sale).
   const isRentalGarage = form.category === "rental_garage";
+  const isServiceType = form.type === "service" || form.category === "service";
   const showVehicleFields =
-    !isRentalGarage &&
+    !isRentalGarage && !isServiceType &&
     ["car", "project", "rental", "full_parts"].includes(form.type);
   const showPartsFields = form.type === "parts";
   const showSwapFields = form.type === "swap";
@@ -206,7 +238,14 @@ export default function CreateListing() {
       <div className="vehiq-card p-6 space-y-4">
         <div>
           <label className="vehiq-overline mb-2 block">{t("marketplace.filterType")}</label>
-          <select value={form.type} onChange={(e) => setForm({...form, type: e.target.value, category: e.target.value === "rental" ? (form.category || "rental_car") : ""})} className="vehiq-input" data-testid="listing-type">
+          <select value={form.type} onChange={(e) => {
+            const newType = e.target.value;
+            let newCategory = form.category;
+            if (newType === "rental") newCategory = form.category || "rental_car";
+            else if (newType === "service") newCategory = "service";
+            else newCategory = "";
+            setForm({...form, type: newType, category: newCategory});
+          }} className="vehiq-input" data-testid="listing-type">
             {LISTING_TYPES.map((tp) => (
               <option key={tp.id} value={tp.id}>{t(tp.labelKey)}</option>
             ))}
@@ -385,7 +424,7 @@ export default function CreateListing() {
           <textarea value={form.description} onChange={(e) => setForm({...form, description: e.target.value})} className="vehiq-input" rows={5} data-testid="listing-description" />
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {!(form.category === "rental_car" || form.category === "rental_garage") && (
+          {!(form.category === "rental_car" || form.category === "rental_garage" || isServiceType) && (
             <div>
               <label className="vehiq-overline mb-2 block">{t("marketplace.price")}</label>
               <input required type="number" step="0.01" value={form.price} onChange={(e) => setForm({...form, price: e.target.value})} className="vehiq-input" data-testid="listing-price" />
@@ -537,6 +576,74 @@ export default function CreateListing() {
         </div>
       )}
 
+      {isServiceType && (
+        <div className="vehiq-card p-6 space-y-4" data-testid="listing-service-fields">
+          <div className="vehiq-overline">Szczegóły usługi</div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="vehiq-overline mb-2 block">Rodzaj wyceny</label>
+              <select
+                value={form.service.pricing_type}
+                onChange={(e) => setForm({ ...form, service: { ...form.service, pricing_type: e.target.value } })}
+                className="vehiq-input"
+                data-testid="service-pricing-type"
+              >
+                <option value="hourly">Za godzinę</option>
+                <option value="fixed">Za usługę</option>
+                <option value="negotiable">Do uzgodnienia</option>
+              </select>
+            </div>
+            <div>
+              <label className="vehiq-overline mb-2 block">Cena od (PLN)</label>
+              <input
+                type="number" min="0" step="1"
+                value={form.service.price_from}
+                onChange={(e) => setForm({ ...form, service: { ...form.service, price_from: e.target.value } })}
+                className="vehiq-input"
+                data-testid="service-price-from"
+                placeholder="np. 150"
+              />
+            </div>
+          </div>
+          <div>
+            <label className="vehiq-overline mb-2 block">Lokalizacja / zasięg</label>
+            <input
+              value={form.service.coverage_area}
+              onChange={(e) => setForm({ ...form, service: { ...form.service, coverage_area: e.target.value } })}
+              placeholder='np. Warszawa lub "cała Polska"'
+              className="vehiq-input"
+              data-testid="service-coverage"
+            />
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="vehiq-overline mb-2 block">Telefon kontaktowy</label>
+              <input
+                type="tel"
+                value={form.service.contact_phone}
+                onChange={(e) => setForm({ ...form, service: { ...form.service, contact_phone: e.target.value } })}
+                placeholder="+48 ..."
+                className="vehiq-input"
+                data-testid="service-phone"
+              />
+            </div>
+            <div>
+              <label className="vehiq-overline mb-2 block">E-mail kontaktowy</label>
+              <input
+                type="email"
+                value={form.service.contact_email}
+                onChange={(e) => setForm({ ...form, service: { ...form.service, contact_email: e.target.value } })}
+                className="vehiq-input"
+                data-testid="service-email"
+              />
+            </div>
+          </div>
+          <div className="text-[11px] text-vehiq-muted">
+            W planie Free możesz mieć 1 aktywne ogłoszenie usługi. Premium — bez limitu.
+          </div>
+        </div>
+      )}
+
       <button type="submit" disabled={busy} className="vehiq-btn-primary" data-testid="listing-submit">{busy ? t("common.loading") : t("common.save")}</button>
 
       {limitModal && (
@@ -544,7 +651,11 @@ export default function CreateListing() {
           <div className="vehiq-card p-8 max-w-md w-full space-y-4 border-vehiq-gold/40">
             <h2 className="vehiq-display text-2xl text-vehiq-text">Limit Free</h2>
             <p className="text-sm text-vehiq-muted">
-              W planie Free możesz mieć <strong className="text-vehiq-text">1 aktywne ogłoszenie wynajmu</strong>. Przejdź na Premium, aby dodawać bez limitu.
+              {limitModal === "service" ? (
+                <>W planie Free możesz mieć <strong className="text-vehiq-text">1 aktywne ogłoszenie usługi</strong>. Przejdź na Premium, aby dodawać bez limitu.</>
+              ) : (
+                <>W planie Free możesz mieć <strong className="text-vehiq-text">1 aktywne ogłoszenie wynajmu</strong>. Przejdź na Premium, aby dodawać bez limitu.</>
+              )}
             </p>
             <div className="flex gap-2 pt-2">
               <button

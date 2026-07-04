@@ -3,8 +3,9 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import api from "@/lib/api";
 import { toast } from "sonner";
-import { ArrowLeft, Trash2, Edit2, Share2, Eye, EyeOff, Check, Copy, Tag, CheckCircle2 } from "lucide-react";
+import { ArrowLeft, Trash2, Edit2, Share2, Eye, EyeOff, Check, Copy, Tag, CheckCircle2, QrCode } from "lucide-react";
 import VehicleForm from "@/components/VehicleForm";
+import PrintQrDialog from "@/components/PrintQrDialog";
 import OverviewTab from "./vehicle-tabs/OverviewTab";
 import ServiceTab from "./vehicle-tabs/ServiceTab";
 import MileageTab from "./vehicle-tabs/MileageTab";
@@ -31,6 +32,7 @@ export default function VehicleProfile() {
   const [showMarkSold, setShowMarkSold] = useState(false);
   const [showDelete, setShowDelete] = useState(false);
   const [soldResult, setSoldResult] = useState(null);
+  const [showPrintQr, setShowPrintQr] = useState(false);
 
   const reload = () => api.get(`/vehicles/${id}`).then(r => setVehicle(r.data));
 
@@ -93,6 +95,9 @@ export default function VehicleProfile() {
             </button>
           )}
           <ShareMenu vehicle={vehicle} reload={reload} />
+          <button onClick={() => setShowPrintQr(true)} className="vehiq-btn-secondary inline-flex items-center gap-2" data-testid="vehicle-print-qr-btn" title="Kod QR do naklejenia na szybę">
+            <QrCode size={14} /> Drukuj QR
+          </button>
           <button onClick={() => setEditing(true)} className="vehiq-btn-secondary inline-flex items-center gap-2" data-testid="vehicle-edit-btn"><Edit2 size={14} /> {t("common.edit")}</button>
           <button onClick={() => setShowDelete(true)} className="vehiq-btn-secondary inline-flex items-center gap-2 !border-red-500/40 !text-red-400 hover:!bg-red-500/10" data-testid="vehicle-delete-btn"><Trash2 size={14} /> {t("common.delete")}</button>
         </div>
@@ -134,6 +139,14 @@ export default function VehicleProfile() {
       )}
 
       {soldResult && <SoldResultBanner result={soldResult} vehicle={vehicle} onClose={() => setSoldResult(null)} />}
+
+      {showPrintQr && (
+        <PrintQrDialog
+          vehicleId={vehicle.id}
+          vehicleSlug={vehicle.slug}
+          onClose={() => setShowPrintQr(false)}
+        />
+      )}
 
       <div className="border-b border-vehiq-border flex gap-1 overflow-x-auto">
         {TABS.filter(({ id: tid }) => {

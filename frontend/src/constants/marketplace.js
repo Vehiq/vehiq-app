@@ -7,6 +7,7 @@ export const LISTING_TYPES = [
   { id: "full_parts", labelKey: "marketplace.types.full_parts" },
   { id: "project", labelKey: "marketplace.types.project" },
   { id: "rental", labelKey: "marketplace.types.rental" },
+  { id: "service", labelKey: "marketplace.types.service" },
 ];
 
 export const VEHICLE_CONDITIONS = [

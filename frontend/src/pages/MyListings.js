@@ -13,7 +13,7 @@ export default function MyListings() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [items, setItems] = useState(null);
-  const [filter, setFilter] = useState("all"); // all | classic | rental
+  const [filter, setFilter] = useState("all"); // all | vehicles | rental | service
 
   const load = async () => {
     try {
@@ -31,8 +31,14 @@ export default function MyListings() {
   }, []);
 
   const visible = (items || []).filter((l) => {
+    if (filter === "all") return true;
     if (filter === "rental") return l.category === "rental_car" || l.category === "rental_garage";
-    if (filter === "classic") return l.category !== "rental_car" && l.category !== "rental_garage";
+    if (filter === "service") return l.category === "service" || l.type === "service";
+    if (filter === "vehicles") {
+      const isRental = l.category === "rental_car" || l.category === "rental_garage";
+      const isService = l.category === "service" || l.type === "service";
+      return !isRental && !isService;
+    }
     return true;
   });
 
@@ -77,8 +83,9 @@ export default function MyListings() {
       <div className="inline-flex rounded-md border border-vehiq-border bg-vehiq-card p-1" data-testid="my-listings-filter">
         {[
           { v: "all", label: "Wszystkie" },
-          { v: "classic", label: "Klasyczne" },
+          { v: "vehicles", label: "Pojazdy" },
           { v: "rental", label: "Wynajem" },
+          { v: "service", label: "Usługi" },
         ].map((opt) => (
           <button
             key={opt.v}

@@ -3,19 +3,24 @@
 Routes:
 - GET /api/vehicles/short/{short_id}  → JSON public vehicle (8-char prefix lookup)
 - GET /api/vehicles/{id}/qr           → PNG QR code (data:image fallback if PIL fails)
+- GET /api/vehicles/{id}/qr?variant=dark|light  → 900x900 print-ready mirrored QR (owner-only)
 - GET /api/og/v/{short_id}            → HTML with OG meta tags (Vercel rewrites bot UAs here)
 
 Security: only public (privacy.profile_visible !== false AND searchable !== false) data exposed.
 """
 import io
 import html as html_lib
-from fastapi import APIRouter, HTTPException
+from typing import Optional
+from fastapi import APIRouter, HTTPException, Depends, Query
 from fastapi.responses import Response, HTMLResponse, RedirectResponse
 import qrcode
 from qrcode.image.pil import PilImage
+from qrcode.constants import ERROR_CORRECT_H
+from PIL import Image, ImageOps
 import os
 
 from db_helper import get_db
+from auth_utils import get_optional_user as get_current_user_optional
 
 router = APIRouter(tags=["public-share"])
 
@@ -83,17 +88,92 @@ async def get_public_vehicle_short(short_id: str):
     }
 
 
-@router.get("/vehicles/{vehicle_id}/qr")
-async def get_vehicle_qr(vehicle_id: str):
-    """Return PNG QR code pointing to /v/{short_id} short URL.
+def _generate_print_qr(vehicle_url: str, variant: str) -> bytes:
+    """Generate a 900x900 print-ready mirrored QR PNG.
 
-    No auth required — anyone can generate a QR for any public vehicle.
-    Private vehicles still get a QR but the resolved URL will 404 for non-owners.
+    - variant="dark":  white QR on transparent background (for tinted windows)
+    - variant="light": black QR on white background (for clear/light windows)
+
+    The QR is horizontally mirrored so it can be stuck INSIDE the window and
+    still be scannable FROM OUTSIDE the vehicle.
+    """
+    qr = qrcode.QRCode(
+        version=None,
+        error_correction=ERROR_CORRECT_H,
+        box_size=10,
+        border=3,
+    )
+    qr.add_data(vehicle_url)
+    qr.make(fit=True)
+
+    if variant == "dark":
+        # White QR on transparent — for dark/tinted windows.
+        img = qr.make_image(fill_color="white", back_color="black").convert("RGBA")
+        pixels = img.load()
+        w, h = img.size
+        for y in range(h):
+            for x in range(w):
+                r, g, b, _ = pixels[x, y]
+                # Keep white modules opaque; drop dark background to transparent.
+                if r < 128:
+                    pixels[x, y] = (0, 0, 0, 0)
+                else:
+                    pixels[x, y] = (255, 255, 255, 255)
+        canvas = Image.new("RGBA", (900, 900), (0, 0, 0, 0))
+    else:
+        # Black QR on white — for light/clear windows.
+        img = qr.make_image(fill_color="black", back_color="white").convert("RGBA")
+        canvas = Image.new("RGBA", (900, 900), (255, 255, 255, 255))
+
+    img = img.resize((860, 860), Image.LANCZOS)
+    img = ImageOps.mirror(img)  # inside-glass mount → scannable from outside
+    canvas.paste(img, (20, 20), img)
+
+    out = io.BytesIO()
+    canvas.save(out, format="PNG")
+    return out.getvalue()
+
+
+@router.get("/vehicles/{vehicle_id}/qr")
+async def get_vehicle_qr(
+    vehicle_id: str,
+    variant: Optional[str] = Query(None, pattern="^(dark|light)$"),
+    user: Optional[dict] = Depends(get_current_user_optional),
+):
+    """Return PNG QR code for a vehicle.
+
+    Two modes:
+    - Default (no variant): small QR pointing to /v/{short_id} short URL. No auth.
+      Used by the public sharing widget on public vehicle profiles.
+    - variant=dark|light: 900x900 print-ready mirrored QR pointing to the
+      vehicle's public slug URL. **Owner-only** — used for the "Drukuj kod QR"
+      workflow from the owner's garage.
     """
     db = get_db()
-    v = await db.vehicles.find_one({"id": vehicle_id}, {"_id": 0, "id": 1})
+    v = await db.vehicles.find_one({"id": vehicle_id}, {"_id": 0, "id": 1, "slug": 1, "user_id": 1})
     if not v:
         raise HTTPException(status_code=404, detail="Vehicle not found")
+
+    # --- Print variant (owner-only, 900x900, mirrored, PL slug URL) ---
+    if variant in {"dark", "light"}:
+        if not user or user.get("id") != v.get("user_id"):
+            raise HTTPException(status_code=403, detail="Only the vehicle owner can generate a print QR")
+        slug = v.get("slug") or v["id"][:8]
+        vehicle_url = f"{APP_URL}/vehicles/{slug}"
+        try:
+            png = _generate_print_qr(vehicle_url, variant)
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"QR generation failed: {e}")
+        return Response(
+            content=png,
+            media_type="image/png",
+            headers={
+                "Cache-Control": "private, max-age=3600",
+                "Content-Disposition": f'inline; filename="sharago-{slug}-{variant}.png"',
+            },
+        )
+
+    # --- Default: small share QR pointing to /v/{short_id} (public) ---
     short_id = v["id"][:8]
     url = f"{APP_URL}/v/{short_id}"
     qr = qrcode.QRCode(

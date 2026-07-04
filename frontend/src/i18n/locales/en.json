@@ -1,13 +1,58 @@
 {
   "parts": {
-    "engine": { "title": "Engine & accessories", "full": "Complete engine", "head": "Cylinder head", "alternator": "Alternator", "timing": "Timing belt/chain", "other": "Other engine parts" },
-    "transmission": { "title": "Transmission", "manual": "Manual gearbox", "auto": "Automatic gearbox", "clutch": "Clutch" },
-    "suspension": { "title": "Suspension & chassis", "shocks": "Shock absorbers", "springs": "Springs", "arms": "Control arms", "wheels": "Wheels & tyres" },
-    "body": { "title": "Body & exterior", "bumpers": "Bumpers", "hoodFenders": "Hood & fenders", "doors": "Doors", "glass": "Glass", "other": "Other body parts" },
-    "electrical": { "title": "Electrical & electronics", "alternator": "Alternator", "starter": "Starter motor", "ecu": "ECU controllers", "lights": "Lights" },
-    "interior": { "title": "Interior", "seats": "Seats", "dashboard": "Dashboard", "mats": "Floor mats", "other": "Other" },
-    "brakes": { "title": "Brakes", "discs": "Discs & pads", "calipers": "Calipers", "other": "Other" },
-    "other": { "title": "Other / unsorted", "misc": "Other" }
+    "engine": {
+      "title": "Engine & accessories",
+      "full": "Complete engine",
+      "head": "Cylinder head",
+      "alternator": "Alternator",
+      "timing": "Timing belt/chain",
+      "other": "Other engine parts"
+    },
+    "transmission": {
+      "title": "Transmission",
+      "manual": "Manual gearbox",
+      "auto": "Automatic gearbox",
+      "clutch": "Clutch"
+    },
+    "suspension": {
+      "title": "Suspension & chassis",
+      "shocks": "Shock absorbers",
+      "springs": "Springs",
+      "arms": "Control arms",
+      "wheels": "Wheels & tyres"
+    },
+    "body": {
+      "title": "Body & exterior",
+      "bumpers": "Bumpers",
+      "hoodFenders": "Hood & fenders",
+      "doors": "Doors",
+      "glass": "Glass",
+      "other": "Other body parts"
+    },
+    "electrical": {
+      "title": "Electrical & electronics",
+      "alternator": "Alternator",
+      "starter": "Starter motor",
+      "ecu": "ECU controllers",
+      "lights": "Lights"
+    },
+    "interior": {
+      "title": "Interior",
+      "seats": "Seats",
+      "dashboard": "Dashboard",
+      "mats": "Floor mats",
+      "other": "Other"
+    },
+    "brakes": {
+      "title": "Brakes",
+      "discs": "Discs & pads",
+      "calipers": "Calipers",
+      "other": "Other"
+    },
+    "other": {
+      "title": "Other / unsorted",
+      "misc": "Other"
+    }
   },
   "common": {
     "save": "Save",
@@ -250,7 +295,16 @@
     "filterType": "Type",
     "filterPrice": "Price",
     "filterLocation": "Location",
-    "types": { "all": "All", "car": "Sell vehicle", "parts": "Sell parts", "swap": "Trade/swap", "full_parts": "Whole car for parts", "project": "Project", "rental": "Rental" },
+    "types": {
+      "all": "All",
+      "car": "Sell vehicle",
+      "parts": "Sell parts",
+      "swap": "Trade/swap",
+      "full_parts": "Whole car for parts",
+      "project": "Project",
+      "rental": "Rental",
+      "service": "Automotive service"
+    },
     "conditions": {
       "running": "Operational",
       "needs_repair": "Needs repair",
@@ -262,8 +316,15 @@
       "damagedDead": "Damaged (doesn't drive)",
       "restoration": "Restoration project"
     },
-    "steering": { "left": "Left-hand", "right": "Right-hand (JDM/UK)" },
-    "swapCond": { "any": "Any condition", "running": "Operational", "clean": "Clean/garaged" },
+    "steering": {
+      "left": "Left-hand",
+      "right": "Right-hand (JDM/UK)"
+    },
+    "swapCond": {
+      "any": "Any condition",
+      "running": "Operational",
+      "clean": "Clean/garaged"
+    },
     "conditionLabel": "Vehicle condition",
     "steeringLabel": "Steering",
     "partsCategory": "Parts category",
@@ -304,8 +365,13 @@
     "confirmDelete": "Are you sure you want to delete this listing?",
     "markSold": "Mark sold",
     "relist": "Relist",
-    "status": { "active": "Active", "sold": "Sold", "archived": "Archived" },
-    "report": "Report"
+    "status": {
+      "active": "Active",
+      "sold": "Sold",
+      "archived": "Archived"
+    },
+    "report": "Report",
+    "serviceTitleDescRequired": "Service title and description are required"
   },
   "forum": {
     "title": "Community Forum",
@@ -540,10 +606,22 @@
     "backToGarage": "Back to garage",
     "makeModelRequired": "Make and model are required",
     "features": {
-      "garage": { "title": "Garage", "desc": "Your vehicles in one place" },
-      "service": { "title": "Service", "desc": "Repair history and costs" },
-      "ai": { "title": "AI Mechanic", "desc": "Diagnose issues fast" },
-      "marketplace": { "title": "Marketplace", "desc": "Buy, sell, swap" }
+      "garage": {
+        "title": "Garage",
+        "desc": "Your vehicles in one place"
+      },
+      "service": {
+        "title": "Service",
+        "desc": "Repair history and costs"
+      },
+      "ai": {
+        "title": "AI Mechanic",
+        "desc": "Diagnose issues fast"
+      },
+      "marketplace": {
+        "title": "Marketplace",
+        "desc": "Buy, sell, swap"
+      }
     },
     "step1Title": "Welcome to Sharago",
     "step1Desc": "Your premium virtual garage. Choose your language to begin.",

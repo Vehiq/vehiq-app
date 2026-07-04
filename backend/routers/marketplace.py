@@ -1,6 +1,6 @@
 """Marketplace router — listings + messaging."""
 from fastapi import APIRouter, HTTPException, Depends, Query
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator, model_validator
 from typing import Optional, List
 from datetime import datetime, timezone
 import uuid
@@ -13,6 +13,19 @@ from activity import log_activity
 router = APIRouter(prefix="/marketplace", tags=["marketplace"])
 
 
+def _empty_to_none(v):
+    """Coerce '' → None on ingest so Optional[str] fields accept empty form inputs.
+
+    FastAPI/Pydantic v2 rejects `null` for non-Optional str, and treats empty
+    strings inconsistently across nested models. Frontend forms often submit
+    `""` for cleared inputs — this validator normalises them to `None` so the
+    downstream logic (which uses `if payload.field:` truthiness) stays sane.
+    """
+    if isinstance(v, str) and v.strip() == "":
+        return None
+    return v
+
+
 class DesiredSwap(BaseModel):
     make: Optional[str] = None
     model: Optional[str] = None
@@ -20,13 +33,18 @@ class DesiredSwap(BaseModel):
     year_to: Optional[int] = None
     condition: Optional[str] = None  # any | running | clean
 
+    @field_validator("make", "model", "condition", mode="before")
+    @classmethod
+    def _empty_str(cls, v):
+        return _empty_to_none(v)
+
 
 class RentalDetails(BaseModel):
     """Rental-specific fields (only relevant when category is rental_car / rental_garage)."""
     price_per_day: Optional[float] = None
     price_per_week: Optional[float] = None
     price_per_month: Optional[float] = None
-    currency: str = "PLN"
+    currency: Optional[str] = "PLN"
     availability_text: Optional[str] = None
     pickup_location: Optional[str] = None  # rental_car
     garage_address: Optional[str] = None   # rental_garage
@@ -34,20 +52,44 @@ class RentalDetails(BaseModel):
     owner_type: Optional[str] = None       # private | business
     business_name: Optional[str] = None
 
+    @field_validator(
+        "currency", "availability_text", "pickup_location", "garage_address",
+        "requirements", "owner_type", "business_name",
+        mode="before",
+    )
+    @classmethod
+    def _empty_str(cls, v):
+        return _empty_to_none(v)
+
+
+class ServiceDetails(BaseModel):
+    """Service-listing fields (category='service'). All optional except pricing_type."""
+    pricing_type: Optional[str] = None  # hourly | fixed | negotiable
+    price_from: Optional[float] = None
+    coverage_area: Optional[str] = None  # miasto lub "cała Polska"
+    contact_phone: Optional[str] = None
+    contact_email: Optional[str] = None
+
+    @field_validator("pricing_type", "coverage_area", "contact_phone", "contact_email", mode="before")
+    @classmethod
+    def _empty_str(cls, v):
+        return _empty_to_none(v)
+
 
 RENTAL_CATEGORIES = {"rental_car", "rental_garage"}
-ALL_CATEGORIES = RENTAL_CATEGORIES  # future: extend here for non-rental categories
+SERVICE_CATEGORIES = {"service"}
+ALL_CATEGORIES = RENTAL_CATEGORIES | SERVICE_CATEGORIES
 
 
 class ListingIn(BaseModel):
-    type: str = "car"  # car | parts | swap | full_parts | project | rental
+    type: Optional[str] = "car"  # car | parts | swap | full_parts | project | rental | service
     # New field parallel to `type` — initially used for rental classification
-    # (rental_car / rental_garage). Leave None for classic listings — `type` stays
-    # the source of truth there. See docs/listings.md for the migration plan.
+    # (rental_car / rental_garage) and now `service`. Leave None for classic
+    # listings — `type` stays the source of truth there. See docs/listings.md.
     category: Optional[str] = None
-    title: str = ""
+    title: Optional[str] = ""
     description: Optional[str] = ""
-    price: float = 0
+    price: Optional[float] = 0
     location: Optional[str] = None
     photos: Optional[List[str]] = []
     vehicle_id: Optional[str] = None
@@ -65,6 +107,32 @@ class ListingIn(BaseModel):
     desired_swaps: Optional[List[DesiredSwap]] = None  # max 5
     # Rental-only nested object
     rental: Optional[RentalDetails] = None
+    # Service-only nested object (category == 'service')
+    service: Optional[ServiceDetails] = None
+
+    @field_validator(
+        "type", "category", "title", "description", "location", "vehicle_id",
+        "make", "model", "condition", "steering",
+        "parts_category", "parts_subcategory",
+        mode="before",
+    )
+    @classmethod
+    def _empty_str(cls, v):
+        return _empty_to_none(v)
+
+    @model_validator(mode="after")
+    def _apply_defaults(self):
+        # Restore defaults after empty-string coercion so downstream code that
+        # relies on non-null `type` / `title` keeps working.
+        if self.type is None:
+            self.type = "car"
+        if self.title is None:
+            self.title = ""
+        if self.description is None:
+            self.description = ""
+        if self.price is None:
+            self.price = 0
+        return self
 
 
 class MessageIn(BaseModel):
@@ -116,6 +184,8 @@ async def list_listings(
         # `rental` shorthand → matches both rental_car + rental_garage
         if category == "rental":
             f["category"] = {"$in": ["rental_car", "rental_garage"]}
+        elif category == "service":
+            f["category"] = "service"
         else:
             cats = [c.strip() for c in category.split(",") if c.strip()]
             f["category"] = {"$in": cats} if len(cats) > 1 else cats[0]
@@ -214,17 +284,18 @@ async def get_listing(listing_id: str):
 @router.post("/listings")
 async def create_listing(payload: ListingIn, user=Depends(get_current_user)):
     db = get_db()
-    valid_types = {"car", "parts", "swap", "full_parts", "project", "rental"}
+    valid_types = {"car", "parts", "swap", "full_parts", "project", "rental", "service"}
     if payload.type not in valid_types:
         raise HTTPException(status_code=400, detail=f"Invalid type. Allowed: {sorted(valid_types)}")
-    if payload.category and payload.category not in RENTAL_CATEGORIES:
-        raise HTTPException(status_code=400, detail=f"Invalid category. Allowed: {sorted(RENTAL_CATEGORIES)}")
+    if payload.category and payload.category not in ALL_CATEGORIES:
+        raise HTTPException(status_code=400, detail=f"Invalid category. Allowed: {sorted(ALL_CATEGORIES)}")
     if payload.desired_swaps and len(payload.desired_swaps) > 5:
         raise HTTPException(status_code=400, detail="Max 5 desired swaps")
 
     # Free-tier limit for rental listings — 1 active rental_car + rental_garage combined.
     # Premium / B2B users skip this check.
     is_rental = payload.category in RENTAL_CATEGORIES
+    is_service = payload.category in SERVICE_CATEGORIES or payload.type == "service"
     if is_rental:
         plan = (user.get("plan") or "free").lower()
         is_business = (
@@ -244,6 +315,24 @@ async def create_listing(payload: ListingIn, user=Depends(get_current_user)):
                     detail={
                         "code": "rental_limit_free",
                         "message": "Free tier limited to 1 active rental listing. Upgrade to Premium for unlimited rentals.",
+                    },
+                )
+
+    # Free-tier limit for service listings — 1 active service. Premium unlimited.
+    if is_service:
+        plan = (user.get("plan") or "free").lower()
+        if plan == "free" and not user.get("business"):
+            active_services = await db.listings.count_documents({
+                "user_id": user["id"],
+                "status": "active",
+                "category": "service",
+            })
+            if active_services >= 1:
+                raise HTTPException(
+                    status_code=402,
+                    detail={
+                        "code": "service_limit_free",
+                        "message": "Free tier limited to 1 active service listing. Upgrade to Premium for unlimited services.",
                     },
                 )
 
