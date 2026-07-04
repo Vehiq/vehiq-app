@@ -17,6 +17,42 @@ Build a full-stack web + mobile-responsive SaaS application called VEHIQ. A prem
 
 ## What's Implemented (2026-05-02)
 
+### Iter 37 — Listing validation fix + Service category + Print QR + robots.txt (DONE 2026-07-04 — fork-agent)
+
+**Problem statements:**
+- P0 Bug: `POST /api/marketplace/listings` odrzucał puste stringi z formularza z błędem `Input should be a valid string` (Pydantic v2 nie akceptuje pustych stringów jako Optional[str] gdy pole ma non-Optional annotation).
+- P0 SEO: `robots.txt` nie zawierał wpisu do dynamicznego `/api/sitemap.xml`.
+- P1 UX: Zakładki "Moje ogłoszenia" (`Wszystkie / Klasyczne / Wynajem`) niespójne z resztą aplikacji; brak kategorii "Usługi".
+- P1 Feature: Brak generatora fizycznych naklejek QR dla pojazdów w garażu — właściciel nie ma jak wydrukować QR do naklejenia na szybę auta z linkiem do publicznego profilu.
+
+**Co zrobiono:**
+- **Walidacja ogłoszeń (`routers/marketplace.py`)** — wszystkie opcjonalne pola string zmienione na `Optional[str] = None/""`, `title/type/price` cofnięte do defaultów w `@model_validator(mode="after")`. Wspólny `@field_validator(mode="before")` funkcji `_empty_to_none` konwertuje `""` → `None` na wszystkich modelach: `ListingIn`, `DesiredSwap`, `RentalDetails`, `ServiceDetails`. Fix regresji `Input should be a valid string`.
+- **Kategoria `service`** — nowy enum `SERVICE_CATEGORIES={"service"}`, `ALL_CATEGORIES = RENTAL_CATEGORIES | SERVICE_CATEGORIES`. Endpoint `POST /marketplace/listings` waliduje i egzekwuje limit Free (1 aktywne ogłoszenie usługi → HTTP 402 code `service_limit_free`). `GET /marketplace/listings?category=service` filtruje. Nowy pydantic model `ServiceDetails` (pricing_type: hourly/fixed/negotiable, price_from, coverage_area, contact_phone/email).
+- **Frontend zakładki** (`MyListings.js`) — `Wszystkie / Pojazdy / Wynajem / Usługi`. Filtry: `vehicles = !rental && !service`, `rental = category ∈ {rental_car, rental_garage}`, `service = category='service' || type='service'`. data-testid: `my-listings-filter-{all|vehicles|rental|service}`.
+- **Frontend `CreateListing.js`** — nowa opcja typu `Usługa motoryzacyjna` (`LISTING_TYPES.service`), auto-set `category='service'` przy wyborze. Ukrywa: sekcję marka/model/rok/przebieg (`showVehicleFields=false`), input top-level `price`. Pokazuje sekcję `[data-testid=listing-service-fields]` z polami: pricing_type (select), price_from, coverage_area, contact_phone, contact_email. Modal limitu obsługuje oba kody (`service_limit_free` / `rental_limit_free`).
+- **Print QR endpoint (`routers/public_share.py`)** — modyfikacja `GET /api/vehicles/{id}/qr` o query param `variant=dark|light`:
+  - Bez `variant`: publiczny, mały QR do `/v/{short_id}` (bez zmian, wstecznie kompatybilne z `VehicleQr.js`).
+  - Z `variant`: **owner-only** (`Depends(get_optional_user)` + porównanie `user.id === vehicle.user_id`, 403 jeśli nie właściciel). Zwraca 900×900 PNG, lustrzanie odbity (`ImageOps.mirror`), zakodowany URL `https://sharago.pl/vehicles/{slug}`. `dark`=biały QR na przezroczystym tle; `light`=czarny QR na białym. Error correction H.
+- **Print QR modal (`components/PrintQrDialog.js`)** — nowy komponent: fetch z Bearer tokenem → blob URL → `<img>`. Toggle dark/light, `Pobierz PNG`, `Drukuj` (otwiera popup z print-only CSS wywołującym `window.print()`). Instrukcja "Wydrukuj na przezroczystej folii i naklej od wewnętrznej strony szyby".
+- **VehicleProfile** — przycisk `[data-testid=vehicle-print-qr-btn]` z ikoną QrCode + labelem "Drukuj QR" obok "Udostępnij" / "Edytuj" (widoczny tylko na profilu właściciela — routing `/garage/{id}` jest już owner-only).
+- **robots.txt** — druga linia `Sitemap: https://sharago.pl/api/sitemap.xml` (dla dynamicznego endpointa z Iter 36).
+
+**Testowanie (100% PASS, iteration_13.json):**
+- Backend: 8/8 pytest — walidacja pustych stringów, robots.txt, service create+filter, QR print auth gate (403 no-auth i cross-user), QR 900×900 dark+light, QR default niezmieniony.
+- Frontend: 4-tab filter działa i filtruje poprawnie; service toggle chowa make/model + price i pokazuje service fields; VehicleProfile "Drukuj QR" otwiera modal, dark/light rotuje blob src, download+print obecne.
+
+**Pliki:**
+- `/app/backend/routers/marketplace.py` (models + create + list filter)
+- `/app/backend/routers/public_share.py` (QR print variant)
+- `/app/frontend/public/robots.txt` (+1 line)
+- `/app/frontend/src/pages/MyListings.js` (tabs)
+- `/app/frontend/src/pages/CreateListing.js` (service form + limits)
+- `/app/frontend/src/constants/marketplace.js` (LISTING_TYPES + service)
+- `/app/frontend/src/i18n/locales/{pl,en}.json` (`marketplace.types.service`, `serviceTitleDescRequired`)
+- `/app/frontend/src/components/PrintQrDialog.js` (NEW)
+- `/app/frontend/src/pages/VehicleProfile.js` (button + modal wire)
+- `/app/backend/tests/test_iter37.py` (NEW — 8 tests)
+
 ### Iter 36 — Dynamic sitemap.xml + LazyImage shimmer (DONE 2026-06-23 — fork-agent)
 
 **Problem:** Landing page i nowe treści blogowe/pojazdy publiczne nie miały dynamicznego sitemap.xml dla Google indexing. LazyImage pokazywał pulsujący placeholder tylko do momentu wejścia w viewport, ale po wczytaniu `<img>` nie maskował fazy dekodowania — krótki "blink" przed pojawieniem się zdjęcia.
