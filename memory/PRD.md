@@ -17,6 +17,36 @@ Build a full-stack web + mobile-responsive SaaS application called VEHIQ. A prem
 
 ## What's Implemented (2026-05-02)
 
+### Iter 42 — DocumentTooLarge photo guard + Iter 41 loop-fix verification (DONE 2026-07-05 — fork-agent)
+
+**Problem statements:**
+- P0 CRITICAL: pymongo.errors.DocumentTooLarge — próba zapisu 27MB dokumentu do MongoDB (limit 16MB). Root cause: base64 data URLs zdjęć zapisywane INLINE w polu `vehicles.photos` List[str].
+- P0 CRITICAL: User zgłosił że fix z Iter 41 (nieskończona pętla `/marketplace/messages/threads`) nie trafił na produkcję main branch — potrzeba weryfikacji sandbox kodu.
+
+**Co zrobiono:**
+- **Photo guard** (`routers/vehicles.py`) — nowy helper `_guard_inline_photos()` z 3 twardymi limitami: per-photo 220KB, count 3, total 900KB. Każdy przekroczony → HTTP 413 z detail.code (`photo_too_large_inline` / `photos_too_many_inline` / `photos_total_too_large`) + polska message z hintem o R2 upload endpoint. Wywoływany w `create_vehicle` (POST) i `update_vehicle` (PUT) przed zapisem.
+- **Marketplace listing guard** (`routers/marketplace.py`) — ten sam helper importowany z `routers.vehicles` i stosowany na `doc['photos']` w `create_listing` — spójne limity dla vehicles i listings.
+- **Global safety net** (`server.py`) — nowy `@app.exception_handler(_MongoDocTooLarge)` — jeśli jakiś path bypass'uje guard, catch'uje `pymongo.errors.DocumentTooLarge` i zwraca 413 `mongo_doc_too_large` zamiast leaked 500.
+- **Iter 41 loop-fix verification** — grep'em potwierdzone że `/app/frontend/src/lib/api.js` zawiera `_retried` (linia 67-74), `_refreshInFlight` (linia 27), `_runRefresh` (linia 29-44). Testing agent na preview URL: garbage JWT + 60s window → **0 requestów** do `/marketplace/messages/threads`, exactly **1 refresh call** (single-flight). Fix jest w sandboxie i działa na preview URL. Produkcja main branch wymaga user'skiego **"Save to GitHub"** (nie mam remote'a).
+
+**Testowanie (100% PASS, iteration_19.json):**
+- Backend: 9/9 pytest (`test_iter42.py`) — 400KB photo 413, 5 photos 413, marketplace listing 413, small photo 200 (happy path), R2 multipart upload nie affected przez guard.
+- Frontend: garbage JWT + 60s = 0 threads calls, 1 refresh call. Loop verified DEAD.
+- Regresja: /vehicles Cache-Control OK, open-to-offers OK.
+
+**User action (blocked outside sandbox):**
+- **Kliknij "Save to GitHub"** — sandbox api.js zawiera Iter 41 loop fix; user wskazał że na main branchu jeszcze go nie ma. Save to GitHub wypycha to na produkcję.
+
+**Pliki:**
+- `/app/backend/routers/vehicles.py` (+_guard_inline_photos + wywołania w create/update)
+- `/app/backend/routers/marketplace.py` (+guard w create_listing)
+- `/app/backend/server.py` (+global DocumentTooLarge exception handler)
+- `/app/backend/tests/test_iter42.py` (NEW — 9 tests)
+
+**Notatki (code-review, nie action items):**
+- `photos_total_too_large` branch obecnie nieosiągalny publicznie (count 3 × per-photo 220KB = max 660KB < 900KB total) — pure defense-in-depth.
+- Rozważyć rozszerzenie guard'u na inne endpointy które mogą przyjmować `photos[]` (service_entries, garage import) — obecny audit tylko vehicles + marketplace listing.
+
 ### Iter 41 (część 2) — Optymalizacja garażu + GA4 tracking (DONE 2026-07-05 — fork-agent)
 
 **Problem statements:**
