@@ -161,8 +161,18 @@ async def get_deck(limit: int = 20, user=Depends(get_current_user)):
     db = get_db()
     # Iter 46 (Bug 9): URL-only cover extractor — prefers thumb_url and
     # rejects legacy base64 payloads so the frontend always gets a real
-    # image src for the deck cards.
+    # image src for the deck cards. Same treatment applied to owner.avatar
+    # to prevent base64 leakage through profile records.
     from routers.vehicles import _safe_cover_url
+
+    def _clean_avatar(profile):
+        if not profile:
+            return profile
+        av = profile.get("avatar")
+        if isinstance(av, str) and av.startswith("data:"):
+            profile["avatar"] = None
+        return profile
+
     # IDs of vehicles I've already reacted to
     seen_ids = set()
     async for r in db.swap_interactions.find({"from_user_id": user["id"]}, {"_id": 0, "to_vehicle_id": 1}):
@@ -178,7 +188,7 @@ async def get_deck(limit: int = 20, user=Depends(get_current_user)):
         v = await db.vehicles.find_one({"id": l["vehicle_id"]}, {"_id": 0})
         if not v or v.get("status") == "archived":
             continue
-        owner = await db.profiles.find_one({"id": l["user_id"]}, {"_id": 0, "id": 1, "name": 1, "avatar": 1})
+        owner = _clean_avatar(await db.profiles.find_one({"id": l["user_id"]}, {"_id": 0, "id": 1, "name": 1, "avatar": 1}))
         photos = v.get("photos") or []
         idx = v.get("cover_photo_index") or 0
         cover = _safe_cover_url(photos, idx)
@@ -297,6 +307,9 @@ async def my_matches(user=Depends(get_current_user)):
         my_v = await db.vehicles.find_one({"id": my_vid}, {"_id": 0, "make": 1, "model": 1, "year": 1})
         other_v = await db.vehicles.find_one({"id": other_vid}, {"_id": 0, "make": 1, "model": 1, "year": 1, "photos": 1, "cover_photo_index": 1})
         other_u = await db.profiles.find_one({"id": other_uid}, {"_id": 0, "id": 1, "name": 1, "avatar": 1, "email": 1})
+        # Iter 46 (Bug 9+): strip base64 avatars from profile payloads.
+        if other_u and isinstance(other_u.get("avatar"), str) and other_u["avatar"].startswith("data:"):
+            other_u["avatar"] = None
         other_cover = None
         if other_v:
             photos = other_v.get("photos") or []

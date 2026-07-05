@@ -1388,3 +1388,72 @@ Podpięto w:
 - 🟡 R2 multipart upload endpoint dla listings (żeby CreateListing mógł
   wypuszczać duże fotki bez base64)
 - 🔴 Stripe / GPS / Push notifications / Project Mode / Facebook OAuth
+
+---
+
+## Iter 46 — 7 Bug Fixes (2026-07-05)
+
+### Zakres
+Bug 8-14 z testów Iter 45 — testing agent v3 wszystkie 7 zweryfikował PASS.
+Ponadto usunięto flagowany minor: base64 leak w `owner.avatar` w
+`/api/swaps/deck` i `/api/swaps/matches`.
+
+### Zmiany
+
+**Bug 14 — Domain-based i18n** (`frontend/src/i18n/index.js`)
+- Nowy `domainDetector` w kolejności detekcji `["localStorage", "domain", "navigator", "htmlTag"]`.
+- `sharago.pl` + subdomeny → `pl`; `sharago.com/.co.uk/.app/.io` + subdomeny → `en`.
+- Preview/dev hosts (`.emergentagent.com`, localhost) → `undefined` (fallback).
+- LocalStorage manualny wybór zawsze wygrywa (klucz `sharago_lang`).
+
+**Bug 11 — Ikona wiadomości w TopBar** (`components/layout/TopBar.js`)
+- `<MessageSquare>` obok dzwoneczka → klik: nawiguje do `/marketplace/messages`.
+- Badge (`data-testid="topbar-messages-badge"`) pokazuje sumę `unread`
+  z `/api/marketplace/messages/threads` (poll co 60s).
+- Testids: `topbar-messages`, `topbar-messages-badge`.
+
+**Bug 12 — Share modal mobile bottom-sheet** (`pages/VehicleProfile.js` ShareMenu)
+- Desktop (`sm:`): dropdown przy przycisku (jak dotąd).
+- Mobile: `fixed inset-x-0 bottom-0` bottom sheet + półprzezroczysty backdrop
+  + przycisk „Zamknij". Nigdy nie wychodzi poza viewport.
+- Testids: `vehicle-share-backdrop`, `vehicle-share-close`.
+
+**Bug 13 — QR generator tylko dla właściciela** (`pages/PublicVehicle.js`)
+- `<VehicleQr>` gated: `{v.is_owner && <VehicleQr .../>}`.
+- Copy Link + `SocialShare` bez zmian (dostępne dla wszystkich).
+
+**Bug 9 — Swap deck cover thumbnails + avatar sanitize** (`backend/routers/swaps.py`)
+- `_safe_cover_url(photos, idx)` w `/deck`, `/my-listings`, `/matches` (prefer
+  `thumb_url`, odrzuca base64).
+- Nowy `_clean_avatar()` w `/deck` + inline nullifier w `/matches`:
+  base64 avatary → `None`. Efekt: 0 wystąpień `data:image` w response body
+  (zweryfikowane curl-em, payload 3 KB dla 9 kart).
+
+**Bug 10 — Prefill photos z pojazdu z garażu** (`pages/CreateListing.js`)
+- `prefill(vid)`: seed `photos=[v.cover_photo]` synchronicznie z listy garażu
+  (bo `/api/vehicles` list nie zwraca `photos[]`), następnie w tle fetchuje
+  `/api/vehicles/{id}` żeby dohydratować pełne zdjęcia.
+- Fallback do samego cover thumb gdy fetch padnie.
+
+**Bug 8 — Plate blur canvas hardening** (`components/PlateBlurDialog.js`)
+- Canvas inline styles: `touchAction: none, userSelect: none,
+  WebkitUserSelect: none, WebkitTouchCallout: none, overscrollBehavior:
+  contain, pointerEvents: auto`.
+- `stopPropagation()` w `onPointerDown/Move` — nie kradnie gestures nadrzędnym
+  scroll containerom modalu.
+
+### Testing status
+- Testing agent v3: 100% PASS (backend 5/5 pytest, frontend UI 4/4 + source review 2/2).
+- Report: `/app/test_reports/iteration_21.json`.
+- Regression Iter 45 (photo guard + Sprzedane tab): PASS.
+
+### Backlog identyfikowany przez testing agent (nice-to-have)
+- Merge `/notifications` + `/marketplace/messages/threads` w jeden
+  `/api/notifications/summary` (dwa poll'e obecnie).
+- `PublicVehicle` guest scenario end-to-end (test vehicle ma `public=false`).
+- Data-driven map dla domenowego detektora (przyszłe TLDs sharago.de/fr).
+
+### Następne priorytety
+- 🟡 R2 multipart upload endpoint dla listings
+- 🟡 User-facing base64→R2 migration button
+- 🔴 Stripe / GPS / Push / Project Mode / Facebook OAuth
