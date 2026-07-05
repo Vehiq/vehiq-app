@@ -97,6 +97,43 @@ def _cover(photos: list, idx: int = 0) -> Optional[str]:
     return _photo_thumb(photos[0])
 
 
+# ---------------- Iter 43: strict URL-only cover for list endpoints ----------------
+# Iter 42's projection dropped `photos[]` from GET /vehicles response but the
+# extracted `cover_photo` was still whatever `_photo_thumb` returned — which
+# INCLUDES legacy base64 data URLs (3MB+ each). List endpoints hit 20MB and
+# 23s TTFB in production. This helper NEVER returns base64: only https://
+# or R2 URLs. Callers of the SINGLE-vehicle endpoint keep using `_cover()`
+# (they need the full picture for the profile page).
+def _safe_cover_url(photos: list, idx: int = 0) -> Optional[str]:
+    """Return a URL-only cover (https:// or R2), never base64.
+
+    Order of preference:
+      1. photos[idx].thumb_url or photos[idx].url (dict shape from R2 pipeline)
+      2. any subsequent https:// URL if the primary is base64
+      3. None
+    """
+    if not photos:
+        return None
+    def _url_of(p):
+        if isinstance(p, dict):
+            return p.get("thumb_url") or p.get("url")
+        if isinstance(p, str):
+            # Reject base64 data URLs — these are the 3MB payload killers.
+            if p.startswith("http://") or p.startswith("https://"):
+                return p
+        return None
+    # Try preferred index first, then the rest — first legit URL wins.
+    order = list(range(len(photos)))
+    if 0 <= idx < len(photos):
+        order.remove(idx)
+        order.insert(0, idx)
+    for i in order:
+        u = _url_of(photos[i])
+        if u and (u.startswith("http://") or u.startswith("https://")):
+            return u
+    return None
+
+
 def _slugify(s: str) -> str:
     s = (s or "").lower()
     s = re.sub(r"[^a-z0-9]+", "-", s).strip("-")
@@ -215,7 +252,8 @@ async def list_vehicles(response: Response, user=Depends(get_current_user)):
         for v in items:
             photos = v.get("photos") or []
             idx = v.get("cover_photo_index") or 0
-            v["cover_photo"] = _cover(photos, idx)
+            # Iter 43: strict URL-only cover — never leak 3MB base64 payloads.
+            v["cover_photo"] = _safe_cover_url(photos, idx)
             # Drop the heavy raw array now that we've extracted the cover —
             # saves 90%+ payload on photo-heavy garages.
             v.pop("photos", None)
@@ -311,7 +349,7 @@ async def search_vehicles(
             "model": v.get("model"),
             "year": v.get("year"),
             "status": v.get("status") or "active",
-            "cover_photo": _cover(photos, idx),
+            "cover_photo": _safe_cover_url(photos, idx),
             "owner": owners.get(v.get("user_id")),
         })
     return result
@@ -364,7 +402,7 @@ async def list_open_to_offers(limit: int = 60):
             "mileage_current": v.get("mileage_current"),
             "engine": v.get("engine"),
             "fuel": v.get("fuel"),
-            "cover_photo": _cover(photos, idx),
+            "cover_photo": _safe_cover_url(photos, idx),
             "owner": owners.get(v.get("user_id")),
         })
     return result

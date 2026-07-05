@@ -56,11 +56,23 @@ class UpdateProfileIn(BaseModel):
 
 
 def _public_user(u: dict) -> dict:
+    # Iter 43: never leak base64 avatar into /auth/me response (was 8.6MB).
+    # Return the avatar URL only when it's actually a URL; otherwise null +
+    # `has_avatar: true` flag so the UI can fetch it lazily via
+    # GET /api/auth/avatar/{user_id} on the profile page.
+    raw_avatar = u.get("avatar")
+    avatar_url = None
+    has_avatar = False
+    if isinstance(raw_avatar, str) and raw_avatar:
+        has_avatar = True
+        if raw_avatar.startswith("http://") or raw_avatar.startswith("https://"):
+            avatar_url = raw_avatar
     return {
         "id": u["id"],
         "email": u["email"],
         "name": u.get("name"),
-        "avatar": u.get("avatar"),
+        "avatar": avatar_url,
+        "has_avatar": has_avatar,
         "location": u.get("location"),
         "bio": u.get("bio"),
         "language": u.get("language", "pl"),
@@ -453,6 +465,43 @@ async def google_callback(code: Optional[str] = None, state: Optional[str] = Non
 @router.get("/me")
 async def get_me(user=Depends(get_current_user)):
     return _public_user(user)
+
+
+# ---------------- Iter 43: lazy avatar endpoint ----------------
+# Legacy accounts have avatars stored as base64 data URLs in profiles.avatar.
+# We strip them from /auth/me (see _public_user) to keep the profile response
+# under 5KB. When a client needs to render the avatar it hits this endpoint,
+# which either 302-redirects to a real R2 URL or streams the decoded base64
+# blob as PNG/JPEG. Cached aggressively — avatars rarely change.
+from fastapi.responses import RedirectResponse as _RedirectResp, Response as _Resp
+import base64 as _b64
+
+
+@router.get("/avatar/{user_id}")
+async def get_user_avatar(user_id: str):
+    db = get_db()
+    u = await db.profiles.find_one({"id": user_id}, {"_id": 0, "avatar": 1})
+    if not u:
+        raise HTTPException(status_code=404, detail="User not found")
+    av = u.get("avatar")
+    if not av or not isinstance(av, str):
+        raise HTTPException(status_code=404, detail="No avatar")
+    if av.startswith("http://") or av.startswith("https://"):
+        return _RedirectResp(url=av, status_code=302)
+    if av.startswith("data:"):
+        # data:image/png;base64,XXXXX
+        try:
+            header, b64 = av.split(",", 1)
+            mime = header.split(":", 1)[1].split(";", 1)[0] or "image/png"
+            raw = _b64.b64decode(b64)
+            return _Resp(
+                content=raw,
+                media_type=mime,
+                headers={"Cache-Control": "public, max-age=86400"},
+            )
+        except Exception:
+            raise HTTPException(status_code=500, detail="Bad avatar encoding")
+    raise HTTPException(status_code=404, detail="Unsupported avatar format")
 
 
 @router.put("/me")

@@ -1,0 +1,47 @@
+{
+  "summary": "Iter 43 P0 base64-leak fix + lazy avatar + admin migration verified. Backend pytest 15/15 PASS. All P0 acceptance criteria met: GET /api/vehicles NEVER contains 'data:image' even with 500KB base64 injected directly into DB; /auth/me strips base64 avatar and exposes has_avatar flag; new /auth/avatar/{user_id} endpoint streams base64 as image/png with Cache-Control public,max-age=86400 (verified on localhost — Cloudflare edge rewrites to no-store, ingress concern only); /marketplace/listings drops photos array and sanitises seller.avatar; admin migration endpoint is idempotent and returns correct counters shape. Iter 42 photo guard still 413s oversized inline base64. Single vehicle GET still returns full photos array (by design).",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "GET /api/auth/avatar/{user_id}", "issue": "Cloudflare edge rewrites Cache-Control from backend-issued 'public, max-age=86400' to 'no-store, no-cache, must-revalidate'. Verified backend is correct via localhost:8001 (returns public,max-age=86400). Infrastructure / ingress concern — avatars won't be browser-cached in production preview until CDN caching rule is added for /api/auth/avatar/*."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "verified_features": [
+    "P0 PASS — GET /api/vehicles response text asserted to NOT contain 'data:image' even after directly writing 500KB base64 to DB (bypassing iter42 guard). photos[] field dropped from every list item. cover_photo=null for base64-only, cover_photo=thumb_url when URL present, mixed arrays correctly skip base64 and resolve to first https:// URL.",
+    "P0 PASS — GET /api/auth/me returns avatar=null + has_avatar=true when profile.avatar is base64; response body <5KB. When avatar is https URL, returned as-is with has_avatar=true.",
+    "PASS — GET /api/auth/avatar/{user_id}: base64 → 200 image/png with decoded binary body; URL → 302 with Location header; missing avatar → 404; unknown user → 404.",
+    "P0 PASS — GET /api/marketplace/listings never leaks 'data:image' even after direct DB injection of 500KB base64; item.photos dropped; item.cover_photo = null (base64) or URL (dict).",
+    "P1 PASS — POST /api/admin/migrate/base64-photos-to-r2: unauthenticated → 401. With admin token → 200 with {vehicles:{migrated,failed,skipped}, listings:{...}, duration_seconds}. Idempotency verified: vehicle pre-seeded with URL-dict photos array is unchanged after migration run.",
+    "REGRESSION Iter 42 guard PASS — POST /api/vehicles with 400KB single base64 photo still 413 photo_too_large_inline.",
+    "REGRESSION single vehicle PASS — GET /api/vehicles/{id} still returns full photos array with dict entries (design contract for detail page).",
+    "REGRESSION Iter 41 loop-fix PASS — Garbage JWT on /garage 15s window: 0 requests to /api/marketplace/messages/threads, 1 request to /api/auth/refresh (single-flight enforced)."
+  ],
+  "test_report_links": [
+    "/app/backend/tests/test_iter43.py",
+    "/app/test_reports/pytest/iter43.xml"
+  ],
+  "action_items": [
+    "OPTIONAL infra — Add Cloudflare cache rule for /api/auth/avatar/* so the backend-issued Cache-Control: public, max-age=86400 survives to the browser. Currently CDN rewrites to no-store, defeating the lazy-load design goal (avatars will re-fetch every navigation). Backend code itself is correct."
+  ],
+  "critical_code_review_comments": [
+    "_safe_cover_url (vehicles.py:107) correctly rejects strings not starting with http(s):// — but silently returns None for non-dict, non-str shapes. Consider a debug log for observability during migration.",
+    "auth.py:480 avatar endpoint has no auth check — public by design (avatars are public assets). Confirm this matches privacy_settings.profile_public intent; a private-profile user's avatar is currently still fetchable by user_id.",
+    "admin.py migration counters: when a vehicle has empty photos, it's counted as 'skipped'; when a vehicle has photos but NONE changed (all already URLs/dicts), also counted as 'skipped'. The 'skipped' counter conflates two states — consider splitting into skipped_empty vs skipped_already_migrated for clearer telemetry.",
+    "marketplace.py:262 uses runtime `try/except` import of _safe_cover_url — could be a top-level import since vehicles.py is a sibling router with no cyclic dep. Runtime try/except silently degrades to inline fallback.",
+    "test_iter43.py added and verifies acceptance metric: response.text.find('data:image') on both list endpoints. This should stay as a permanent regression gate."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter43.py (new)"
+  ],
+  "success_rate": {"backend": "100% (15/15)", "frontend": "loop-fix + UI load verified"},
+  "test_credentials": "Admin kontakt@sharago.com / VehiqAdmin2026! — verified 200 OK. Demo: POST /api/auth/demo.",
+  "seed_data_creation": "Test creates 6 TESTITER43 vehicles + 1 marketplace listing under a fresh demo user; direct DB writes to inject base64/URL photos. Module-scope cleanup fixture deletes them after run.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Iter 43 acceptance gate: `assert 'data:image' not in requests.get(f'{API}/vehicles').text` — even after direct pymongo write of a 500KB data URL to the doc. Same gate applies to /api/marketplace/listings. To bypass Iter 42 guard for legacy-simulation tests, always write via pymongo/motor directly instead of the POST endpoint. New /api/auth/avatar/{user_id} always returns 302 for URL avatars — use allow_redirects=False in requests to see the redirect. Admin login: POST /api/admin/login with kontakt@sharago.com/VehiqAdmin2026! (200 OK). Cloudflare edge strips backend Cache-Control headers on the preview URL — verify cache headers against localhost:8001 not the public URL."
+}

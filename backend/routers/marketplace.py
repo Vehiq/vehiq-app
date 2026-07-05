@@ -251,9 +251,33 @@ async def list_listings(
     sellers = {}
     if user_ids:
         async for u in db.profiles.find({"id": {"$in": user_ids}}, {"_id": 0, "id": 1, "name": 1, "avatar": 1, "location": 1}):
+            # Iter 43: sanitise seller avatar — never leak base64 in list payload.
+            av = u.get("avatar")
+            if isinstance(av, str) and not (av.startswith("http://") or av.startswith("https://")):
+                u["avatar"] = None
             sellers[u["id"]] = u
+    # Iter 43: strip base64 from listing photos — return URL-only cover_photo
+    # (thumb_url / https://... only), never the 3MB inline data URL.
+    try:
+        from routers.vehicles import _safe_cover_url
+    except Exception:
+        _safe_cover_url = None
     for i in items:
         i["seller"] = sellers.get(i["user_id"])
+        photos = i.get("photos") or []
+        if _safe_cover_url:
+            i["cover_photo"] = _safe_cover_url(photos, 0)
+        else:
+            # Fallback inline strict check
+            first = photos[0] if photos else None
+            if isinstance(first, dict):
+                u = first.get("thumb_url") or first.get("url")
+                i["cover_photo"] = u if (u or "").startswith("http") else None
+            elif isinstance(first, str) and first.startswith("http"):
+                i["cover_photo"] = first
+            else:
+                i["cover_photo"] = None
+        i.pop("photos", None)
     return {"items": items, "total": total, "page": page, "limit": limit}
 
 

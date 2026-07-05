@@ -806,3 +806,105 @@ async def admin_generate_missing_thumbs(admin=Depends(get_admin)):
     }
 
 
+
+# ---------------- Iter 43: Base64 → R2 photo migration ----------------
+# One-shot admin tool to backfill legacy vehicles/listings whose `photos` array
+# still contains base64 data URLs. Each base64 photo is decoded, processed
+# through Pillow (WebP full + thumb), pushed to R2 via storage.upload_entity_photo,
+# and the DB record is atomically updated to point at the new R2 descriptor.
+#
+# Guarded by admin auth. Safe to re-run — already-migrated photos (dict shape
+# with url/thumb_url http[s]://) are skipped. Failures are logged and the loop
+# continues.
+import base64 as _b64_mig
+import storage as _storage_mig
+
+
+@router.post("/migrate/base64-photos-to-r2")
+async def migrate_base64_photos_to_r2(admin=Depends(get_admin), limit: int = 200):
+    """Migrate legacy inline base64 photos to R2. Idempotent, admin-only.
+
+    Returns per-collection counters + a `duration_seconds` field.
+    """
+    db = get_db()
+    started = datetime.now(timezone.utc)
+    counters = {"vehicles": {"migrated": 0, "failed": 0, "skipped": 0},
+                "listings": {"migrated": 0, "failed": 0, "skipped": 0}}
+
+    async def _migrate_photo(entity_kind: str, entity_id: str, photo) -> Optional[dict]:
+        # Already an R2 descriptor?
+        if isinstance(photo, dict):
+            u = photo.get("url") or ""
+            if u.startswith("http://") or u.startswith("https://"):
+                return None  # skip — already migrated
+        # String base64 data URL?
+        if isinstance(photo, str) and photo.startswith("data:"):
+            try:
+                _hdr, b64 = photo.split(",", 1)
+                raw = _b64_mig.b64decode(b64)
+            except Exception:
+                return {"__failed": True}
+            uploaded = await _storage_mig.upload_entity_photo(entity_kind, entity_id, raw)
+            if uploaded is None:
+                return {"__failed": True}
+            return uploaded
+        # String https URL — already fine
+        if isinstance(photo, str) and (photo.startswith("http://") or photo.startswith("https://")):
+            return None
+        # Any other shape (None, malformed) → skip
+        return None
+
+    # --- vehicles ---
+    async for v in db.vehicles.find({}, {"_id": 0, "id": 1, "photos": 1}).limit(limit):
+        photos = v.get("photos") or []
+        if not photos:
+            counters["vehicles"]["skipped"] += 1
+            continue
+        new_photos = []
+        changed = False
+        for p in photos:
+            result = await _migrate_photo("vehicles", v["id"], p)
+            if result is None:
+                new_photos.append(p)
+            elif result.get("__failed"):
+                counters["vehicles"]["failed"] += 1
+                # keep original so nothing is lost
+                new_photos.append(p)
+            else:
+                new_photos.append(result)
+                changed = True
+                counters["vehicles"]["migrated"] += 1
+        if changed:
+            await db.vehicles.update_one({"id": v["id"]}, {"$set": {"photos": new_photos}})
+        else:
+            counters["vehicles"]["skipped"] += 1
+
+    # --- listings ---
+    async for l in db.listings.find({}, {"_id": 0, "id": 1, "photos": 1}).limit(limit):
+        photos = l.get("photos") or []
+        if not photos:
+            counters["listings"]["skipped"] += 1
+            continue
+        new_photos = []
+        changed = False
+        for p in photos:
+            result = await _migrate_photo("listings", l["id"], p)
+            if result is None:
+                new_photos.append(p)
+            elif result.get("__failed"):
+                counters["listings"]["failed"] += 1
+                new_photos.append(p)
+            else:
+                new_photos.append(result)
+                changed = True
+                counters["listings"]["migrated"] += 1
+        if changed:
+            await db.listings.update_one({"id": l["id"]}, {"$set": {"photos": new_photos}})
+        else:
+            counters["listings"]["skipped"] += 1
+
+    return {
+        **counters,
+        "duration_seconds": round((datetime.now(timezone.utc) - started).total_seconds(), 2),
+    }
+
