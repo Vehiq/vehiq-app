@@ -17,6 +17,42 @@ Build a full-stack web + mobile-responsive SaaS application called VEHIQ. A prem
 
 ## What's Implemented (2026-05-02)
 
+### Iter 43 — Base64 leak fix + lazy avatar + R2 migration (DONE 2026-07-05 — fork-agent)
+
+**Problem statement (P0 CRITICAL):**
+`GET /api/vehicles` zwracał **20MB w 23 sekundy** — base64 zdjęcia (~3MB każde) trafiały do response mimo Iter 41 projekcji. `GET /api/auth/me` → 8.6MB. `GET /api/marketplace/listings` → 6MB. Garaż niepraktyczny.
+
+**Co zrobiono:**
+- **`_safe_cover_url()` w vehicles.py** — nowy helper który NIGDY nie zwraca base64 (odrzuca `data:image/*`), tylko `http://` / `https://` / R2 URLs. Zastąpił `_cover()` w 3 list endpointach: `list_vehicles`, `list_open_to_offers`, `search`. Preference: `thumb_url` z dict shape → `url` z dict → sanity-check https URL string.
+- **Marketplace listings sanitize** — `list_listings` importuje `_safe_cover_url`, drop'uje `photos[]` po ekstrakcji, sanityzuje `seller.avatar` (base64 → null). Fallback inline jeśli import zawiedzie.
+- **`_public_user` w auth.py** — avatar zwracany tylko gdy to URL, w innym wypadku `avatar=null` + `has_avatar=true` flag.
+- **Nowy `GET /api/auth/avatar/{user_id}`** — URL → 302 redirect, base64 → dekoduje i streamuje jako PNG/JPEG blob (Cache-Control: public, max-age=86400). Lazy pattern: /auth/me dostarcza `has_avatar` flag, frontend fetchuje avatar tylko gdy potrzebny.
+- **`POST /api/admin/migrate/base64-photos-to-r2?limit=N`** — idempotent admin endpoint. Iteracja po vehicles + listings, base64 → `Pillow` → `storage.upload_entity_photo` (R2 WebP full+thumb) → update `photos[]` array w MongoDB. Skip'uje już zmigrowane (dict z http URL). Guarded by `get_admin`. Failures nie crashują pętli, zwraca counters per collection + `duration_seconds`.
+
+**Testowanie (100% PASS, iteration_20.json — 15/15 pytest):**
+- P0: `GET /api/vehicles` response text NIGDY nie zawiera `data:image` (nawet po ręcznym wsadzeniu 500KB base64 do DB bypassing Iter 42 guard). `photos[]` field zawsze dropped. Payload 20MB → 400B (50000× redukcja).
+- P0: `GET /api/auth/me` <5KB, base64 avatar → null + has_avatar flag.
+- P0: `GET /api/marketplace/listings` — brak base64, seller.avatar sanityzowane.
+- Nowy avatar endpoint: base64→200 image/png, URL→302, brak avatar→404.
+- Admin migration: 401 bez auth, idempotency verified.
+- Regresja Iter 42 guard (413 dla >220KB inline), Iter 41 loop-fix (0 requests do threads w 15s).
+
+**User action:**
+1. **Save to GitHub** — wypycha wszystkie fixy Iter 41+42+43.
+2. Po deploy'u odpal jednorazowo z admin panela: `POST /api/admin/migrate/base64-photos-to-r2` — zmigruje istniejące legacy base64 do R2.
+3. (Optional infra) Dodaj Cloudflare cache rule dla `/api/auth/avatar/*` żeby edge nie strippował Cache-Control.
+
+**Notatki (nie action items):**
+- Cloudflare edge preview przepisuje Cache-Control → sprawdzone lokalnie (localhost:8001) że backend serwuje poprawne headery.
+- Kod-review: `_safe_cover_url` cichy None dla nieznanych shape'ów (dodaj debug log), avatar endpoint publiczny (privacy_settings ignorowane — dla avatarów by-design), skipped counter w migracji conflatuje pusty vs already-migrated.
+
+**Pliki:**
+- `/app/backend/routers/vehicles.py` (+_safe_cover_url + replace w 3 endpointach)
+- `/app/backend/routers/marketplace.py` (sanitize listings)
+- `/app/backend/routers/auth.py` (+_public_user avatar strip, +/avatar/{id} endpoint)
+- `/app/backend/routers/admin.py` (+migration endpoint)
+- `/app/backend/tests/test_iter43.py` (NEW — 15 tests)
+
 ### Iter 42 — DocumentTooLarge photo guard + Iter 41 loop-fix verification (DONE 2026-07-05 — fork-agent)
 
 **Problem statements:**
