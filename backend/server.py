@@ -333,6 +333,32 @@ app.add_middleware(
 app.add_middleware(VisitTrackingMiddleware)
 
 
+# ---------------- Iter 42: DocumentTooLarge safety net ----------------
+# Even with per-router guards, a rogue write path (or legacy code we haven't
+# audited yet) could still bump into pymongo.errors.DocumentTooLarge and
+# leak an ugly 500. Convert to a friendly 413 with a hint so the frontend
+# can surface a useful toast + logs stay clean in production.
+from pymongo.errors import DocumentTooLarge as _MongoDocTooLarge
+from fastapi import Request as _FastAPIRequest
+
+
+@app.exception_handler(_MongoDocTooLarge)
+async def _handle_doc_too_large(request: _FastAPIRequest, exc: _MongoDocTooLarge):
+    logger.error(f"DocumentTooLarge on {request.method} {request.url.path}: {exc}")
+    return JSONResponse(
+        status_code=413,
+        content={
+            "detail": {
+                "code": "mongo_doc_too_large",
+                "message": (
+                    "Dokument przekracza limit 16MB MongoDB. Prawdopodobnie próbujesz zapisać "
+                    "zbyt duże zdjęcia inline — użyj /api/vehicles/{id}/photos (R2)."
+                ),
+            }
+        },
+    )
+
+
 @app.on_event("startup")
 async def on_startup():
     if db is not None:

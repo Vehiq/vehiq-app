@@ -343,6 +343,17 @@ async def create_listing(payload: ListingIn, user=Depends(get_current_user)):
         raise HTTPException(status_code=400, detail=f"Max active listings reached ({max_l})")
 
     doc = payload.model_dump()
+    # Iter 42: guard against DocumentTooLarge from inline base64 photos —
+    # same policy as vehicles: cap count/size and force large uploads through
+    # the R2 photo endpoint. Reuses the vehicles module helper so limits stay
+    # aligned across write paths.
+    try:
+        from routers.vehicles import _guard_inline_photos
+        doc["photos"] = _guard_inline_photos(doc.get("photos") or [])
+    except HTTPException:
+        raise
+    except Exception:
+        pass  # if helper import fails, fall through — bound to size cap below
     doc.update({
         "id": str(uuid.uuid4()),
         "user_id": user["id"],

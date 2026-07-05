@@ -5,10 +5,73 @@ from typing import Optional, List
 from datetime import datetime, timezone
 import uuid
 import re
+import logging
 
 from db_helper import get_db
 from auth_utils import get_current_user, get_optional_user
 import storage as r2_storage
+
+# ---------------- Iter 42: photo payload guard ----------------
+# Prevents pymongo.errors.DocumentTooLarge (16MB BSON hard limit) by rejecting
+# oversized base64 data URLs in VehicleIn.photos BEFORE they hit the driver.
+# Large photos MUST go through the multipart POST /vehicles/{id}/photos flow
+# which streams to Cloudflare R2 and stores only tiny URL references.
+_MAX_INLINE_PHOTO_BYTES = 220_000            # ~160 KB image after base64 decode
+_MAX_INLINE_PHOTOS_COUNT = 3                 # anything more → use R2 upload endpoint
+_MAX_INLINE_PHOTOS_TOTAL_BYTES = 900_000     # ≪ Mongo's 16MB doc cap; big safety margin
+logger = logging.getLogger(__name__)
+
+
+def _guard_inline_photos(photos, *, path: str = "photos"):
+    """Raise 413 if the inline base64 photo payload risks a Mongo doc overflow.
+
+    Photos that are plain URLs (https://) or R2 photo descriptors (dicts)
+    pass through untouched — only base64 data URLs are size-checked.
+    """
+    if not photos or not isinstance(photos, list):
+        return photos
+    if len(photos) > _MAX_INLINE_PHOTOS_COUNT:
+        raise HTTPException(
+            status_code=413,
+            detail={
+                "code": "photos_too_many_inline",
+                "message": (
+                    f"Za dużo zdjęć w payloadzie ({len(photos)} > {_MAX_INLINE_PHOTOS_COUNT}). "
+                    "Prześlij zdjęcia przez /api/vehicles/{id}/photos (R2 upload)."
+                ),
+            },
+        )
+    total = 0
+    for i, p in enumerate(photos):
+        if not isinstance(p, str):
+            continue  # R2 photo descriptor dicts are already tiny
+        n = len(p)
+        if n > _MAX_INLINE_PHOTO_BYTES:
+            raise HTTPException(
+                status_code=413,
+                detail={
+                    "code": "photo_too_large_inline",
+                    "message": (
+                        f"Zdjęcie #{i + 1} jest za duże ({n // 1024} KB). "
+                        f"Limit inline: {_MAX_INLINE_PHOTO_BYTES // 1024} KB. "
+                        "Prześlij większe pliki przez /api/vehicles/{id}/photos (R2)."
+                    ),
+                },
+            )
+        total += n
+    if total > _MAX_INLINE_PHOTOS_TOTAL_BYTES:
+        raise HTTPException(
+            status_code=413,
+            detail={
+                "code": "photos_total_too_large",
+                "message": (
+                    f"Łączny rozmiar zdjęć inline {total // 1024} KB przekracza limit "
+                    f"{_MAX_INLINE_PHOTOS_TOTAL_BYTES // 1024} KB — ryzyko DocumentTooLarge (16MB Mongo). "
+                    "Prześlij zdjęcia przez /api/vehicles/{id}/photos (R2)."
+                ),
+            },
+        )
+    return photos
 
 router = APIRouter(prefix="/vehicles", tags=["vehicles"])
 
@@ -346,7 +409,7 @@ async def create_vehicle(payload: VehicleIn, user=Depends(get_current_user)):
 
     photo_settings = await db.app_settings.find_one({"key": "max_photos_per_vehicle"})
     max_p = int(photo_settings["value"]) if photo_settings else 20
-    photos = (payload.photos or [])[:max_p]
+    photos = _guard_inline_photos((payload.photos or [])[:max_p])
 
     v_id = str(uuid.uuid4())
     doc = payload.model_dump()
@@ -397,6 +460,9 @@ async def update_vehicle(vehicle_id: str, payload: VehicleUpdateIn, user=Depends
         raise HTTPException(status_code=404, detail="Vehicle not found")
 
     update = payload.model_dump(exclude_unset=True)
+    # Iter 42: guard against document-too-large writes from base64 photo array
+    if "photos" in update:
+        update["photos"] = _guard_inline_photos(update["photos"])
     update["updated_at"] = datetime.now(timezone.utc).isoformat()
     # If make/model/year changed and slug missing, regenerate
     if not v.get("slug"):
