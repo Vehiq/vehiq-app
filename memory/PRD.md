@@ -17,6 +17,46 @@ Build a full-stack web + mobile-responsive SaaS application called VEHIQ. A prem
 
 ## What's Implemented (2026-05-02)
 
+### Iter 40 — 6 bug fixes (JWT refresh + dropdowns + demo empty + garage picker + avatar + photo normaliser) (DONE 2026-07-05 — fork-agent)
+
+**Problem statements:**
+- P0 Bug 4: Nieoczekiwane wylogowanie — token wygasał 7d, brak refresh endpointa, `api.js` interceptor czyścił localStorage na KAŻDYM 401 (nawet z endpointów permission-scoped).
+- P0 Bug 6: Dropdowny (bell + profile + search) w TopBar nie zamykały się po kliknięciu poza menu.
+- P0 Bug 5: Demo garage miał preseedowane Audi RS4 + Austin 7 Ruby — mylące pierwsze wrażenie.
+- P1 Bug 1: Sekcja "z mojego garażu" w CreateListing renderowała się DOPIERO pod tytułem/marką, użytkownik nie widział że może wybrać z garażu.
+- P1 Bug 2: Brak upload avatara / zdjęcia profilowego.
+- P1 Bug 3: `vehicles.photos` mieszał string URLs i `{url, thumbnail_url}` object — prefill z garażu wywalał się przy niektórych pojazdach.
+
+**Co zrobiono:**
+- **Bug 4 — silent JWT refresh:**
+  - Backend: `ACCESS_TOKEN_EXPIRE_HOURS = 24*30` (30d), nowy `REFRESH_GRACE_HOURS = 24*7` (7d grace). Nowa funkcja `decode_token_allow_grace()` akceptuje tokeny wygasłe do 7 dni. Endpoint `POST /api/auth/refresh` (`auth.py`) — Bearer token → nowy token, sprawdza czy user nie suspended.
+  - Frontend `AuthContext.js`: `useEffect` z `setInterval` co 1h czyta claim `exp` z JWT (base64url decode) i wywołuje `/auth/refresh` gdy zostało <24h. Silent na błędach.
+  - Frontend `api.js` interceptor: na 401 próbuje jeden silent refresh + retry oryginalnego requestu z nowym tokenem. Czyści localStorage tylko gdy sam `/auth/refresh` zwrócił 401 lub 401 przyszedł z `/auth/me`. Random 401 z innych endpointów NIE wyloguje użytkownika.
+- **Bug 6 — click outside:** Nowy hook `useClickOutside(ref, onClose, enabled)` — mousedown + touchstart + Escape. Podpięty pod bell, profile i search dropdowny w TopBar (`bellRef`, `profileRef`, `searchRef`).
+- **Bug 5 — pusty demo garage:** `routers/demo.py` iteruje po pustej liście `_demo_vehicle_specs`. `seeded.vehicles: 0`. Rental listings + forum thread bez zmian (`listings: 2, threads: 1`).
+- **Bug 1 — garage picker na górze:** Nowa sekcja `[data-testid='listing-from-garage']` renderowana **przed** blokiem type/title jako pierwsze pole formularza. Karty klikalne `[data-testid='listing-vehicle-card-{id}']` z coverem + marką/modelem + rokiem+przebiegiem. Klik → `prefill(vid)` uzupełnia title/make/model/year/mileage/description/photos. Przycisk "Wyczyść wybór — dodam ręcznie" resetuje. Stara select-owa opcja usunięta.
+- **Bug 2 — avatar upload:**
+  - Backend: nowy endpoint `PATCH /api/auth/avatar` (`AvatarIn` pydantic z `min_length=1 max_length=3M`), akceptuje data URL (`data:image/...;base64,`) lub https URL. Cap ~2MB. Zapisuje w `profiles.avatar`.
+  - Frontend `Profile.js`: klikalny `[data-testid='profile-avatar-btn']` (h-16 w-16 rounded-full) z ikoną Camera na hover + hidden file input `[data-testid='profile-avatar-input']`. `handleAvatarUpload` konwertuje file → dataURL → PATCH → `refresh()` w AuthContext.
+- **Bug 3 — photo normaliser:** Nowe helpery `_photoStr()` + `_normalisePhotos()` w `CreateListing.js`. `prefill()` i URL-prefill effect zawijają w try/catch i coerce'ują `{url, thumbnail_url}` → string.
+
+**Testowanie (100% PASS, iteration_16.json):**
+- Backend: 11/11 pytest (`test_iter40.py`) — refresh 200/401 warianty, avatar 200/400/413, demo empty, service_type/reminders/open-to-offers regresja.
+- Frontend: 100% — click-outside + Escape na bell + profile, listing-from-garage jest przed listing-title, prefill wypełnia title "BMW M3 2020", avatar UI wiring, interceptor persist token przy random 401.
+- Kod review: 3 komentarze porządkowe (413→422 order na pydantic, dead code SEED_VEHICLES) — nie krytyczne.
+
+**Pliki:**
+- `/app/backend/auth_utils.py` (+30d expiry, +7d grace, +decode_token_allow_grace)
+- `/app/backend/routers/auth.py` (+/refresh, +/avatar)
+- `/app/backend/routers/demo.py` (empty vehicle seed)
+- `/app/frontend/src/lib/api.js` (smart interceptor)
+- `/app/frontend/src/contexts/AuthContext.js` (silent refresh useEffect)
+- `/app/frontend/src/hooks/useClickOutside.js` (NEW)
+- `/app/frontend/src/components/layout/TopBar.js` (3 refs + hooks)
+- `/app/frontend/src/pages/CreateListing.js` (from-garage cards top + normaliser)
+- `/app/frontend/src/pages/Profile.js` (avatar upload)
+- `/app/backend/tests/test_iter40.py` (NEW — 11 tests)
+
 ### Iter 39 — Wykres kosztów + Chętnie odkupię + Przypomnienia + Giełda zamian (DONE 2026-07-05 — fork-agent)
 
 **Problem statements:**
