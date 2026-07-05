@@ -59,19 +59,38 @@ export default function CreateListing() {
             model: v.model || "",
             year: v.year || "",
             mileage: v.mileage_current || "",
-            title: `${v.make} ${v.model} ${v.year || ""}`.trim(),
+            title: `${v.make || ""} ${v.model || ""} ${v.year || ""}`.trim(),
             description: `${v.engine || ""} ${v.fuel || ""}\nPrzebieg: ${v.mileage_current || 0} km`.trim(),
-            photos: v.photos || [],
+            photos: (v.photos || []).map(p => {
+              if (!p) return null;
+              return typeof p === "string" ? p : p.url || p.thumbnail_url || null;
+            }).filter(Boolean),
           }));
         }
       }
-    });
+    }).catch(() => { /* silent — form still usable without garage */ });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Iter 40 (Bug 3): normalise photos from the garage — historically vehicles
+  // store `photos` as either an array of strings (data URLs / hosted URLs)
+  // or an array of `{url, thumbnail_url}` objects. Listings expect an array
+  // of strings, so we coerce here to avoid runtime render errors and 4xx
+  // when POSTing.
+  const _photoStr = (p) => {
+    if (!p) return null;
+    if (typeof p === "string") return p;
+    return p.url || p.thumbnail_url || null;
+  };
+  const _normalisePhotos = (arr) => (arr || []).map(_photoStr).filter(Boolean);
 
   const prefill = (vid) => {
     const v = vehicles.find(x => x.id === vid);
     if (!v) return;
+    let photos = [];
+    try {
+      photos = _normalisePhotos(v.photos);
+    } catch { photos = []; }
     setForm({
       ...form,
       vehicle_id: vid,
@@ -79,9 +98,9 @@ export default function CreateListing() {
       model: v.model || "",
       year: v.year || "",
       mileage: v.mileage_current || "",
-      title: `${v.make} ${v.model} ${v.year || ""}`.trim(),
+      title: `${v.make || ""} ${v.model || ""} ${v.year || ""}`.trim(),
       description: `${v.engine || ""} ${v.fuel || ""}\nPrzebieg: ${v.mileage_current || 0} km`.trim(),
-      photos: v.photos || [],
+      photos,
     });
   };
 
@@ -235,6 +254,68 @@ export default function CreateListing() {
       </button>
       <h1 className="vehiq-display text-4xl text-vehiq-text">{t("marketplace.create")}</h1>
 
+      {/* Iter 40: garage picker moved to the TOP so users see it before
+          having to fill title / make. Clicking a card prefills everything —
+          title, make/model, year, mileage, description and photos. */}
+      {vehicles.length > 0 && (
+        <div className="vehiq-card p-5 space-y-3" data-testid="listing-from-garage">
+          <div>
+            <div className="vehiq-display text-lg text-vehiq-text">Masz to auto w garażu?</div>
+            <p className="text-xs text-vehiq-muted mt-1">Wybierz pojazd — dane uzupełnią się automatycznie. Możesz je potem edytować.</p>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {vehicles.map((v) => {
+              const isSelected = form.vehicle_id === v.id;
+              const cover = (Array.isArray(v.photos) && v.photos[v.cover_photo_index || 0]) || null;
+              const coverUrl = typeof cover === "string" ? cover : cover?.url || cover?.thumbnail_url || null;
+              return (
+                <button
+                  key={v.id}
+                  type="button"
+                  onClick={() => prefill(v.id)}
+                  className={`flex items-center gap-3 p-3 rounded border text-left transition-colors ${
+                    isSelected
+                      ? "border-vehiq-gold bg-vehiq-gold-dim"
+                      : "border-vehiq-border hover:border-vehiq-gold"
+                  }`}
+                  data-testid={`listing-vehicle-card-${v.id}`}
+                >
+                  <div className="h-12 w-16 rounded overflow-hidden bg-vehiq-bg shrink-0">
+                    {coverUrl ? (
+                      <img
+                        src={coverUrl}
+                        alt=""
+                        className="h-full w-full object-cover"
+                        onError={(e) => { e.currentTarget.style.display = "none"; }}
+                      />
+                    ) : null}
+                  </div>
+                  <div className="min-w-0">
+                    <div className="text-sm font-medium text-vehiq-text truncate">
+                      {v.make} {v.model}
+                    </div>
+                    <div className="text-[11px] text-vehiq-muted">
+                      {v.year || ""}{v.year && v.mileage_current ? " · " : ""}
+                      {v.mileage_current != null ? `${Number(v.mileage_current).toLocaleString("pl-PL")} km` : ""}
+                    </div>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+          {form.vehicle_id && (
+            <button
+              type="button"
+              onClick={() => setForm({ ...form, vehicle_id: "", make: "", model: "", year: "", mileage: "", title: "", description: "", photos: [] })}
+              className="text-xs text-vehiq-muted hover:text-vehiq-gold underline"
+              data-testid="listing-clear-vehicle"
+            >
+              Wyczyść wybór — dodam ręcznie
+            </button>
+          )}
+        </div>
+      )}
+
       <div className="vehiq-card p-6 space-y-4">
         <div>
           <label className="vehiq-overline mb-2 block">{t("marketplace.filterType")}</label>
@@ -278,15 +359,9 @@ export default function CreateListing() {
           </div>
         )}
 
-        {vehicles.length > 0 && showVehicleFields && (
-          <div>
-            <label className="vehiq-overline mb-2 block">{t("marketplace.fromGarage")}</label>
-            <select onChange={(e) => prefill(e.target.value)} className="vehiq-input" data-testid="listing-prefill">
-              <option value="">—</option>
-              {vehicles.map(v => <option key={v.id} value={v.id}>{v.make} {v.model} {v.year || ""}</option>)}
-            </select>
-          </div>
-        )}
+        {/* Old select-based garage picker moved to a card grid above the
+            form (Iter 40). Kept only the guard so nothing else on this
+            file references it. */}
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>

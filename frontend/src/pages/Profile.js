@@ -1,10 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
-import api from "@/lib/api";
+import api, { apiErrorMessage } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
-import { Eye, ExternalLink, Ruler } from "lucide-react";
+import { Camera, Eye, ExternalLink, Ruler } from "lucide-react";
 
 const DEFAULT_PRIVACY = {
   profile_public: true,
@@ -19,11 +19,13 @@ const DEFAULT_UNITS = { distance: "km", currency: "PLN" };
 
 export default function Profile() {
   const { t, i18n } = useTranslation();
-  const { user, updateProfile } = useAuth();
+  const { user, updateProfile, refresh } = useAuth();
   const [form, setForm] = useState({ name: "", location: "", language: "pl", bio: "" });
   const [privacy, setPrivacy] = useState({ ...DEFAULT_PRIVACY });
   const [units, setUnits] = useState({ ...DEFAULT_UNITS });
   const [stats, setStats] = useState(null);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const avatarInputRef = useRef(null);
 
   useEffect(() => {
     if (user) {
@@ -54,6 +56,40 @@ export default function Profile() {
     } catch { toast.error(t("common.error")); }
   };
 
+  // Iter 40 — Bug 2: avatar upload. Reads file as base64 data URL and PATCHes
+  // /auth/avatar. Refreshes user in AuthContext so the new avatar propagates
+  // to header + sidebar + forum posts immediately.
+  const handleAvatarUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      toast.error("Wybierz obrazek");
+      return;
+    }
+    // Guard: > 2MB → reject with hint (backend also caps at ~2MB)
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error("Plik jest za duży (max 2 MB)");
+      return;
+    }
+    setUploadingAvatar(true);
+    try {
+      const dataUrl = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = () => reject(new Error("read_error"));
+        reader.readAsDataURL(file);
+      });
+      await api.patch("/auth/avatar", { avatar: dataUrl });
+      await refresh?.();
+      toast.success("Avatar zaktualizowany");
+    } catch (err) {
+      toast.error(apiErrorMessage(err, "Nie udało się przesłać zdjęcia"));
+    } finally {
+      setUploadingAvatar(false);
+      if (avatarInputRef.current) avatarInputRef.current.value = "";
+    }
+  };
+
   const updateUnits = async (key, value) => {
     const next = { ...units, [key]: value };
     setUnits(next);
@@ -76,10 +112,48 @@ export default function Profile() {
 
       <form onSubmit={save} className="vehiq-card p-6 space-y-4">
         <div className="flex items-center gap-4">
-          {user?.avatar ? <img src={user.avatar} className="h-16 w-16 rounded-full" alt="" /> : <div className="h-16 w-16 rounded-full bg-vehiq-gold-dim text-vehiq-gold flex items-center justify-center text-xl font-bold">{user?.name?.[0]}</div>}
+          <button
+            type="button"
+            onClick={() => avatarInputRef.current?.click()}
+            className="relative h-16 w-16 rounded-full overflow-hidden group border border-vehiq-border hover:border-vehiq-gold transition-colors focus:outline-none focus:ring-2 focus:ring-vehiq-gold"
+            data-testid="profile-avatar-btn"
+            aria-label="Zmień zdjęcie profilowe"
+          >
+            {user?.avatar ? (
+              <img src={user.avatar} className="h-16 w-16 rounded-full object-cover" alt="Avatar" />
+            ) : (
+              <div className="h-16 w-16 rounded-full bg-vehiq-gold-dim text-vehiq-gold flex items-center justify-center text-xl font-bold">
+                {user?.name?.[0] || "?"}
+              </div>
+            )}
+            <div className="absolute inset-0 flex items-center justify-center bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity">
+              <Camera size={18} className="text-white" />
+            </div>
+            {uploadingAvatar && (
+              <div className="absolute inset-0 flex items-center justify-center bg-vehiq-bg/70 text-vehiq-gold text-[10px]" data-testid="profile-avatar-uploading">
+                …
+              </div>
+            )}
+          </button>
+          <input
+            ref={avatarInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={handleAvatarUpload}
+            data-testid="profile-avatar-input"
+          />
           <div>
             <div className="text-vehiq-text font-medium">{user?.email}</div>
             <div className="text-xs text-vehiq-muted uppercase tracking-wider">{user?.role}{user?.slug ? ` · @${user.slug}` : ""}</div>
+            <button
+              type="button"
+              onClick={() => avatarInputRef.current?.click()}
+              className="text-[11px] text-vehiq-gold hover:text-vehiq-gold-hover uppercase tracking-widest mt-1"
+              data-testid="profile-avatar-change-link"
+            >
+              Zmień zdjęcie profilowe
+            </button>
           </div>
         </div>
         <div>

@@ -17,7 +17,7 @@ import httpx
 from db_helper import get_db
 from auth_utils import (
     hash_password, verify_password,
-    create_access_token, decode_token, get_current_user
+    create_access_token, decode_token, decode_token_allow_grace, get_current_user
 )
 from email_service import (
     send_email, fire_and_forget,
@@ -468,3 +468,65 @@ async def update_me(payload: UpdateProfileIn, user=Depends(get_current_user)):
 @router.post("/logout")
 async def logout(user=Depends(get_current_user)):
     return {"ok": True}
+
+
+# ---------------- Iter 40: Silent refresh + avatar upload ----------------
+
+@router.post("/refresh")
+async def refresh_token(authorization: Optional[str] = Header(None)):
+    """Re-issue a fresh JWT for a still-valid or recently-expired token.
+
+    Accepts:
+    - a valid non-expired Bearer token → always OK, returns rotated token.
+    - a Bearer token expired within REFRESH_GRACE_HOURS (7 days) → OK.
+    - anything older or invalid → 401.
+
+    This backs the silent-refresh flow in AuthContext so users don't get
+    randomly logged out mid-session when the JWT rolls over.
+    """
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Missing token")
+    token = authorization.split(" ", 1)[1]
+    payload = decode_token_allow_grace(token)
+    if payload.get("type") == "admin":
+        raise HTTPException(status_code=401, detail="Cannot refresh admin token here")
+    db = get_db()
+    user_id = payload.get("sub")
+    user = await db.profiles.find_one({"id": user_id}, {"_id": 0, "id": 1, "suspended": 1})
+    if not user:
+        raise HTTPException(status_code=401, detail="User not found")
+    if user.get("suspended"):
+        raise HTTPException(status_code=403, detail="Account suspended")
+    new_token = create_access_token({"sub": user_id, "type": "user"})
+    return {"token": new_token}
+
+
+class AvatarIn(BaseModel):
+    """Avatar upload payload — base64 data URL or hosted URL.
+
+    We accept two formats to keep the flow simple: (a) a `data:image/...;base64,`
+    string uploaded from the profile page, or (b) a plain HTTPS URL when we
+    later switch to R2 direct upload. Both write to `profiles.avatar`.
+    """
+    avatar: str = Field(..., min_length=1, max_length=3_000_000)  # ~2MB base64 headroom
+
+
+@router.patch("/avatar")
+async def upload_avatar(payload: AvatarIn, user=Depends(get_current_user)):
+    """Update the current user's avatar (base64 data URL or hosted URL)."""
+    val = (payload.avatar or "").strip()
+    if not val:
+        raise HTTPException(status_code=400, detail="Empty avatar")
+    is_data_url = val.startswith("data:image/")
+    is_url = val.startswith("https://") or val.startswith("http://")
+    if not (is_data_url or is_url):
+        raise HTTPException(status_code=400, detail="Avatar must be a data URL or https URL")
+    # Rough size guard for data URLs — 2MB base64 ≈ 1.5MB binary.
+    if is_data_url and len(val) > 2_800_000:
+        raise HTTPException(status_code=413, detail="Avatar too large (max ~2MB)")
+    db = get_db()
+    await db.profiles.update_one(
+        {"id": user["id"]},
+        {"$set": {"avatar": val, "updated_at": datetime.now(timezone.utc).isoformat()}},
+    )
+    return {"avatar": val, "avatar_url": val}

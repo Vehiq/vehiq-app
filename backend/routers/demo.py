@@ -256,8 +256,13 @@ async def create_demo_account(request: Request):
     await db.profiles.insert_one(profile)
 
     # 4. Seed vehicles + service history.
+    # Iter 40: garage starts EMPTY. Users test the app by adding their own
+    # vehicles from zero — no confusing seed cars (previously Audi RS4 +
+    # Austin 7 Ruby). We keep the loop code intact but iterate over an empty
+    # list so demos don't ship pre-seeded vehicles or service entries.
+    _demo_vehicle_specs = []  # was: SEED_VEHICLES
     seeded_vehicles = []
-    for spec in SEED_VEHICLES:
+    for spec in _demo_vehicle_specs:
         v_id = str(uuid.uuid4())
         slug = await _unique_vehicle_slug(db, _slugify(f"{spec['make']}-{spec['model']}-{spec['year']}"))
         veh = {
@@ -341,7 +346,7 @@ async def create_demo_account(request: Request):
             "demo_expires_at": profile["demo_expires_at"],
         },
         "seeded": {
-            "vehicles": len(SEED_VEHICLES),
+            "vehicles": 0,  # Iter 40: demo garage starts empty
             "listings": len(SEED_LISTINGS),
             "threads": 1,
         },

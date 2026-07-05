@@ -1,0 +1,29 @@
+{
+  "summary": "Iter 40 (6 fixes) — full backend + frontend testing. All 6 bug fixes verified working. 11/11 backend pytest passing; frontend Playwright asserted click-outside + Escape for bell & profile dropdowns, empty demo garage, from-garage-first picker in CreateListing with prefill, avatar UI wiring, refresh endpoint, interceptor behaviour (token survives normal load, cleared on bad-token /auth/me 401).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "verified_features": [
+    "BUG 4 refresh: POST /api/auth/refresh → 200 w/valid bearer (returns new working token), 401 w/missing or malformed token.",
+    "BUG 4 interceptor: token persists after normal navigation; token cleared when /auth/me 401s (garbage token).",
+    "BUG 5 empty demo: seeded.vehicles=0, seeded.listings=2, seeded.threads=1; GET /vehicles returns [] for fresh demo; Garage page shows 0 cards.",
+    "BUG 6 dropdowns: bell + profile close on outside-click AND Escape (verified visible→hidden transitions).",
+    "BUG 1 garage picker: [data-testid='listing-from-garage'] hidden with 0 vehicles; visible & positioned BEFORE listing-title with 1 vehicle; click card prefills title='BMW M3 2020', make='BMW', model='M3'.",
+    "BUG 2 avatar: [data-testid='profile-avatar-btn'] + [data-testid='profile-avatar-input'] present on /profile; PATCH /api/auth/avatar 200 with data URL, persisted (GET /auth/me returns same), 400 for non-image scheme, 413/422 for >2MB payload, 400/422 for empty.",
+    "BUG 3 photo prefill: no console errors when loading /marketplace/new with ?vehicle= param; string photos accepted by POST /vehicles.",
+    "REGRESSION iter39: /service/stats/{vid} returns monthly_12m + reminders arrays; PATCH /vehicles/{id}/open-to-offers works; GET /vehicles/open-to-offers works; POST /swaps/listing works."
+  ],
+  "backend_test_notes": "POST /api/vehicles rejects photos as list of {url, thumbnail_url} objects (422). Frontend normalizer coerces client-side, so it handles legacy data. Backend accepts strings only — acceptable per current schema.",
+  "test_report_links": ["/app/backend/tests/test_iter40.py", "/app/test_reports/pytest/iter40.xml"],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "TopBar useClickOutside implementation is correctly wired for all three refs (bell, profile, search). Escape handler + mousedown + touchstart all functional.",
+    "auth.py /avatar guard uses pydantic max_length=3_000_000 (fires first) — so oversize returns 422 instead of 413. Minor. Endpoint's own 2.8M check is dead-code for that path.",
+    "demo.py keeps SEED_VEHICLES + SEED_SERVICE_HISTORY constants but iterates an empty list — dead code (~50 lines) worth removing for clarity."
+  ],
+  "updated_files": ["/app/backend/tests/test_iter40.py"],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "seed_data_creation": "Fresh demo users via POST /api/auth/demo per test module (auto-cleaned after 24h TTL).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Preview backend requires REACT_APP_BACKEND_URL env var explicitly exported before pytest — .env isn't auto-loaded. Frontend has first-use-tooltips overlay that intercepts pointer events even with sharago_first_use_tooltips_seen=1; workaround: PUT /auth/me {tooltips_seen:true} + JS remove of [data-testid='first-use-tooltips']."
+}

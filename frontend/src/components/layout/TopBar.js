@@ -1,10 +1,11 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Bell, Search, Menu, User as UserIcon } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import { useAuth } from "@/contexts/AuthContext";
 import api from "@/lib/api";
+import useClickOutside from "@/hooks/useClickOutside";
 
 export default function TopBar({ onMenu }) {
   const { t } = useTranslation();
@@ -16,6 +17,14 @@ export default function TopBar({ onMenu }) {
   const [profileOpen, setProfileOpen] = useState(false);
   const [bellOpen, setBellOpen] = useState(false);
   const [notifs, setNotifs] = useState([]);
+  // Iter 40: click-outside refs — close dropdowns when the user clicks
+  // anywhere else or hits Escape.
+  const bellRef = useRef(null);
+  const profileRef = useRef(null);
+  const searchRef = useRef(null);
+  useClickOutside(bellRef, () => setBellOpen(false), bellOpen);
+  useClickOutside(profileRef, () => setProfileOpen(false), profileOpen);
+  useClickOutside(searchRef, () => setSearchOpen(false), searchOpen);
 
   useEffect(() => {
     let active = true;
@@ -39,7 +48,7 @@ export default function TopBar({ onMenu }) {
         </button>
 
         <div className="flex-1 flex items-center gap-2 max-w-xl">
-          <div className="relative w-full">
+          <div className="relative w-full" ref={searchRef}>
             <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-vehiq-muted" />
             <input
               data-testid="global-search-input"
@@ -97,7 +106,7 @@ export default function TopBar({ onMenu }) {
         <div className="flex items-center gap-3 ml-auto">
           <LanguageSwitcher />
 
-          <div className="relative">
+          <div className="relative" ref={bellRef}>
             <button type="button" onClick={() => setBellOpen((s) => !s)} className="relative p-2 rounded-md text-vehiq-text hover:bg-vehiq-card" data-testid="notifications-bell">
               <Bell size={18} />
               {notifs.length > 0 && (
@@ -131,7 +140,7 @@ export default function TopBar({ onMenu }) {
             )}
           </div>
 
-          <div className="relative">
+          <div className="relative" ref={profileRef}>
             <button type="button" onClick={() => setProfileOpen((s) => !s)} className="flex items-center gap-2 p-1 rounded-md hover:bg-vehiq-card" data-testid="topbar-profile">
               {user?.avatar ? (
                 <img src={user.avatar} alt="" className="h-8 w-8 rounded-full object-cover border border-vehiq-border" />

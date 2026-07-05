@@ -9,8 +9,12 @@ from db_helper import get_db
 
 SECRET_KEY = os.environ.get("SECRET_KEY") or os.environ.get("JWT_SECRET") or "vehiq-dev-secret"
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_HOURS = 24 * 7  # 7 days
+ACCESS_TOKEN_EXPIRE_HOURS = 24 * 30  # 30 days — silent-refresh happens client-side after 24h
 ADMIN_TOKEN_EXPIRE_HOURS = 2
+# Iter 40: allow refresh with a grace period after the token expires. Users
+# returning to the app within this window get a fresh token instead of a
+# forced re-login. Anything beyond this triggers a normal logout.
+REFRESH_GRACE_HOURS = 24 * 7  # 7 days grace after `exp`
 
 
 def hash_password(password: str) -> str:
@@ -40,6 +44,36 @@ def decode_token(token: str) -> dict:
         return jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
     except jwt.ExpiredSignatureError:
         raise HTTPException(status_code=401, detail="Token expired")
+    except jwt.InvalidTokenError:
+        raise HTTPException(status_code=401, detail="Invalid token")
+
+
+def decode_token_allow_grace(token: str) -> dict:
+    """Decode a JWT accepting tokens expired up to REFRESH_GRACE_HOURS ago.
+
+    Used by POST /api/auth/refresh so users who close the tab for a few days
+    can silently be re-issued a fresh token instead of hitting a hard 401.
+    """
+    try:
+        return jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+    except jwt.ExpiredSignatureError:
+        # Decode without exp verification, then manually check the grace window.
+        try:
+            payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM], options={"verify_exp": False})
+        except jwt.InvalidTokenError:
+            raise HTTPException(status_code=401, detail="Invalid token")
+        exp_ts = payload.get("exp")
+        if not exp_ts:
+            raise HTTPException(status_code=401, detail="Token missing exp")
+        # exp is a POSIX timestamp (int) — jwt library encodes datetimes as such.
+        try:
+            exp_dt = datetime.fromtimestamp(int(exp_ts), tz=timezone.utc)
+        except (TypeError, ValueError):
+            raise HTTPException(status_code=401, detail="Invalid exp")
+        age_hours = (datetime.now(timezone.utc) - exp_dt).total_seconds() / 3600.0
+        if age_hours > REFRESH_GRACE_HOURS:
+            raise HTTPException(status_code=401, detail="Token expired beyond refresh grace")
+        return payload
     except jwt.InvalidTokenError:
         raise HTTPException(status_code=401, detail="Invalid token")
 
