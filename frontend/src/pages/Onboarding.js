@@ -41,12 +41,16 @@ export default function Onboarding() {
   const handlePhoto = async (e) => {
     const file = (e.target.files || [])[0];
     if (!file) return;
-    if (file.size > 5 * 1024 * 1024) { toast.error("Max 5MB"); return; }
-    const dataUrl = await new Promise((res) => {
-      const r = new FileReader();
-      r.onloadend = () => res(r.result);
-      r.readAsDataURL(file);
-    });
+    if (file.size > 15 * 1024 * 1024) { toast.error("Max 15MB"); return; }
+    // Iter 44: compress before base64 encoding to stay under the inline photo guard.
+    const { compressImage, fileToDataURL } = await import("@/lib/imageCompress");
+    let compressed;
+    try {
+      compressed = await compressImage(file);
+    } catch {
+      compressed = file;
+    }
+    const dataUrl = await fileToDataURL(compressed);
     setForm((f) => ({ ...f, photos: [dataUrl] }));
   };
 

@@ -13,7 +13,7 @@ export default function MyListings() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [items, setItems] = useState(null);
-  const [filter, setFilter] = useState("all"); // all | vehicles | rental | service
+  const [filter, setFilter] = useState("all"); // all | vehicles | rental | service | sold
 
   const load = async () => {
     try {
@@ -30,7 +30,13 @@ export default function MyListings() {
     load();
   }, []);
 
+  const soldCount = (items || []).filter((l) => l.status === "sold").length;
+
   const visible = (items || []).filter((l) => {
+    // "Sprzedane" tab isolates sold listings across all categories.
+    if (filter === "sold") return l.status === "sold";
+    // All non-sold tabs hide sold listings so active work stays in focus.
+    if (l.status === "sold") return false;
     if (filter === "all") return true;
     if (filter === "rental") return l.category === "rental_car" || l.category === "rental_garage";
     if (filter === "service") return l.category === "service" || l.type === "service";
@@ -54,6 +60,7 @@ export default function MyListings() {
   };
 
   const setStatus = async (l, status) => {
+    if (status === "sold" && !window.confirm(t("marketplace.confirmMarkSold"))) return;
     try {
       await api.post(`/marketplace/listings/${l.id}/status?status=${status}`);
       toast.success(t("common.success"));
@@ -80,23 +87,34 @@ export default function MyListings() {
         </Link>
       </div>
 
-      <div className="inline-flex rounded-md border border-vehiq-border bg-vehiq-card p-1" data-testid="my-listings-filter">
+      <div className="inline-flex rounded-md border border-vehiq-border bg-vehiq-card p-1 flex-wrap" data-testid="my-listings-filter">
         {[
-          { v: "all", label: "Wszystkie" },
-          { v: "vehicles", label: "Pojazdy" },
-          { v: "rental", label: "Wynajem" },
-          { v: "service", label: "Usługi" },
+          { v: "all", label: t("marketplace.filter.all", { defaultValue: "Wszystkie" }) },
+          { v: "vehicles", label: t("marketplace.filter.vehicles", { defaultValue: "Pojazdy" }) },
+          { v: "rental", label: t("marketplace.filter.rental", { defaultValue: "Wynajem" }) },
+          { v: "service", label: t("marketplace.filter.service", { defaultValue: "Usługi" }) },
+          { v: "sold", label: t("marketplace.sold"), badge: soldCount },
         ].map((opt) => (
           <button
             key={opt.v}
             type="button"
             onClick={() => setFilter(opt.v)}
-            className={`px-3 py-1.5 text-xs rounded transition-colors ${
+            className={`px-3 py-1.5 text-xs rounded transition-colors inline-flex items-center gap-1.5 ${
               filter === opt.v ? "bg-vehiq-gold text-vehiq-bg font-medium" : "text-vehiq-muted hover:text-vehiq-text"
             }`}
             data-testid={`my-listings-filter-${opt.v}`}
           >
             {opt.label}
+            {opt.v === "sold" && opt.badge > 0 && (
+              <span
+                className={`px-1.5 py-0.5 rounded text-[10px] leading-none ${
+                  filter === "sold" ? "bg-vehiq-bg/20 text-vehiq-bg" : "bg-vehiq-nav text-vehiq-muted"
+                }`}
+                data-testid="my-listings-sold-badge"
+              >
+                {opt.badge}
+              </span>
+            )}
           </button>
         ))}
       </div>
@@ -126,7 +144,16 @@ export default function MyListings() {
               <div className="p-3 sm:p-4 flex-1 flex flex-col">
                 <div className="flex items-start justify-between gap-2">
                   <div className="vehiq-display text-base sm:text-lg text-vehiq-text leading-tight line-clamp-2 flex-1">{l.title}</div>
-                  <span className={`text-[9px] uppercase tracking-widest px-2 py-0.5 rounded shrink-0 ${l.status === "active" ? "bg-vehiq-gold-dim text-vehiq-gold" : "bg-vehiq-nav text-vehiq-muted"}`}>
+                  <span
+                    className={`text-[9px] uppercase tracking-widest px-2 py-0.5 rounded shrink-0 ${
+                      l.status === "active"
+                        ? "bg-vehiq-gold-dim text-vehiq-gold"
+                        : l.status === "sold"
+                          ? "bg-green-500/15 text-green-400"
+                          : "bg-vehiq-nav text-vehiq-muted"
+                    }`}
+                    data-testid={`my-listing-status-${l.id}`}
+                  >
                     {t(`marketplace.status.${l.status || "active"}`, { defaultValue: l.status || "active" })}
                   </span>
                 </div>

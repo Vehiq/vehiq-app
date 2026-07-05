@@ -11,14 +11,18 @@ from db_helper import get_db
 from auth_utils import get_current_user, get_optional_user
 import storage as r2_storage
 
-# ---------------- Iter 42: photo payload guard ----------------
+# ---------------- Iter 42/44: photo payload guard ----------------
 # Prevents pymongo.errors.DocumentTooLarge (16MB BSON hard limit) by rejecting
 # oversized base64 data URLs in VehicleIn.photos BEFORE they hit the driver.
-# Large photos MUST go through the multipart POST /vehicles/{id}/photos flow
-# which streams to Cloudflare R2 and stores only tiny URL references.
-_MAX_INLINE_PHOTO_BYTES = 220_000            # ~160 KB image after base64 decode
-_MAX_INLINE_PHOTOS_COUNT = 3                 # anything more → use R2 upload endpoint
-_MAX_INLINE_PHOTOS_TOTAL_BYTES = 900_000     # ≪ Mongo's 16MB doc cap; big safety margin
+# Large photos SHOULD go through the multipart POST /vehicles/{id}/photos flow
+# (streams to Cloudflare R2 → tiny URL refs stored in Mongo). Frontend now
+# client-side compresses inline photos to ~250–500 KB before base64-encoding
+# (see /app/frontend/src/lib/imageCompress.js), so the limits below are sized
+# for POST-COMPRESSION payloads with a generous safety margin — not raw
+# 5MB phone photos.
+_MAX_INLINE_PHOTO_BYTES = 1_500_000          # ~1.1MB image after base64 decode
+_MAX_INLINE_PHOTOS_COUNT = 15                # matches vehicle photo cap
+_MAX_INLINE_PHOTOS_TOTAL_BYTES = 10_000_000  # ≪ Mongo's 16MB doc cap; leaves room for meta
 logger = logging.getLogger(__name__)
 
 

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import api from "@/lib/api";
+import { compressImage } from "@/lib/imageCompress";
 import { toast } from "sonner";
 import { ArrowLeft, Upload, X } from "lucide-react";
 import PlateBlurDialog from "@/components/PlateBlurDialog";
@@ -47,8 +48,8 @@ export default function VehicleForm({ initial, onSaved }) {
 
   const handleFiles = (e) => {
     const files = Array.from(e.target.files || []).filter((f) => {
-      if (f.size > 5 * 1024 * 1024) {
-        toast.error(`File ${f.name} > 5MB`);
+      if (f.size > 15 * 1024 * 1024) {
+        toast.error(`File ${f.name} > 15MB`);
         return false;
       }
       return true;
@@ -58,7 +59,10 @@ export default function VehicleForm({ initial, onSaved }) {
     setBlurQueue((q) => [...q, ...files]);
   };
 
-  const blurConfirm = (outFile) => {
+  const blurConfirm = async (outFile) => {
+    // Iter 44: compress after plate-blur dialog so base64 payload stays small.
+    let file = outFile;
+    try { file = await compressImage(outFile); } catch { /* keep raw */ }
     const reader = new FileReader();
     reader.onloadend = () => {
       setForm((prev) => ({
@@ -66,7 +70,7 @@ export default function VehicleForm({ initial, onSaved }) {
         photos: [...(prev.photos || []), reader.result].slice(0, 20),
       }));
     };
-    reader.readAsDataURL(outFile);
+    reader.readAsDataURL(file);
     setBlurQueue((q) => q.slice(1));
   };
 

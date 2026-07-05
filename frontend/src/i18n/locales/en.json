@@ -365,8 +365,15 @@
     "noMyListingsHint": "Create your first listing to sell a car or parts.",
     "myListingsSubtitle": "Manage your listings — edit, mark as sold or delete.",
     "confirmDelete": "Are you sure you want to delete this listing?",
-    "markSold": "Mark sold",
+    "markSold": "Mark as sold",
     "relist": "Relist",
+    "filter": {
+      "all": "All",
+      "vehicles": "Vehicles",
+      "rental": "Rentals",
+      "service": "Services"
+    },
+    "confirmMarkSold": "Mark this listing as sold?",
     "status": {
       "active": "Active",
       "sold": "Sold",

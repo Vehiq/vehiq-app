@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import api, { apiErrorMessage } from "@/lib/api";
+import { compressImage, fileToDataURL } from "@/lib/imageCompress";
 import { toast } from "sonner";
 import { ArrowLeft, Upload, X, Plus } from "lucide-react";
 import {
@@ -106,16 +107,22 @@ export default function CreateListing() {
 
   const handleFiles = async (e) => {
     const files = Array.from(e.target.files || []);
+    e.target.value = "";
+    // Iter 44: client-side compress raw phone photos (2–8MB) down to ~300 KB
+    // JPEG @ 1600px so the base64 payload fits under the backend inline guard.
     const newPhotos = [];
     for (const f of files) {
-      if (f.size > 5 * 1024 * 1024) { toast.error(`File ${f.name} > 5MB`); continue; }
-      newPhotos.push(await new Promise((res) => {
-        const reader = new FileReader();
-        reader.onloadend = () => res(reader.result);
-        reader.readAsDataURL(f);
-      }));
+      if (f.size > 15 * 1024 * 1024) { toast.error(`File ${f.name} > 15MB`); continue; }
+      try {
+        const compressed = await compressImage(f);
+        newPhotos.push(await fileToDataURL(compressed));
+      } catch {
+        toast.error(`Nie udało się przetworzyć ${f.name}`);
+      }
     }
-    setForm({ ...form, photos: [...(form.photos || []), ...newPhotos] });
+    if (newPhotos.length) {
+      setForm((prev) => ({ ...prev, photos: [...(prev.photos || []), ...newPhotos] }));
+    }
   };
 
   const submit = async (e) => {

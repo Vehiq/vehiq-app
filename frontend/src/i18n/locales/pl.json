@@ -365,8 +365,15 @@
     "noMyListingsHint": "Wystaw pierwsze ogłoszenie i sprzedaj swoje auto lub części.",
     "myListingsSubtitle": "Zarządzaj swoimi ogłoszeniami — edytuj, oznacz jako sprzedane lub usuń.",
     "confirmDelete": "Czy na pewno chcesz usunąć to ogłoszenie?",
-    "markSold": "Sprzedane",
+    "markSold": "Oznacz jako sprzedane",
     "relist": "Wystaw ponownie",
+    "filter": {
+      "all": "Wszystkie",
+      "vehicles": "Pojazdy",
+      "rental": "Wynajem",
+      "service": "Usługi"
+    },
+    "confirmMarkSold": "Oznaczyć to ogłoszenie jako sprzedane?",
     "status": {
       "active": "Aktywne",
       "sold": "Sprzedane",

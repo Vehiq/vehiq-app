@@ -1321,3 +1321,70 @@ Emergent NIE może zmienić nazwy "Vehiq" wyświetlanej na ekranie zgody Google.
 - 🟡 Po Vercel domain switch → E2E test logowania Google na `https://sharago.pl/login`.
 - 🔴 P1 Stripe / GPS / Push notifications / Project Mode / Facebook OAuth.
 
+
+---
+
+## Iter 45 — Photo Upload Guard Fix + "Sprzedane" tab (2026-07-05)
+
+### Kontekst
+Iter 42/43 wprowadził `_guard_inline_photos()` z limitem 220 KB / 900 KB total,
+żeby zablokować base64-inflated payloady pchane bez pośrednictwa R2.
+Efekt uboczny: standardowe 2-5 MB zdjęcia z telefonu w `POST /api/vehicles`
+i `POST /api/marketplace/listings` (JSON base64) były odbijane 413.
+
+### Zmiany
+**Backend** (`/app/backend/routers/vehicles.py`):
+- `_MAX_INLINE_PHOTO_BYTES`: 220_000 → **1_500_000** (~1.1 MB obraz)
+- `_MAX_INLINE_PHOTOS_COUNT`: 3 → **15**
+- `_MAX_INLINE_PHOTOS_TOTAL_BYTES`: 900_000 → **10_000_000**
+- Ostrzeżenie w komentarzu: limity zakładają **kompresję po stronie klienta**;
+  bez niej frontend może wciąż dostać 413 dla surowych 5 MB fotek z telefonu.
+
+**Frontend** — nowy util `/app/frontend/src/lib/imageCompress.js`:
+- `compressImage(file)` — decode via `createImageBitmap` → canvas → JPEG
+  `maxSide=1600px`, `quality=0.82`. Pomija pliki <400 KB. Zachowuje oryginał
+  gdy dekoder padnie (HEIC bez wsparcia).
+- `fileToDataURL(file)` — promise-friendly wrapper na FileReader.
+
+Podpięto w:
+- `pages/CreateListing.js` — `handleFiles` kompresuje przed base64.
+- `components/VehicleForm.js` — `blurConfirm` kompresuje po dialogu blur tablicy.
+- `pages/Onboarding.js` — `handlePhoto` używa lazy-imported utila.
+- Limit raw pliku podniesiony do 15 MB (kompresor obetnie i tak).
+
+### Efekt
+- Zdjęcia telefonu 4288×5712 @ 6 MB HEIC → ~350 KB JPEG base64 → przechodzą
+  bez zająknięcia, Mongo bezpieczne (10 MB total cap << 16 MB BSON limit).
+- Testy curl potwierdzają: 800 KB base64 → 200 OK, 1.3 MB → 200 OK, 2 MB → 413.
+
+### "Sprzedane" tab w Moje ogłoszenia
+`/app/frontend/src/pages/MyListings.js`:
+- Nowa zakładka **Sprzedane** obok Wszystkie/Pojazdy/Wynajem/Usługi.
+- Filtr `sold` pokazuje tylko `status === 'sold'` (cross-category).
+- Pozostałe zakładki teraz **ukrywają** wyprzedane ogłoszenia (workflow-focus).
+- Badge liczbowy przy tabie Sprzedane (`data-testid="my-listings-sold-badge"`).
+- Kolorowany status: sprzedane = zielony (`bg-green-500/15 text-green-400`).
+- Nowe klucze i18n: `marketplace.filter.{all,vehicles,rental,service}`,
+  `marketplace.confirmMarkSold`.
+- `setStatus` prosi o potwierdzenie przy oznaczaniu jako sprzedane.
+- `markSold` label: "Sprzedane" → **"Oznacz jako sprzedane"** (PL & EN).
+
+### Pliki
+- **MOD backend**: `routers/vehicles.py`
+- **NEW frontend**: `lib/imageCompress.js`
+- **MOD frontend**: `pages/CreateListing.js`, `pages/MyListings.js`,
+  `pages/Onboarding.js`, `components/VehicleForm.js`,
+  `i18n/locales/pl.json`, `i18n/locales/en.json`
+
+### Weryfikacja
+- Curl 3 payload sizes → 200/200/413 ✓
+- Screenshot MyListings default → tabs Wszystkie|Pojazdy|Wynajem|Usługi|Sprzedane ✓
+- Screenshot MyListings Sprzedane → badge (1), zielony status SPRZEDANE, przyciski Zobacz/Edytuj/Wystaw ponownie ✓
+- Create listing + `POST /status?status=sold` + `GET /listings/mine` → sold count=1 ✓
+- Lint JS: clean; lint Python: pre-existing E741 tylko (nie dotyczy zmian).
+
+### Backlog następnej iteracji
+- 🟡 User-facing przycisk migracji base64→R2 (obecnie tylko admin)
+- 🟡 R2 multipart upload endpoint dla listings (żeby CreateListing mógł
+  wypuszczać duże fotki bez base64)
+- 🔴 Stripe / GPS / Push notifications / Project Mode / Facebook OAuth
