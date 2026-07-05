@@ -221,18 +221,25 @@ async def interact(payload: SwapInteractIn, user=Depends(get_current_user)):
         raise HTTPException(status_code=404, detail="from_vehicle not owned by you")
 
     now = datetime.now(timezone.utc).isoformat()
-    # Upsert — one reaction per (from_user, target_vehicle) pair
+    # Upsert — one reaction per (from_user, target_vehicle) pair. Use
+    # $setOnInsert for identity fields so repeat reactions don't rewrite the
+    # primary id / created_at (which would orphan any refs).
     await db.swap_interactions.update_one(
         {"from_user_id": user["id"], "to_vehicle_id": payload.vehicle_id},
-        {"$set": {
-            "id": str(uuid.uuid4()),
-            "from_user_id": user["id"],
-            "from_vehicle_id": payload.from_vehicle_id,
-            "to_vehicle_id": payload.vehicle_id,
-            "to_user_id": target.get("user_id"),
-            "action": payload.action,
-            "created_at": now,
-        }},
+        {
+            "$set": {
+                "from_vehicle_id": payload.from_vehicle_id,
+                "to_vehicle_id": payload.vehicle_id,
+                "to_user_id": target.get("user_id"),
+                "action": payload.action,
+                "updated_at": now,
+            },
+            "$setOnInsert": {
+                "id": str(uuid.uuid4()),
+                "from_user_id": user["id"],
+                "created_at": now,
+            },
+        },
         upsert=True,
     )
 
@@ -258,7 +265,9 @@ async def interact(payload: SwapInteractIn, user=Depends(get_current_user)):
                     "user_a_id": user["id"],
                     "vehicle_a_id": payload.from_vehicle_id,
                     "user_b_id": target.get("user_id"),
-                    "vehicle_b_id": reverse.get("to_vehicle_id"),
+                    # B's OFFERED vehicle — the one B chose to swap FROM — not
+                    # the one B reacted TO (which would be A's own vehicle).
+                    "vehicle_b_id": reverse.get("from_vehicle_id"),
                     "matched_at": now,
                 }
                 await db.swap_matches.insert_one(match_doc)

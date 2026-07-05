@@ -17,6 +17,42 @@ Build a full-stack web + mobile-responsive SaaS application called VEHIQ. A prem
 
 ## What's Implemented (2026-05-02)
 
+### Iter 39 — Wykres kosztów + Chętnie odkupię + Przypomnienia + Giełda zamian (DONE 2026-07-05 — fork-agent)
+
+**Problem statements:**
+- P1 UI: Stary wykres kosztów w Serwisie (mały bar chart z Recharts) był mało czytelny i pokazywał wartości "period" (YYYY-MM), a nie miesiące.
+- P1 UX: Brak sposobu na oznaczenie auta jako "otwarte na oferty kupna" bez wystawienia klasycznego ogłoszenia sprzedaży.
+- P1 UX: Brak automatycznych przypomnień serwisowych — użytkownik musiał sam pamiętać kiedy wymiana oleju/rozrządu.
+- P2 Feature: Brak mechanizmu wymiany aut między użytkownikami.
+
+**Co zrobiono:**
+- **Nowy wykres kosztów** (`ServiceTab.js`, `service.py:/stats`) — 2 karty metryk (`service-metric-total`, `service-metric-count`) + `service-monthly-chart` Bar chart z 12 słupkami (styczeń-grudzień bieżącego roku). Miesiące z danymi #2B7FE8, bez danych #2C3E55. Rounded corners, zaokrąglony tooltip, oś Y w formacie `1.5k / 2k`, brak legendy, brak pionowych gridlines. Backend zwraca `monthly_12m[]` — deterministyczna 12-slot seria (nie sortowany monthly).
+- **"Chętnie odkupię" toggle** (`VehicleProfile.js`, `vehicles.py`) — nowe pole `open_to_offers: bool` na Vehicle model. Toggle `[data-testid='vehicle-open-to-offers-btn']` obok "Sprzedaj pojazd" z ikoną HandCoins. Backend: `PATCH /api/vehicles/{id}/open-to-offers` (owner-only, 403 dla obcych), `GET /api/vehicles/open-to-offers` (publiczna lista z filtrami: `open_to_offers=true`, `searchable != False`, `privacy.profile_visible != False`, `status != archived`). Nowa strona `/odkupie` (`OpenToOffersPage.js`) z kartami aut + badge "Właściciel otwarty na oferty".
+- **Widget przypomnień serwisowych** (`ServiceReminders.js`, `service.py:REMINDER_RULES`) — 13 reguł kategoryzowanych (oil_change 12mth/15tkm, timing_belt 100tkm, brake_pads 40tkm, ...). Backend `/stats/{vid}` zwraca `reminders[]` tylko dla wpisów `overdue` (past threshold) lub `due_soon` (≤1 miesiąc przed limitem). Widget renderowany na OverviewTab pojazdu z badge (Zaległy=czerwony, Wkrótce=złoty). Ukryty gdy brak przypomnień. Legacy `type` mapowany na `service_type` przez `_LEGACY_TO_SERVICE_TYPE`.
+- **Giełda zamian** (`swaps.py`, `SwapPage.js`) — P2 MVP: 3 nowe kolekcje MongoDB (`swap_listings`, `swap_interactions`, `swap_matches`). 7 endpointów `/api/swaps/*`. Deck cards z 2 przyciskami "Pogadajmy" (`swap-interested-btn`) / "Innym razem" (`swap-pass-btn`). Automatyczny match gdy obie strony klikną "interested" — inserts `swap_matches` doc + notyfikacja per user (`notifications` collection, `type=swap.match`). Free tier: 1 aktywne swap listing (HTTP 402 `swap_limit_free`). Deck automatycznie wyklucza własne aut i już ocenione. 3 taby: Do przejrzenia / Dopasowania / Moje wystawione. Kontakt z partnerem match: mailto link (chat integration follow-up).
+- **Sidebar** — 2 nowe entry: `Zamiany` (`/zamiany`), `Chętnie odkupię` (`/odkupie`). i18n `nav.swaps`/`nav.openToOffers` PL+EN.
+
+**Bug fix mid-iteration:** Testing agent (iteration_15.json) wykrył HIGH bug w `swaps.py:261` — `vehicle_b_id` zapisywany był z `reverse.to_vehicle_id` (= auto A) zamiast `reverse.from_vehicle_id` (= auto B). Naprawione + dodatkowo poprawiony upsert w `interact()` używa `$setOnInsert` dla `id/created_at` (nie nadpisuje przy powtórnej reakcji).
+
+**Testowanie (100% PASS po fix, iteration_15.json + retest):**
+- Backend: 8/8 pytest (`test_iter39.py`) — service stats z monthly_12m + reminders, open-to-offers toggle + 403 non-owner + public list, swap create + deactivate prev, deck excludes own+reacted, mutual interest creates correct match, service stats backward compat.
+- Frontend: 100% — 12 słupków chart, 2 karty metryk, sidebar nav, /odkupie + /zamiany render, VehicleProfile toggle button, przypomnienia widget z badge Zaległy/Wkrótce, swap add form, 24-opcyjny dropdown Iter 38 nadal działa.
+
+**Pliki:**
+- `/app/backend/routers/service.py` (+monthly_12m, +REMINDER_RULES, +_compute_reminders)
+- `/app/backend/routers/vehicles.py` (+open_to_offers field, 2 nowe endpointy)
+- `/app/backend/routers/swaps.py` (NEW — 7 endpointów)
+- `/app/backend/server.py` (register swaps router)
+- `/app/frontend/src/pages/vehicle-tabs/ServiceTab.js` (chart rewrite)
+- `/app/frontend/src/pages/vehicle-tabs/OverviewTab.js` (+ServiceReminders)
+- `/app/frontend/src/pages/VehicleProfile.js` (+open-to-offers button)
+- `/app/frontend/src/components/ServiceReminders.js` (NEW)
+- `/app/frontend/src/pages/OpenToOffersPage.js` (NEW)
+- `/app/frontend/src/pages/SwapPage.js` (NEW)
+- `/app/frontend/src/components/layout/Sidebar.js` (2 new NAV entries)
+- `/app/frontend/src/App.js` (routes)
+- `/app/backend/tests/test_iter39.py` (NEW — 8 tests)
+
 ### Iter 38 — i18n auto-detect + Logo sizes + Blur fix + Service subcategories + Mobile table (DONE 2026-07-04 — fork-agent)
 
 **Problem statements:**
