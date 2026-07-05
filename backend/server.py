@@ -348,6 +348,26 @@ async def on_startup():
             logger.info("Listings indexes created.")
         except Exception as e:
             logger.warning(f"listings index creation failed (non-fatal): {e}")
+        # Iter 41: vehicles / service_entries indexes — speeds up garage load
+        # (was doing full COLLSCAN on user_id for every /vehicles GET). Also
+        # covers common sort keys so we don't run into 32MB in-memory limits
+        # when a user has hundreds of vehicles or service entries.
+        # Each create_index is wrapped individually so ONE conflict (e.g.
+        # legacy non-sparse `slug_1` already exists) doesn't skip the rest.
+        for spec in [
+            ("vehicles",         [("user_id", 1)], {}),
+            ("vehicles",         [("user_id", 1), ("created_at", -1)], {}),
+            ("vehicles",         [("open_to_offers", 1), ("searchable", 1)], {"sparse": True}),
+            ("service_entries",  [("vehicle_id", 1), ("date", -1)], {}),
+            ("swap_listings",    [("active", 1), ("created_at", -1)], {}),
+            ("swap_interactions",[("from_user_id", 1), ("to_vehicle_id", 1)], {}),
+        ]:
+            coll, keys, opts = spec
+            try:
+                await db[coll].create_index(keys, **opts)
+            except Exception as e:
+                logger.warning(f"index create ({coll} {keys}) failed (non-fatal): {e}")
+        logger.info("Iter 41 vehicles / service / swap indexes ensured.")
         try:
             await seed_database(db)
             logger.info("seed_database completed.")

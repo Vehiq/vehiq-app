@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { Plus, Car as CarIcon, Calendar, Bell, Activity, Store, ChevronRight, Lock, Wrench } from "lucide-react";
 import api from "@/lib/api";
+import { cachedGet } from "@/lib/apiCache";
 import { useAuth } from "@/contexts/AuthContext";
 import { SkeletonGarageGrid } from "@/components/Skeleton";
 import EmptyState from "@/components/EmptyState";
@@ -20,9 +21,14 @@ export default function Dashboard() {
   const lang = i18n.language?.startsWith("en") ? "en" : "pl";
 
   useEffect(() => {
-    api.get("/vehicles").then((r) => setVehicles(r.data)).catch(() => setVehicles([]));
-    api.get("/analytics/me").then((r) => setStats(r.data)).catch(() => {});
-    api.get("/dashboard").then((r) => setDash(r.data)).catch(() => setDash({ reminders: [], activity: [], featured_listings: [] }));
+    // Iter 41: use cached GETs for the three garage boot requests. First
+    // navigation to /garage still fetches, but bouncing back from a
+    // vehicle profile or /marketplace inside a minute paints instantly.
+    let cancelled = false;
+    cachedGet("/vehicles").then((data) => { if (!cancelled) setVehicles(data); }).catch(() => { if (!cancelled) setVehicles([]); });
+    cachedGet("/analytics/me").then((data) => { if (!cancelled) setStats(data); }).catch(() => {});
+    cachedGet("/dashboard").then((data) => { if (!cancelled) setDash(data); }).catch(() => { if (!cancelled) setDash({ reminders: [], activity: [], featured_listings: [] }); });
+    return () => { cancelled = true; };
   }, []);
 
   const isArchived = (v) => ["archived", "sold"].includes(v?.status);

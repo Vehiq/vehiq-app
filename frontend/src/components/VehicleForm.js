@@ -103,7 +103,20 @@ export default function VehicleForm({ initial, onSaved }) {
         resp = await api.put(`/vehicles/${initial.id}`, payload);
       } else {
         resp = await api.post("/vehicles", payload);
+        // Iter 41: GA4 conversion event — only for NEW vehicles.
+        try {
+          const { trackEvent } = await import("@/hooks/usePageTracking");
+          trackEvent("add_vehicle", { make: payload.make, model: payload.model });
+        } catch { /* noop */ }
       }
+      // Iter 41: bust cached garage listings so the just-added/edited car
+      // appears immediately on next /garage navigation.
+      try {
+        const { cacheBust } = await import("@/lib/apiCache");
+        cacheBust("/vehicles");
+        cacheBust("/dashboard");
+        cacheBust("/analytics/me");
+      } catch { /* noop */ }
       toast.success(t("vehicle.saveSuccess"));
       if (onSaved) onSaved(resp.data);
       else navigate(`/garage/${resp.data.id}`);

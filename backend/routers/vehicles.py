@@ -1,5 +1,5 @@
 """Vehicles router — CRUD, photos."""
-from fastapi import APIRouter, HTTPException, Depends, Body, UploadFile, File
+from fastapi import APIRouter, HTTPException, Depends, Body, UploadFile, File, Response
 from pydantic import BaseModel, Field
 from typing import Optional, List
 from datetime import datetime, timezone
@@ -112,20 +112,57 @@ class VehicleUpdateIn(BaseModel):
 
 
 @router.get("")
-async def list_vehicles(user=Depends(get_current_user)):
+async def list_vehicles(response: Response, user=Depends(get_current_user)):
+    """Compact garage-grid list — projected fields only (Iter 41).
+
+    Previously returned the FULL vehicle document including the entire `photos`
+    array (which for high-res base64 uploads can be multiple MB per vehicle).
+    Garage grid needs only cover + basic meta, so we project + resolve cover
+    server-side and drop the rest. Payload shrinks 90%+ on photo-heavy garages.
+    """
     db = get_db()
-    items = await db.vehicles.find({"user_id": user["id"]}, {"_id": 0}).sort("created_at", -1).to_list(500)
-    # Attach cover_photo + active_listing for grid rendering
+    projection = {
+        "_id": 0,
+        # identity + display
+        "id": 1, "slug": 1, "make": 1, "model": 1, "year": 1,
+        # meta shown on card
+        "mileage_current": 1, "engine": 1, "fuel": 1, "status": 1,
+        "is_project": 1, "condition": 1, "open_to_offers": 1,
+        "created_at": 1, "updated_at": 1,
+        # photo resolution — server picks cover then discards rest
+        "photos": 1, "cover_photo_index": 1,
+        # privacy / searchable relevant to UI toggles
+        "searchable": 1, "privacy": 1,
+    }
+    items = (
+        await db.vehicles.find({"user_id": user["id"]}, projection)
+        .sort("created_at", -1)
+        .to_list(500)
+    )
     if items:
         ids = [v["id"] for v in items]
         active_map = {}
-        async for l in db.listings.find({"vehicle_id": {"$in": ids}, "status": "active"}, {"_id": 0, "id": 1, "vehicle_id": 1, "price": 1, "title": 1}):
-            active_map[l["vehicle_id"]] = {"id": l["id"], "price": l.get("price"), "title": l.get("title")}
+        async for l in db.listings.find(
+            {"vehicle_id": {"$in": ids}, "status": "active"},
+            {"_id": 0, "id": 1, "vehicle_id": 1, "price": 1, "title": 1},
+        ):
+            active_map[l["vehicle_id"]] = {
+                "id": l["id"], "price": l.get("price"), "title": l.get("title"),
+            }
         for v in items:
             photos = v.get("photos") or []
             idx = v.get("cover_photo_index") or 0
             v["cover_photo"] = _cover(photos, idx)
+            # Drop the heavy raw array now that we've extracted the cover —
+            # saves 90%+ payload on photo-heavy garages.
+            v.pop("photos", None)
+            v.pop("cover_photo_index", None)
             v["active_listing"] = active_map.get(v["id"])
+    # Private, short cache — lets browser/CDN revalidate on nav-back but stays
+    # fresh enough that a fresh garage view after adding a car reflects the
+    # change quickly (backend explicitly invalidates via cache-busting on
+    # mutating endpoints — see PATCH/POST /vehicles).
+    response.headers["Cache-Control"] = "private, max-age=30, stale-while-revalidate=120"
     return items
 
 

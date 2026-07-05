@@ -95,6 +95,12 @@ export default function VehicleProfile() {
                 try {
                   const next = !vehicle.open_to_offers;
                   await api.patch(`/vehicles/${vehicle.id}/open-to-offers`, { open_to_offers: next });
+                  if (next) {
+                    try {
+                      const { trackEvent } = await import("@/hooks/usePageTracking");
+                      trackEvent("open_to_offers");
+                    } catch { /* noop */ }
+                  }
                   toast.success(next ? "Auto otwarte na oferty" : "Wyłączone");
                   reload && reload();
                 } catch (e) {

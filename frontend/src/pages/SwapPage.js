@@ -86,6 +86,12 @@ export default function SwapPage() {
         from_vehicle_id: fromId,
         action,
       });
+      if (action === "interested") {
+        try {
+          const { trackEvent } = await import("@/hooks/usePageTracking");
+          trackEvent("swap_interested", { matched: !!data.match });
+        } catch { /* noop */ }
+      }
       if (data.match) {
         toast.success("Znalazłeś partnera do zamiany! 🚗↔🚗", { duration: 5000 });
         loadMatches();

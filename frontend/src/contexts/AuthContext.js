@@ -1,5 +1,7 @@
 import { createContext, useContext, useEffect, useState, useCallback } from "react";
 import api from "@/lib/api";
+import { cacheClear } from "@/lib/apiCache";
+import { trackEvent } from "@/hooks/usePageTracking";
 
 const AuthContext = createContext(null);
 
@@ -70,6 +72,7 @@ export const AuthProvider = ({ children }) => {
     const { data } = await api.post("/auth/login", { email, password });
     localStorage.setItem("sharago_token", data.token);
     setUser(data.user);
+    trackEvent("login", { method: "email" });
     return data.user;
   };
 
@@ -77,6 +80,7 @@ export const AuthProvider = ({ children }) => {
     const { data } = await api.post("/auth/register", payload);
     localStorage.setItem("sharago_token", data.token);
     setUser(data.user);
+    trackEvent("sign_up", { method: "email" });
     return data.user;
   };
 
@@ -86,6 +90,7 @@ export const AuthProvider = ({ children }) => {
     });
     localStorage.setItem("sharago_token", data.token);
     setUser(data.user);
+    trackEvent("login", { method: "google" });
     return data.user;
   };
 
@@ -97,6 +102,7 @@ export const AuthProvider = ({ children }) => {
     localStorage.setItem("sharago_token", token);
     const { data } = await api.get("/auth/me");
     setUser(data);
+    trackEvent("login", { method: "google" });
     return data;
   };
 
@@ -112,11 +118,13 @@ export const AuthProvider = ({ children }) => {
     // Hydrate full user from /auth/me so we get all fields the provider expects
     const me = await api.get("/auth/me");
     setUser(me.data);
+    trackEvent("demo_start");
     return me.data;
   };
 
   const logout = () => {
     localStorage.removeItem("sharago_token");
+    cacheClear(); // Iter 41: drop cached GETs from previous session
     setUser(null);
   };
 

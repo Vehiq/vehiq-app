@@ -208,6 +208,11 @@ export default function CreateListing() {
       // Title is required by backend — block empty submission early
       if (!payload.title.trim()) { toast.error(t("marketplace.titleRequired")); return; }
       await api.post("/marketplace/listings", payload);
+      // Iter 41: GA4 conversion event
+      try {
+        const { trackEvent } = await import("@/hooks/usePageTracking");
+        trackEvent("create_listing", { category: payload.category || payload.type });
+      } catch { /* noop */ }
       toast.success(t("common.success"));
       navigate(isRental ? "/wynajem" : (isService ? "/marketplace/mine" : "/garage"));
     } catch (err) {

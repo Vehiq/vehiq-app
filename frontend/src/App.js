@@ -5,6 +5,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { Toaster } from "sonner";
 import { HelmetProvider } from "react-helmet-async";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
+import { usePageTracking } from "@/hooks/usePageTracking";
 import Layout from "@/components/layout/Layout";
 import CookieBanner from "@/components/CookieBanner";
 
@@ -67,6 +68,10 @@ import ErrorBoundary from "@/components/ErrorBoundary";
 import { PasswordResetRequest, PasswordResetConfirm } from "@/pages/PasswordReset";
 
 function PageTracker() {
+  // Iter 41: emit GA4 page_view on every React Router navigation. Without
+  // this the SPA looked like a single-page site to GA — only the initial
+  // load was tracked and every internal nav was invisible.
+  usePageTracking();
   useEffect(() => {
     const sid = localStorage.getItem("sharago_session") || crypto.randomUUID();
     localStorage.setItem("sharago_session", sid);
