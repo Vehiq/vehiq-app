@@ -1,0 +1,38 @@
+{
+  "summary": "Iter 39 tested end-to-end. Backend 7/8 pytest passed. Frontend UI 100% for testids required by spec. FOUND ONE BACKEND BUG in swaps.interact() — swap_matches doc stores wrong vehicle_b_id (uses reverse.to_vehicle_id which is A's vehicle, not B's actual vehicle_id).",
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "POST /api/swaps/interact", "issue": "swap_matches.vehicle_b_id is set to reverse.get('to_vehicle_id') (line 261 of routers/swaps.py), but reverse.to_vehicle_id is the vehicle B REACTED TO (= A's vehicle Va), NOT the vehicle B offered (Vb). Should be reverse.get('from_vehicle_id'). Consequence: /api/swaps/matches returns other_vehicle.id == A's own vehicle instead of B's — the UI card shows the wrong car for the counterparty. Repro: user A + user B, both list vehicles Va/Vb, B interacts interested on Va (from_vehicle_id=Vb), A interacts interested on Vb (from_vehicle_id=Va) — match is created, GET /api/swaps/matches for user A returns other_vehicle.id == Va (should be Vb). Fix: change 'reverse.get(\"to_vehicle_id\")' to 'reverse.get(\"from_vehicle_id\")' in swaps.py:261.", "priority": "HIGH"}
+    ],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter39.py",
+    "/app/test_reports/pytest/iter39.xml"
+  ],
+  "action_items": [
+    "Fix swaps.py line 261 — swap_matches.vehicle_b_id should be reverse.get('from_vehicle_id') (B's offered vehicle) not reverse.get('to_vehicle_id') (which is A's vehicle Va). After fix, GET /api/swaps/matches will show correct counterparty vehicle."
+  ],
+  "critical_code_review_comments": [
+    "swaps.py: match creation stores incorrect vehicle_b_id — see HIGH bug above.",
+    "swaps.py update_one with upsert=True in /interact reuses filter {from_user_id, to_vehicle_id} but always issues a fresh $set with id=uuid4() on every update — this rewrites the primary id on repeat reactions, which will orphan any downstream refs. Consider $setOnInsert for id/created_at.",
+    "service.py _months_between: uses (year*12+month) delta, ignoring day-of-month — a service entry on 2025-01-31 is 'months_since=0' on 2025-01-01. Acceptable for reminder buckets but note it's a floor, not ceil.",
+    "vehicles.py PATCH /vehicles/{id}/open-to-offers accepts raw dict; would benefit from Pydantic validation (e.g., missing/typo'd key silently sets open_to_offers=False).",
+    "swaps.py get_deck: N+1 queries — fetches vehicle + owner per listing individually. Fine at MVP scale (limit=20) but flag for growth."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter39.py"
+  ],
+  "success_rate": {"backend": "87%", "frontend": "100%"},
+  "test_credentials": "POST /api/auth/demo returns fresh token+user (plan=premium, is_demo=true). LocalStorage keys: sharago_token, sharago_first_use_tooltips_seen='1', sharago_cookie_consent='accepted'.",
+  "seed_data_creation": "Each test run creates 2 demo users + several vehicles + service entries prefixed TEST*/UI39. Demo TTL 24h; no manual cleanup needed.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "For clicking React tab buttons under a tooltip overlay ('sharago_first_use_tooltips_seen' must be set BEFORE first navigation via add_init_script), the reliable pattern is page.evaluate(\"document.querySelector('[data-testid=...]').click()\") — Playwright's regular click() gets intercepted by the onboarding tooltip layer even with force=True. Cookie consent also blocks bottom-of-viewport clicks; set localStorage['sharago_cookie_consent']='accepted' in the same init script.",
+  "rca of the issue": "Bug in /app/backend/routers/swaps.py line 261: vehicle_b_id is populated from reverse.get('to_vehicle_id'), which in the earlier interaction stored 'the vehicle B reacted to' (Va). What we actually want is 'the vehicle B offered' (Vb) = reverse.get('from_vehicle_id'). One-character-conceptual fix. All 7 other iter39 tests + iter38 regression pass; UI is fully functional and correctly wired to backend. Chart shows 12 bars with correct PL month labels sty..gru, reminder widget shows 'Zaległy' badge for 2-year-old oil_change entry, service dropdown still has 24 options with first value=oil_change, table headers = Data/Typ/Opis/Koszt(PLN), sidebar has both new nav entries, /odkupie + /zamiany routes render, swap listing add form functional, open-to-offers PATCH toggles DB field and 403s non-owner."
+}

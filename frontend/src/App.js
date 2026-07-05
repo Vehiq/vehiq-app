@@ -18,6 +18,8 @@ import AddVehicle from "@/pages/AddVehicle";
 import VehicleProfile from "@/pages/VehicleProfile";
 import Marketplace from "@/pages/Marketplace";
 import Rentals from "@/pages/Rentals";
+import OpenToOffersPage from "@/pages/OpenToOffersPage";
+import SwapPage from "@/pages/SwapPage";
 import MyListings from "@/pages/MyListings";
 import CreateListing from "@/pages/CreateListing";
 import ListingDetail from "@/pages/ListingDetail";
@@ -177,6 +179,8 @@ function App() {
             <Route path="/marketplace/:id" element={<ListingDetail />} />
             <Route path="/wynajem" element={<Rentals />} />
             <Route path="/rentals" element={<Rentals />} />
+            <Route path="/odkupie" element={<OpenToOffersPage />} />
+            <Route path="/zamiany" element={<SwapPage />} />
             <Route path="/forum" element={<Forum />} />
             <Route path="/forum/new" element={<NewThread />} />
             <Route path="/forum/:id" element={<ThreadDetail />} />

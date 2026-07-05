@@ -4,6 +4,7 @@ import { Car as CarIcon, Lock, Wrench, Upload, X, Star } from "lucide-react";
 import api, { apiErrorMessage } from "@/lib/api";
 import { toast } from "sonner";
 import { photoUrl, photoThumb } from "@/lib/photos";
+import ServiceReminders from "@/components/ServiceReminders";
 
 export default function OverviewTab({ vehicle, reload }) {
   const { t } = useTranslation();
@@ -85,7 +86,9 @@ export default function OverviewTab({ vehicle, reload }) {
   };
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6" data-testid="overview-tab">
+    <div className="space-y-6" data-testid="overview-tab">
+      <ServiceReminders vehicleId={vehicle.id} />
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
       <div className="vehiq-card overflow-hidden">
         <div className="aspect-[16/10] bg-vehiq-bg relative">
           {photos.length > 0 ? (
@@ -155,6 +158,7 @@ export default function OverviewTab({ vehicle, reload }) {
             <PrivacyRow id="is_project" checked={!!vehicle.is_project} onChange={toggleProject} label={<span className="inline-flex items-center gap-2"><Wrench size={12} className="text-vehiq-gold"/> {t("vehicle.project")}</span>} />
           </div>
         </div>
+      </div>
       </div>
     </div>
   );

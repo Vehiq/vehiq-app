@@ -88,6 +88,7 @@ from routers import events as events_router
 from routers import search as search_router
 from routers import public_share as public_share_router
 from routers import blog as blog_router
+from routers import swaps as swaps_router
 from routers import demo as demo_router
 from seed import seed_database
 
@@ -282,6 +283,7 @@ api_router.include_router(search_router.router)
 api_router.include_router(public_share_router.router)
 api_router.include_router(blog_router.public_router)
 api_router.include_router(blog_router.admin_router)
+api_router.include_router(swaps_router.router)
 
 app.include_router(api_router)
 

@@ -108,7 +108,9 @@
     "ai": "AI Mechanik",
     "settings": "Ustawienia",
     "notifications": "Powiadomienia",
-    "search": "Szukaj"
+    "search": "Szukaj",
+    "swaps": "Zamiany",
+    "openToOffers": "Chętnie odkupię"
   },
   "auth": {
     "loginTitle": "Twój wirtualny garaż w internecie",

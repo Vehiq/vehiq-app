@@ -78,6 +78,7 @@ class VehicleIn(BaseModel):
     public_show_service: Optional[bool] = None
     is_project: Optional[bool] = None
     searchable: Optional[bool] = True
+    open_to_offers: Optional[bool] = False  # Iter 39: owner accepts unsolicited buyer offers
     privacy: Optional[dict] = None  # {profile_visible, show_service, show_costs, show_mileage}
 
 
@@ -106,6 +107,7 @@ class VehicleUpdateIn(BaseModel):
     public_show_service: Optional[bool] = None
     is_project: Optional[bool] = None
     searchable: Optional[bool] = None
+    open_to_offers: Optional[bool] = None  # Iter 39
     privacy: Optional[dict] = None
 
 
@@ -213,6 +215,80 @@ async def search_vehicles(
             "owner": owners.get(v.get("user_id")),
         })
     return result
+
+
+# ---------------- Iter 39: "Chętnie odkupię" (Open to offers) ----------------
+
+@router.get("/open-to-offers")
+async def list_open_to_offers(limit: int = 60):
+    """Public list of vehicles whose owners are open to unsolicited buyer offers.
+
+    Filters:
+    - open_to_offers == True
+    - privacy.profile_visible != False (default True)
+    - searchable != False
+    - status == "active" (skip sold / archived)
+    """
+    db = get_db()
+    f = {
+        "open_to_offers": True,
+        "status": {"$ne": "archived"},
+        "searchable": {"$ne": False},
+        "$or": [
+            {"privacy.profile_visible": {"$ne": False}},
+            {"privacy": {"$exists": False}},
+        ],
+    }
+    cursor = db.vehicles.find(
+        f,
+        {"_id": 0, "id": 1, "slug": 1, "make": 1, "model": 1, "year": 1,
+         "mileage_current": 1, "photos": 1, "cover_photo_index": 1,
+         "user_id": 1, "status": 1, "condition": 1, "engine": 1, "fuel": 1},
+    ).limit(max(1, min(limit, 120)))
+    items = await cursor.to_list(max(1, min(limit, 120)))
+    owner_ids = list({v["user_id"] for v in items if v.get("user_id")})
+    owners: dict = {}
+    if owner_ids:
+        async for u in db.profiles.find({"id": {"$in": owner_ids}}, {"_id": 0, "id": 1, "name": 1, "avatar": 1}):
+            owners[u["id"]] = u
+    result = []
+    for v in items:
+        photos = v.get("photos") or []
+        idx = v.get("cover_photo_index") or 0
+        result.append({
+            "id": v["id"],
+            "slug": v.get("slug"),
+            "make": v.get("make"),
+            "model": v.get("model"),
+            "year": v.get("year"),
+            "mileage_current": v.get("mileage_current"),
+            "engine": v.get("engine"),
+            "fuel": v.get("fuel"),
+            "cover_photo": _cover(photos, idx),
+            "owner": owners.get(v.get("user_id")),
+        })
+    return result
+
+
+@router.patch("/{vehicle_id}/open-to-offers")
+async def toggle_open_to_offers(
+    vehicle_id: str,
+    payload: dict,
+    user=Depends(get_current_user),
+):
+    """Owner-only toggle — flip `open_to_offers` on a vehicle."""
+    db = get_db()
+    v = await db.vehicles.find_one({"id": vehicle_id})
+    if not v:
+        raise HTTPException(status_code=404, detail="Vehicle not found")
+    if v.get("user_id") != user["id"]:
+        raise HTTPException(status_code=403, detail="Not the owner")
+    val = bool(payload.get("open_to_offers"))
+    await db.vehicles.update_one(
+        {"id": vehicle_id},
+        {"$set": {"open_to_offers": val, "updated_at": datetime.now(timezone.utc).isoformat()}},
+    )
+    return {"id": vehicle_id, "open_to_offers": val}
 
 
 

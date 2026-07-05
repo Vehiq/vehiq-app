@@ -3,7 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import api from "@/lib/api";
 import { toast } from "sonner";
-import { ArrowLeft, Trash2, Edit2, Share2, Eye, EyeOff, Check, Copy, Tag, CheckCircle2, QrCode } from "lucide-react";
+import { ArrowLeft, Trash2, Edit2, Share2, Eye, EyeOff, Check, Copy, Tag, CheckCircle2, QrCode, HandCoins, Repeat } from "lucide-react";
 import VehicleForm from "@/components/VehicleForm";
 import PrintQrDialog from "@/components/PrintQrDialog";
 import OverviewTab from "./vehicle-tabs/OverviewTab";
@@ -87,6 +87,26 @@ export default function VehicleProfile() {
           {isActive && !hasActiveListing && (
             <button onClick={() => setShowSell(true)} className="vehiq-btn-primary inline-flex items-center gap-2" data-testid="vehicle-sell-btn">
               <Tag size={14} /> {t("sell.sellVehicle")}
+            </button>
+          )}
+          {isActive && (
+            <button
+              onClick={async () => {
+                try {
+                  const next = !vehicle.open_to_offers;
+                  await api.patch(`/vehicles/${vehicle.id}/open-to-offers`, { open_to_offers: next });
+                  toast.success(next ? "Auto otwarte na oferty" : "Wyłączone");
+                  reload && reload();
+                } catch (e) {
+                  toast.error("Nie udało się zmienić statusu");
+                }
+              }}
+              className={`inline-flex items-center gap-2 ${vehicle.open_to_offers ? "vehiq-btn-primary" : "vehiq-btn-secondary"}`}
+              data-testid="vehicle-open-to-offers-btn"
+              title="Pokazuje auto w sekcji 'Chętnie odkupię' na giełdzie"
+            >
+              <HandCoins size={14} />
+              {vehicle.open_to_offers ? "Otwarty na oferty ✓" : "Otwórz na oferty"}
             </button>
           )}
           {isActive && hasActiveListing && (

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
+import { BarChart, Bar, Cell, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 import { Plus, Trash2, FileDown, Wrench } from "lucide-react";
 import api from "@/lib/api";
 import { toast } from "sonner";
@@ -153,24 +153,71 @@ export default function ServiceTab({ vehicle }) {
       )}
 
       {stats && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="vehiq-card p-5">
-            <div className="vehiq-overline">{t("service.totalLifetime")}</div>
-            <div className="vehiq-display text-3xl text-vehiq-gold mt-2" data-testid="service-total-cost">{stats.total.toLocaleString("pl-PL", { maximumFractionDigits: 0 })} PLN</div>
+        <>
+          {/* Iter 39: two metric cards + 12-month cost chart */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="vehiq-card p-5" data-testid="service-metric-total">
+              <div className="vehiq-overline">{t("service.totalLifetime")}</div>
+              <div className="vehiq-display text-3xl text-vehiq-gold mt-2" data-testid="service-total-cost">
+                {(stats.total || 0).toLocaleString("pl-PL", { maximumFractionDigits: 0 })} PLN
+              </div>
+            </div>
+            <div className="vehiq-card p-5" data-testid="service-metric-count">
+              <div className="vehiq-overline">Wpisy serwisowe</div>
+              <div className="vehiq-display text-3xl text-vehiq-text mt-2" data-testid="service-total-entries">
+                {stats.count || 0}
+              </div>
+            </div>
           </div>
-          <div className="vehiq-card p-5 md:col-span-2 h-48">
-            <div className="vehiq-overline mb-2">{t("service.monthlyChart")}</div>
-            <ResponsiveContainer width="100%" height="80%">
-              <BarChart data={stats.monthly}>
-                <CartesianGrid stroke="#111D2E" strokeDasharray="3 3" />
-                <XAxis dataKey="period" stroke="#A0B4C8" tick={{ fontSize: 10 }} />
-                <YAxis stroke="#A0B4C8" tick={{ fontSize: 10 }} />
-                <Tooltip contentStyle={{ background: "#162035", border: "1px solid rgba(43,127,232,0.3)", borderRadius: 6 }} labelStyle={{ color: "#FFFFFF" }} />
-                <Bar dataKey="cost" fill="#2B7FE8" radius={[3, 3, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
+
+          <div className="vehiq-card p-5" data-testid="service-monthly-chart">
+            <div className="vehiq-overline mb-4">Koszty miesięczne — bieżący rok</div>
+            <div className="w-full" style={{ height: 220 }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={stats.monthly_12m || []} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+                  <CartesianGrid stroke="#1E2A42" strokeDasharray="3 3" vertical={false} />
+                  <XAxis
+                    dataKey="label"
+                    stroke="#A0B4C8"
+                    tick={{ fontSize: 11 }}
+                    tickLine={false}
+                    axisLine={{ stroke: "#1E2A42" }}
+                  />
+                  <YAxis
+                    stroke="#A0B4C8"
+                    tick={{ fontSize: 11 }}
+                    tickLine={false}
+                    axisLine={false}
+                    tickFormatter={(v) => {
+                      if (!v) return "0";
+                      if (v >= 1000) return `${(v / 1000).toFixed(v % 1000 === 0 ? 0 : 1)}k`;
+                      return String(v);
+                    }}
+                  />
+                  <Tooltip
+                    cursor={{ fill: "rgba(43,127,232,0.08)" }}
+                    contentStyle={{
+                      background: "#0D1626",
+                      border: "1px solid rgba(43,127,232,0.4)",
+                      borderRadius: 8,
+                      color: "#FFFFFF",
+                    }}
+                    labelStyle={{ color: "#FFFFFF", fontWeight: 500 }}
+                    formatter={(value) => [
+                      `${Number(value || 0).toLocaleString("pl-PL", { maximumFractionDigits: 0 })} PLN`,
+                      "Koszt",
+                    ]}
+                  />
+                  <Bar dataKey="cost" radius={[4, 4, 0, 0]} maxBarSize={38}>
+                    {(stats.monthly_12m || []).map((m, i) => (
+                      <Cell key={`c${i}`} fill={m.has_data ? "#2B7FE8" : "#2C3E55"} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
           </div>
-        </div>
+        </>
       )}
 
       {entries === null ? (

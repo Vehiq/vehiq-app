@@ -108,7 +108,9 @@
     "ai": "AI Mechanic",
     "settings": "Settings",
     "notifications": "Notifications",
-    "search": "Search"
+    "search": "Search",
+    "swaps": "Swaps",
+    "openToOffers": "Buy offers"
   },
   "auth": {
     "loginTitle": "Your virtual garage online",
