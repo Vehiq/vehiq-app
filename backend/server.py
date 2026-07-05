@@ -126,14 +126,20 @@ class VisitTrackingMiddleware(BaseHTTPMiddleware):
 async def root():
     return {"message": "Sharago API is running", "version": APP_VERSION}
 
-@api_router.get("/health")
+@api_router.api_route("/health", methods=["GET", "HEAD"])
 async def health():
-    """Liveness probe — does NOT depend on MongoDB. Render uses this for health checks."""
+    """Liveness probe — GET + HEAD. Does NOT depend on MongoDB.
+
+    Render uses this for health checks and UptimeRobot's free tier only
+    supports HEAD requests. Without HEAD support the monitor reported the
+    service as Down even when it was healthy, so Render's cold-start delay
+    kicked in on every real user's first request.
+    """
     return {"status": "ok", "version": APP_VERSION, "time": datetime.now(timezone.utc).isoformat()}
 
-@api_router.get("/health/ready")
+@api_router.api_route("/health/ready", methods=["GET", "HEAD"])
 async def health_ready():
-    """Readiness probe — verifies DB connectivity. Use only when checking degraded mode."""
+    """Readiness probe — GET + HEAD. Verifies DB connectivity."""
     if db is None:
         return JSONResponse(status_code=503, content={"status": "no_db", "version": APP_VERSION})
     try:
