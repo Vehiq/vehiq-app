@@ -130,6 +130,8 @@ async def delete_swap_listing(listing_id: str, user=Depends(get_current_user)):
 @router.get("/my-listings")
 async def my_swap_listings(user=Depends(get_current_user)):
     db = get_db()
+    # Iter 46 (Bug 9): URL-only cover — prefers thumb_url, rejects base64.
+    from routers.vehicles import _safe_cover_url
     items = await db.swap_listings.find(
         {"user_id": user["id"], "active": True},
         {"_id": 0},
@@ -140,14 +142,10 @@ async def my_swap_listings(user=Depends(get_current_user)):
         if v:
             photos = v.get("photos") or []
             idx = v.get("cover_photo_index") or 0
-            cover = None
-            if photos and 0 <= idx < len(photos):
-                p = photos[idx]
-                cover = p.get("url") if isinstance(p, dict) else p
             it["vehicle"] = {
                 "id": v.get("id"),
                 "label": f"{v.get('make') or ''} {v.get('model') or ''} {v.get('year') or ''}".strip(),
-                "cover_photo": cover,
+                "cover_photo": _safe_cover_url(photos, idx),
             }
     return items
 
@@ -161,6 +159,10 @@ async def get_deck(limit: int = 20, user=Depends(get_current_user)):
       - vehicles I've already reacted to (either interested or pass)
     """
     db = get_db()
+    # Iter 46 (Bug 9): URL-only cover extractor — prefers thumb_url and
+    # rejects legacy base64 payloads so the frontend always gets a real
+    # image src for the deck cards.
+    from routers.vehicles import _safe_cover_url
     # IDs of vehicles I've already reacted to
     seen_ids = set()
     async for r in db.swap_interactions.find({"from_user_id": user["id"]}, {"_id": 0, "to_vehicle_id": 1}):
@@ -179,10 +181,7 @@ async def get_deck(limit: int = 20, user=Depends(get_current_user)):
         owner = await db.profiles.find_one({"id": l["user_id"]}, {"_id": 0, "id": 1, "name": 1, "avatar": 1})
         photos = v.get("photos") or []
         idx = v.get("cover_photo_index") or 0
-        cover = None
-        if photos and 0 <= idx < len(photos):
-            p = photos[idx]
-            cover = p.get("url") if isinstance(p, dict) else p
+        cover = _safe_cover_url(photos, idx)
         result.append({
             "listing_id": l["id"],
             "vehicle": {
@@ -282,6 +281,7 @@ async def interact(payload: SwapInteractIn, user=Depends(get_current_user)):
 async def my_matches(user=Depends(get_current_user)):
     """List swap matches involving the current user."""
     db = get_db()
+    from routers.vehicles import _safe_cover_url
     cursor = db.swap_matches.find(
         {"$or": [{"user_a_id": user["id"]}, {"user_b_id": user["id"]}]},
         {"_id": 0},
@@ -301,9 +301,8 @@ async def my_matches(user=Depends(get_current_user)):
         if other_v:
             photos = other_v.get("photos") or []
             idx = other_v.get("cover_photo_index") or 0
-            if photos and 0 <= idx < len(photos):
-                p = photos[idx]
-                other_cover = p.get("url") if isinstance(p, dict) else p
+            # Iter 46 (Bug 9): URL-only cover.
+            other_cover = _safe_cover_url(photos, idx)
         result.append({
             "id": m["id"],
             "matched_at": m["matched_at"],

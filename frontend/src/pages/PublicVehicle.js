@@ -243,7 +243,10 @@ export default function PublicVehicle() {
                       /v/{shortId}
                     </code>
                   </div>
-                  <VehicleQr vehicleId={v.id} shortId={shortId} />
+                  {/* Iter 46 (Bug 13): QR generator is an owner-only tool (used
+                      to print a sticker for the car window). Guests browsing
+                      the public profile should never see it. */}
+                  {v.is_owner && <VehicleQr vehicleId={v.id} shortId={shortId} />}
                 </div>
               )}
             </div>

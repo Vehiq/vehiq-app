@@ -1,0 +1,48 @@
+{
+  "summary": "Iter 46: 7 bug fixes verified. Backend 5/5 pytest PASS. Frontend UI PASS for Bugs 10/11/12/13. Static source review PASS for Bugs 8/14.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "GET /api/swaps/deck", "issue": "vehicle.cover_photo is correctly None or URL (Bug 9 scope PASS), but response body still leaks base64 in owner.avatar (data:image/png;base64,...). Same _safe_cover_url treatment should be applied to the owner.avatar field for full base64-leak parity with Iter 43 acceptance gate."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "verified_features": [
+    "Bug 8 PASS (static) — PlateBlurDialog canvas has inline styles: touchAction=none, overscrollBehavior=contain, pointerEvents=auto, userSelect/WebkitUserSelect=none, WebkitTouchCallout=none. onPointerDown/Move both call stopPropagation. setPointerCapture wrapped in try/catch.",
+    "Bug 9 PASS — /api/swaps/deck, /my-listings, /matches: vehicle.cover_photo is None or http(s):// URL, never base64. Verified with smoke-test-vehiq user.",
+    "Bug 10 PASS — /marketplace/new picker card click ([data-testid=listing-vehicle-card-{id}]) prefills title/make/model AND populates form photo grid with the vehicle cover (verified 1 img in photo section immediately after click; optimistic path + subsequent /api/vehicles/{id} hydration).",
+    "Bug 11 PASS — TopBar renders [data-testid=topbar-messages] between LanguageSwitcher and notifications bell. Clicking navigates to /marketplace/messages. Badge testid=topbar-messages-badge only rendered when unreadMsgs>0 (verified badge absent when count=0).",
+    "Bug 12 PASS — VehicleProfile ShareMenu. DESKTOP (1440x900): [data-testid=vehicle-share-menu] visible next to button; backdrop+close button DOM-present but hidden (sm:hidden class). MOBILE (375x812): bottom-sheet fixed inset-x-0 bottom-0 (bbox x=0,w=375,bottom=812), backdrop visible + tapping backdrop closes the sheet, Zamknij close button visible.",
+    "Bug 13 PASS — PublicVehicle. As OWNER (auth token set, is_owner=true): [data-testid=vehicle-qr] rendered inside share section, owner-stats marker visible. As GUEST (localStorage cleared): vehicle-qr absent, owner-stats absent. NOTE: test vehicle had public=false so full guest page was 404 not-found — QR gating logic (v.is_owner &&) confirmed via source inspection.",
+    "Bug 14 PASS (static) — /app/frontend/src/i18n/index.js domainDetector.lookup(): 'sharago.pl' + subdomains → 'pl'; 'sharago.com', '.co.uk', '.app', '.io' + subdomains → 'en'; any other host (preview.emergentagent.com, localhost) → undefined. Detection order: localStorage > domain > navigator > htmlTag — user's manual pick always wins.",
+    "REGRESSION Iter 42/43 PASS — POST /api/vehicles with ~1MB base64 photo (base64 payload ~1.33MB) accepted; ~2MB (base64 ~2.66MB) rejected 413."
+  ],
+  "test_report_links": [
+    "/app/backend/tests/test_iter46.py",
+    "/app/test_reports/pytest/iter46.xml"
+  ],
+  "action_items": [
+    "Consider stripping base64 from owner.avatar in /api/swaps/deck response (same treatment as vehicle.cover_photo). Currently the deck endpoint still emits 'data:image/png;base64,...' inside owner.avatar — same class of bug as Iter 43 but on a different field. Minor perf concern (deck payloads grow with avatar sizes).",
+    "OPTIONAL: Make the test vehicle 'test-public-2020' actually public so /vehicles/{slug} guest scenario can be end-to-end verified in future runs. Currently vehicle.public=false so guest fetch 404s — Bug 13 owner-side + source review is sufficient but not full e2e."
+  ],
+  "critical_code_review_comments": [
+    "TopBar.js:47-58 — unread messages poller fetches /marketplace/messages/threads every 60s. Combined with existing /notifications poll (line 41-43), authenticated pages now do 2 background HTTP calls on mount and 1 every minute. Consider merging into a single /api/notifications/summary endpoint returning both counts to halve the request rate.",
+    "VehicleProfile.js:264 ShareMenu — the responsive class chain uses both `fixed inset-x-0 bottom-0` AND `sm:static sm:absolute sm:right-0 sm:top-full` — the `sm:static` and `sm:absolute` overlap in cascade order. In practice Tailwind resolves `sm:absolute` (later in class list). Works, but the redundant `sm:static` is confusing — remove for clarity.",
+    "swaps.py — /deck response leaks base64 owner.avatar (see backend_issues.minor). _safe_cover_url is applied to vehicle.cover_photo but not to owner.avatar dict.",
+    "PlateBlurDialog.js — good hardening. Consider adding a `passive: false` note in a comment near preventDefault to explain why React's synthetic event system is safe here (React's onPointerDown listener is non-passive by default, so preventDefault works).",
+    "i18n/index.js — domainDetector covers .pl/.com/.co.uk/.app/.io. If future domains like sharago.de or sharago.fr are added, this list must be extended. Consider a data-driven map."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter46.py (new)"
+  ],
+  "success_rate": {"backend": "100% (5/5)", "frontend": "100% (Bugs 10/11/12/13 verified via UI + Bugs 8/14 via source)"},
+  "test_credentials": "smoke-test-vehiq@example.com / SmokePass123! (verified 200 OK, token issued).",
+  "seed_data_creation": "PUT /api/vehicles/{vid} with a 1x1 PNG data-URL to seed a photo on the smoke user's only vehicle (for Bug 10 preview verification).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Bug 9 was scoped to vehicle.cover_photo — that field is clean. But the same /swaps/deck endpoint still emits base64 in owner.avatar. If iter 47 tightens base64 sanitisation more broadly, drop the assertion filter I added to only check cover_photo. Smoke user has 1 vehicle (id f9d17048-1142-4fd3-ad2f-1f9bd9746d39, slug test-public-2020, public=false)."
+}

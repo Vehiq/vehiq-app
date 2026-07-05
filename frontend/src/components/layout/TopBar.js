@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Bell, Search, Menu, User as UserIcon } from "lucide-react";
+import { Bell, MessageSquare, Search, Menu, User as UserIcon } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
@@ -17,6 +17,8 @@ export default function TopBar({ onMenu }) {
   const [profileOpen, setProfileOpen] = useState(false);
   const [bellOpen, setBellOpen] = useState(false);
   const [notifs, setNotifs] = useState([]);
+  // Iter 46 (Bug 11): unread message threads counter next to notification bell.
+  const [unreadMsgs, setUnreadMsgs] = useState(0);
   // Iter 40: click-outside refs — close dropdowns when the user clicks
   // anywhere else or hits Escape.
   const bellRef = useRef(null);
@@ -38,6 +40,21 @@ export default function TopBar({ onMenu }) {
 
   useEffect(() => {
     if (user) api.get("/notifications").then((r) => setNotifs(r.data || []));
+  }, [user]);
+
+  // Iter 46 (Bug 11): pull unread message count from marketplace threads.
+  // Refreshes when user changes + every 60s while topbar is mounted.
+  useEffect(() => {
+    if (!user) { setUnreadMsgs(0); return; }
+    const load = () => api.get("/marketplace/messages/threads")
+      .then((r) => {
+        const total = (r.data || []).reduce((acc, t) => acc + (t.unread || 0), 0);
+        setUnreadMsgs(total);
+      })
+      .catch(() => { /* silent — non-critical */ });
+    load();
+    const id = setInterval(load, 60_000);
+    return () => clearInterval(id);
   }, [user]);
 
   return (
@@ -105,6 +122,25 @@ export default function TopBar({ onMenu }) {
 
         <div className="flex items-center gap-3 ml-auto">
           <LanguageSwitcher />
+
+          <button
+            type="button"
+            onClick={() => navigate("/marketplace/messages")}
+            className="relative p-2 rounded-md text-vehiq-text hover:bg-vehiq-card"
+            title={t("nav.messages", { defaultValue: "Wiadomości" })}
+            aria-label={t("nav.messages", { defaultValue: "Wiadomości" })}
+            data-testid="topbar-messages"
+          >
+            <MessageSquare size={18} />
+            {unreadMsgs > 0 && (
+              <span
+                className="absolute -top-1 -right-1 h-4 min-w-[16px] px-1 rounded-full bg-vehiq-gold text-vehiq-bg text-[10px] font-bold flex items-center justify-center"
+                data-testid="topbar-messages-badge"
+              >
+                {unreadMsgs > 9 ? "9+" : unreadMsgs}
+              </span>
+            )}
+          </button>
 
           <div className="relative" ref={bellRef}>
             <button type="button" onClick={() => setBellOpen((s) => !s)} className="relative p-2 rounded-md text-vehiq-text hover:bg-vehiq-card" data-testid="notifications-bell">

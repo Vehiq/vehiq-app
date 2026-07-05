@@ -251,44 +251,68 @@ function ShareMenu({ vehicle, reload }) {
         <Share2 size={14} /> {t("share.share")}
       </button>
       {open && (
-        <div className="absolute right-0 top-full mt-2 w-80 vehiq-card p-4 z-30" data-testid="vehicle-share-menu">
-          <div className="flex items-center justify-between gap-3 pb-3 border-b border-vehiq-border">
-            <div className="text-sm text-vehiq-text font-medium">{t("share.publicProfile")}</div>
+        <>
+          {/* Iter 46 (Bug 12): mobile-only backdrop → tap outside closes.
+              On desktop the dropdown floats next to the button; on mobile it
+              slides up from the bottom (bottom-sheet) so it never clips off
+              the right edge of the viewport. */}
+          <div
+            className="fixed inset-0 z-30 bg-black/40 sm:hidden"
+            onClick={() => setOpen(false)}
+            data-testid="vehicle-share-backdrop"
+          />
+          <div
+            className="fixed inset-x-0 bottom-0 z-40 vehiq-card p-4 rounded-b-none rounded-t-xl border-b-0 max-h-[80vh] overflow-y-auto sm:static sm:inset-auto sm:z-30 sm:rounded sm:border sm:absolute sm:right-0 sm:top-full sm:mt-2 sm:w-80"
+            data-testid="vehicle-share-menu"
+          >
+            <div className="flex items-center justify-between gap-3 pb-3 border-b border-vehiq-border">
+              <div className="text-sm text-vehiq-text font-medium">{t("share.publicProfile")}</div>
+              <button
+                onClick={togglePublic}
+                disabled={busy}
+                className={`text-xs px-2.5 py-1 rounded uppercase tracking-wider inline-flex items-center gap-1 ${
+                  vehicle.public ? "bg-vehiq-gold-dim text-vehiq-gold" : "bg-vehiq-nav text-vehiq-muted"
+                }`}
+                data-testid="share-toggle-public"
+              >
+                {vehicle.public ? <Eye size={12} /> : <EyeOff size={12} />}
+                {vehicle.public ? t("share.public") : t("share.private")}
+              </button>
+            </div>
+
+            {vehicle.public && publicUrl ? (
+              <>
+                <div className="mt-3 text-xs text-vehiq-muted">{t("share.linkHint")}</div>
+                <div className="flex items-center gap-2 mt-2">
+                  <input readOnly value={publicUrl} className="vehiq-input text-xs flex-1" data-testid="share-link-input" />
+                  <button onClick={copy} className="vehiq-btn-primary px-3 py-2" data-testid="share-copy-btn">
+                    {copied ? <Check size={14} /> : <Copy size={14} />}
+                  </button>
+                </div>
+                <label className="flex items-center gap-2 text-xs text-vehiq-muted mt-3 cursor-pointer">
+                  <input type="checkbox" checked={!!vehicle.public_show_service} onChange={toggleService} className="accent-vehiq-gold" data-testid="share-toggle-service" />
+                  {t("share.showServiceHistory")}
+                </label>
+              </>
+            ) : (
+              <div className="mt-3 text-xs text-vehiq-muted">{t("share.notPublicHint")}</div>
+            )}
+
+            <button onClick={sellThisCar} className="vehiq-btn-secondary w-full mt-4 text-xs" data-testid="share-sell-this">
+              {t("share.sellThisCar")}
+            </button>
+
+            {/* Iter 46 (Bug 12): mobile-visible close bar so users always have
+                a tap-target when the sheet occupies the full width. */}
             <button
-              onClick={togglePublic}
-              disabled={busy}
-              className={`text-xs px-2.5 py-1 rounded uppercase tracking-wider inline-flex items-center gap-1 ${
-                vehicle.public ? "bg-vehiq-gold-dim text-vehiq-gold" : "bg-vehiq-nav text-vehiq-muted"
-              }`}
-              data-testid="share-toggle-public"
+              onClick={() => setOpen(false)}
+              className="sm:hidden w-full mt-3 py-2 text-xs text-vehiq-muted hover:text-vehiq-text"
+              data-testid="vehicle-share-close"
             >
-              {vehicle.public ? <Eye size={12} /> : <EyeOff size={12} />}
-              {vehicle.public ? t("share.public") : t("share.private")}
+              {t("common.close", { defaultValue: "Zamknij" })}
             </button>
           </div>
-
-          {vehicle.public && publicUrl ? (
-            <>
-              <div className="mt-3 text-xs text-vehiq-muted">{t("share.linkHint")}</div>
-              <div className="flex items-center gap-2 mt-2">
-                <input readOnly value={publicUrl} className="vehiq-input text-xs flex-1" data-testid="share-link-input" />
-                <button onClick={copy} className="vehiq-btn-primary px-3 py-2" data-testid="share-copy-btn">
-                  {copied ? <Check size={14} /> : <Copy size={14} />}
-                </button>
-              </div>
-              <label className="flex items-center gap-2 text-xs text-vehiq-muted mt-3 cursor-pointer">
-                <input type="checkbox" checked={!!vehicle.public_show_service} onChange={toggleService} className="accent-vehiq-gold" data-testid="share-toggle-service" />
-                {t("share.showServiceHistory")}
-              </label>
-            </>
-          ) : (
-            <div className="mt-3 text-xs text-vehiq-muted">{t("share.notPublicHint")}</div>
-          )}
-
-          <button onClick={sellThisCar} className="vehiq-btn-secondary w-full mt-4 text-xs" data-testid="share-sell-this">
-            {t("share.sellThisCar")}
-          </button>
-        </div>
+        </>
       )}
     </div>
   );

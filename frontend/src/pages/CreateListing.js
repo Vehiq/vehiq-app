@@ -85,15 +85,17 @@ export default function CreateListing() {
   };
   const _normalisePhotos = (arr) => (arr || []).map(_photoStr).filter(Boolean);
 
-  const prefill = (vid) => {
+  const prefill = async (vid) => {
     const v = vehicles.find(x => x.id === vid);
     if (!v) return;
-    let photos = [];
-    try {
-      photos = _normalisePhotos(v.photos);
-    } catch { photos = []; }
-    setForm({
-      ...form,
+    // Iter 46 (Bug 10): garage list endpoint only returns `cover_photo` (a
+    // single thumb URL) — the full `photos[]` array is stripped for payload
+    // hygiene. So we optimistically prefill with the cover thumb, then fetch
+    // the full vehicle to hydrate the rest of the photos in the background.
+    const seed = [];
+    if (v.cover_photo) seed.push(v.cover_photo);
+    setForm((prev) => ({
+      ...prev,
       vehicle_id: vid,
       make: v.make || "",
       model: v.model || "",
@@ -101,8 +103,15 @@ export default function CreateListing() {
       mileage: v.mileage_current || "",
       title: `${v.make || ""} ${v.model || ""} ${v.year || ""}`.trim(),
       description: `${v.engine || ""} ${v.fuel || ""}\nPrzebieg: ${v.mileage_current || 0} km`.trim(),
-      photos,
-    });
+      photos: seed,
+    }));
+    try {
+      const { data } = await api.get(`/vehicles/${vid}`);
+      const full = _normalisePhotos(data.photos);
+      if (full.length) {
+        setForm((prev) => ({ ...prev, photos: full }));
+      }
+    } catch { /* keep seed cover — user can also upload more */ }
   };
 
   const handleFiles = async (e) => {

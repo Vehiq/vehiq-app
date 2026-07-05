@@ -126,6 +126,9 @@ export default function PlateBlurDialog({ file, onCancel, onConfirm }) {
   const onPointerDown = (e) => {
     if (!imgLoaded) return;
     e.preventDefault();
+    // Iter 46 (Bug 8): stop the modal's parent scroll container from
+    // hijacking the gesture on touch devices.
+    e.stopPropagation();
     // Pointer capture can throw on iOS Safari when the pointerType isn't
     // capturable — swallow the error and continue, since we don't strictly
     // need capture for the draw to work (React re-render on setDragRect is
@@ -142,6 +145,7 @@ export default function PlateBlurDialog({ file, onCancel, onConfirm }) {
   const onPointerMove = (e) => {
     if (!drawing) return;
     e.preventDefault();
+    e.stopPropagation();
     const p = getNaturalPos(e);
     const s = startRef.current;
     if (!s) return;
@@ -224,6 +228,11 @@ export default function PlateBlurDialog({ file, onCancel, onConfirm }) {
                   height: "auto",
                   cursor: "crosshair",
                   touchAction: "none",
+                  WebkitUserSelect: "none",
+                  userSelect: "none",
+                  WebkitTouchCallout: "none",
+                  overscrollBehavior: "contain",
+                  pointerEvents: "auto",
                   display: "block",
                 }}
                 data-testid="blur-canvas"
