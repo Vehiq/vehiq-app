@@ -17,6 +17,44 @@ Build a full-stack web + mobile-responsive SaaS application called VEHIQ. A prem
 
 ## What's Implemented (2026-05-02)
 
+### Iter 41 (część 2) — Optymalizacja garażu + GA4 tracking (DONE 2026-07-05 — fork-agent)
+
+**Problem statements:**
+- P0 wolne ładowanie garażu (użytkownicy widzą pusty ekran przez kilka sekund).
+- P0 brak MongoDB indeksów na `user_id` — pełny COLLSCAN przy każdym GET /vehicles.
+- P0 backend zwracał pełne dokumenty `vehicles` z całą photos[] array (MB per pojazd dla base64 uploads).
+- P1 brak client-side cache — powrót do /garage z /marketplace ponownie fetchował wszystko.
+- P1 GA4 widział tylko pierwsze wejście — nawigacja SPA (React Router) nie triggerowała page_view.
+
+**Co zrobiono:**
+- **Backend projection** (`routers/vehicles.py`) — `list_vehicles` używa projekcji Mongo (16 pól), ekstraktuje cover_photo server-side i **drops photos[] array** przed zwrotem. 73%+ redukcja payloadu (weryfikowane: 1.5MB → 410KB dla auta z 5×300KB photos), skaluje się do 90%+ na photo-heavy garages. Dodane pole `active_listing` z jednego $in query. Cache-Control: `private, max-age=30, stale-while-revalidate=120`.
+- **MongoDB indexes** (`server.py` startup) — 6 nowych indeksów z indywidualnym try/except (jeden konflikt nie blokuje reszty): `vehicles(user_id)`, `vehicles(user_id, created_at desc)`, `vehicles(open_to_offers, searchable sparse)`, `service_entries(vehicle_id, date desc)`, `swap_listings(active, created_at desc)`, `swap_interactions(from_user_id, to_vehicle_id)`.
+- **Frontend in-memory cache** (`lib/apiCache.js` NEW) — `cachedGet(path, {ttl=60s})` z single-flight (concurrent GETs sharują 1 promise), `cacheBust(prefix)`, `cacheClear()`. Wired w `Garage.js` (3 endpointy), `VehicleForm.js` (bust po create/update), `AuthContext.logout()` (clear). SPA-nav round-trip verified: 1 network call, drugie zamontowanie /garage z cache.
+- **GA4 SPA page tracking** (`hooks/usePageTracking.js` NEW) — `usePageTracking()` hook + `trackEvent()` wrapper. Safe (silent no-op gdy `window.gtag` nieobecny). Wired w `PageTracker` w `App.js` (wewnątrz BrowserRouter dla `useLocation()`). 4 page_view eventów przechwycone w teście SPA nav (/garage → /marketplace → /garage).
+- **Business events** — `trackEvent()` w 5 miejscach: `login`/`sign_up`/`demo_start` (AuthContext — email + Google + demo), `add_vehicle` (VehicleForm z make/model), `create_listing` (CreateListing z category), `swap_interested` (SwapPage z matched flag), `open_to_offers` (VehicleProfile).
+
+**Testowanie (100% PASS, iteration_18.json):**
+- Backend: 6/6 pytest (`test_iter41.py`) — projekcja usuwa photos[], zachowuje cover_photo; Cache-Control ustawiony; 6 nowych indeksów istnieje; regresja Iter 40 auth/refresh działa.
+- Frontend: SPA cache round-trip = 1 call; 4 page_view eventów z prawidłowym page_path; wszystkie trackEvent wywołania w code-review poprawnie zwiane.
+
+**Notatki (nie action items):**
+- Preview URL Kubernetes ingress strippuje Cache-Control (dodaje own `no-store`). Na produkcji (Render + Vercel) header dojdzie do przeglądarki.
+- Base64 legacy photos: cover_photo to nadal pełny data URL (bez thumb variant). Future work: server-side thumb transcode dla base64.
+
+**Pliki:**
+- `/app/backend/routers/vehicles.py` (projection + Cache-Control)
+- `/app/backend/server.py` (6 nowych indeksów z try/except per each)
+- `/app/frontend/src/lib/apiCache.js` (NEW)
+- `/app/frontend/src/hooks/usePageTracking.js` (NEW)
+- `/app/frontend/src/pages/Garage.js` (cachedGet)
+- `/app/frontend/src/App.js` (usePageTracking w PageTracker)
+- `/app/frontend/src/contexts/AuthContext.js` (cacheClear + 4 events)
+- `/app/frontend/src/components/VehicleForm.js` (cacheBust + add_vehicle event)
+- `/app/frontend/src/pages/CreateListing.js` (create_listing event)
+- `/app/frontend/src/pages/SwapPage.js` (swap_interested event)
+- `/app/frontend/src/pages/VehicleProfile.js` (open_to_offers event)
+- `/app/backend/tests/test_iter41.py` (NEW — 6 tests)
+
 ### Iter 41 — P0 CRITICAL: Infinite refresh/retry loop fix (DONE 2026-07-05 — fork-agent)
 
 **Problem statement:**
