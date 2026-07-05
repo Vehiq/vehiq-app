@@ -1,0 +1,30 @@
+{
+  "summary": "Iter 41 P0 infinite-loop fix — full frontend behavioural testing via Playwright + page.on('request') counters. All P0 criteria PASS. axios interceptor no longer loops on persistent 401s; single-flight refresh confirmed; sidebar polling bounded; SPA-nav dedupe works.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "verified_features": [
+    "P0 NO INFINITE LOOP: With bad token 'eyJhbGciOiJIUzI1NiJ9.e30.wrong-sig' set before navigation to /marketplace/messages, over 60s: threads=0, refresh=1, /auth/me=2 (React strict-mode double invoke). Token cleared, redirected to /login. Confirms `_retried` guard + wasRefresh-clear branch prevent the previously observed storm.",
+    "P0 SINGLE-FLIGHT REFRESH: With bad token, navigating /marketplace (which fires multiple concurrent axios calls via AuthContext + Sidebar + page loaders), refresh=1 exactly. No parallel refresh calls.",
+    "P0 REFRESH FAILURE clears token: After bad-token flow (auth/me 401 → refresh 401 → wasRefresh branch), localStorage.sharago_token = null. Confirmed both on /marketplace/messages and /marketplace routes.",
+    "P0 REFRESH SUCCESS PATH (valid token): Navigated /garage with fresh demo token — refresh count = 0 over 90s, no unnecessary retry storm. Interceptor's early-return-on-non-401 works.",
+    "SIDEBAR 30s POLL: On /garage with valid session, threads endpoint hit 4 times in 90s (1 initial + 3 polls at 30s intervals). Matches expected upper bound.",
+    "SIDEBAR SPA-NAV DEDUPE: 5 rapid sidebar-link clicks across marketplace/rentals/swaps/garage/marketplace within ~3s caused 0 additional threads calls — the 15s lastFetchAt gate holds within a single tab session.",
+    "REGRESSION: All routes (/marketplace, /garage, /marketplace/messages) load without console errors; login redirect on token clear works normally."
+  ],
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "api.js interceptor is well-scoped: early return on status!==401, dedicated wasRefresh branch, `_retried` config flag ensures at most one retry per original request. Solid.",
+    "Note: `_refreshInFlight` is a module-level singleton. A full-page reload (not SPA nav) resets it — but that is inherent to any module state and not a bug.",
+    "Sidebar dedupe uses closure-scoped inFlight/lastFetchAt/cancelled — resets on remount within SPA is prevented because the same closure survives across the whole /garage or /marketplace lifetime. Cross-tab dedupe not enforced (would need BroadcastChannel or localStorage lock), but not required for the P0 fix.",
+    "Minor: Sidebar.js line 48 uses `.reduce((s, t) => ...)` where `t` shadows the imported `t` from i18n. Non-breaking (no i18n call inside reduce) but a lint-noise/readability risk if future edits add translation lookups in that block."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (no backend changes this iter)", "frontend": "100%"},
+  "test_credentials": "Demo token via POST /api/auth/demo. Bad token literal: 'eyJhbGciOiJIUzI1NiJ9.e30.wrong-sig'.",
+  "seed_data_creation": "Fresh demo user per run via POST /api/auth/demo (24h TTL).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Use page.on('request') + Playwright add_init_script(localStorage.setItem(...)) BEFORE goto to reliably reproduce interceptor scenarios. page.route intercepts axios/xhr but some URL patterns miss on fetch — request event is more reliable for counting. Backend /api/auth/demo, /api/auth/refresh, /api/auth/me all behave correctly. Loop prevention (Iter 41) verified end-to-end.",
+  "rca of the issue": "Root cause (before fix): interceptor retried EVERY 401 without a per-request flag AND fired a fresh /auth/refresh per concurrent 401. If refresh also 401'd, the retried original request came back 401 → interceptor retried again → infinite loop, saturated by Sidebar's 30s poll + multiple mount cycles. Fix (verified): (a) `cfg._retried` cap = 1 retry, (b) module-level `_refreshInFlight` promise dedupes concurrent refreshes, (c) `wasRefresh` explicit branch clears token when refresh itself 401s. Sidebar defense-in-depth: `inFlight` + `lastFetchAt < 15s` gates."
+}

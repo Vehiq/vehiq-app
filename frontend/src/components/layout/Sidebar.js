@@ -28,16 +28,31 @@ export default function Sidebar({ onNavigate, mobile = false }) {
 
   useEffect(() => {
     if (!user) return;
+    // Iter 41 — dedupe: skip a poll if the previous one is still in flight
+    // OR fired less than 15s ago. Belt-and-suspenders against the recent
+    // /marketplace/messages/threads storm even if some future component
+    // remounts this Sidebar rapidly.
+    let inFlight = false;
+    let lastFetchAt = 0;
+    let cancelled = false;
+
     const fetch = async () => {
+      if (cancelled || inFlight) return;
+      const now = Date.now();
+      if (now - lastFetchAt < 15_000) return;
+      inFlight = true;
+      lastFetchAt = now;
       try {
         const r = await api.get("/marketplace/messages/threads");
+        if (cancelled) return;
         const total = (r.data || []).reduce((s, t) => s + (t.unread || 0), 0);
         setUnread(total);
-      } catch {}
+      } catch { /* silent — badge just stays stale */ }
+      finally { inFlight = false; }
     };
     fetch();
-    const i = setInterval(fetch, 30000);
-    return () => clearInterval(i);
+    const i = setInterval(fetch, 30_000);
+    return () => { cancelled = true; clearInterval(i); };
   }, [user]);
 
   return (
