@@ -17,6 +17,34 @@ Build a full-stack web + mobile-responsive SaaS application called VEHIQ. A prem
 
 ## What's Implemented (2026-05-02)
 
+### Iter 41 — P0 CRITICAL: Infinite refresh/retry loop fix (DONE 2026-07-05 — fork-agent)
+
+**Problem statement:**
+Frontend wywoływał `/api/marketplace/messages/threads` **dziesiątki razy na minutę** w nieskończonej pętli, blokując backend i powodując wolne ładowanie apki. Interceptor `api.js` dodany w Iter 40 wywoływał `refresh + retry` przy każdym 401 — jeśli retry też zwracał 401, interceptor łapał kolejny 401 → kolejny refresh → kolejny retry → **INFINITE LOOP** amplifikowany przez 30s poll w Sidebar.
+
+**Fix (`api.js` rewrite, ~30 nowych linii):**
+- **`cfg._retried` flag** — retry AT MOST ONCE per oryginalny request. Druga 401 leci do callera bez kolejnego refresha.
+- **Single-flight refresh** — module-level `_refreshInFlight` promise. Gdy refresh jest in-flight, wszystkie inne 401'd requesty czekają na ten sam promise zamiast odpalać własne refresh'e równolegle.
+- **Early return** dla non-401 statusów (mniej pracy w hot path).
+- **Explicit `wasRefresh` branch** — gdy sam `/auth/refresh` zwrócił 401, czyścimy token i wychodzimy natychmiast.
+
+**Sidebar defense-in-depth (`Sidebar.js`):**
+- `inFlight` flag — pomija poll gdy poprzedni jeszcze in-flight.
+- `lastFetchAt` timestamp — min 15s między pollami (nawet przy rapid remount).
+- `cancelled` flag — chroni przed setState po unmount.
+
+**Testowanie (100% PASS, iteration_17.json):**
+- P0 loop prevention: bad token przez 60s → threads=0, refresh=1, /auth/me=2 (React strict-mode double invoke). Było: dziesiątki calls per endpoint.
+- Single-flight: 5 concurrent 401'd requestów → tylko 1 refresh network call.
+- Refresh failure → token cleared, redirect do /login.
+- Sidebar 30s poll → dokładnie 4 calls w 90s (1 initial + 3 polls).
+- SPA-nav dedupe: 5 klików w 3s → 0 dodatkowych threads calls.
+- Regresja Iter 40 silent refresh działa.
+
+**Pliki:**
+- `/app/frontend/src/lib/api.js` (full rewrite — 108 linii)
+- `/app/frontend/src/components/layout/Sidebar.js` (dedupe w useEffect polling)
+
 ### Iter 40 — 6 bug fixes (JWT refresh + dropdowns + demo empty + garage picker + avatar + photo normaliser) (DONE 2026-07-05 — fork-agent)
 
 **Problem statements:**
