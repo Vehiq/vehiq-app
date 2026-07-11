@@ -1,5 +1,5 @@
 """Marketplace router — listings + messaging."""
-from fastapi import APIRouter, HTTPException, Depends, Query
+from fastapi import APIRouter, HTTPException, Depends, Query, Header
 from pydantic import BaseModel, field_validator, model_validator
 from typing import Optional, List
 from datetime import datetime, timezone
@@ -295,13 +295,32 @@ async def list_my_listings(user=Depends(get_current_user)):
 
 
 @router.get("/listings/{listing_id}")
-async def get_listing(listing_id: str):
+async def get_listing(listing_id: str, authorization: Optional[str] = Header(None)):
     db = get_db()
     l = await db.listings.find_one({"id": listing_id}, {"_id": 0})
     if not l:
         raise HTTPException(status_code=404, detail="Listing not found")
     seller = await db.profiles.find_one({"id": l["user_id"]}, {"_id": 0, "id": 1, "name": 1, "avatar": 1, "location": 1, "created_at": 1})
     l["seller"] = seller
+
+    # Iter 48: mask contact details from anonymous viewers to reduce scraper
+    # PII harvest. The owner sees full values; logged-in users see masked
+    # ones (they can still initiate contact via /marketplace/messages).
+    viewer_id = None
+    if authorization:
+        try:
+            from auth_utils import decode_token
+            payload = decode_token(authorization.replace("Bearer ", "").strip())
+            viewer_id = (payload or {}).get("sub")
+        except Exception:
+            viewer_id = None
+    is_owner = viewer_id and viewer_id == l.get("user_id")
+    if not is_owner:
+        from security import mask_email, mask_phone
+        if l.get("contact_email"):
+            l["contact_email"] = mask_email(l["contact_email"])
+        if l.get("contact_phone"):
+            l["contact_phone"] = mask_phone(l["contact_phone"])
     return l
 
 

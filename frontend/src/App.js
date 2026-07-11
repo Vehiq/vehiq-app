@@ -58,6 +58,7 @@ import AdminLegal from "@/pages/admin/AdminLegal";
 import AdminContent from "@/pages/admin/AdminContent";
 import AdminSettings from "@/pages/admin/AdminSettings";
 import AdminSecurity from "@/pages/admin/AdminSecurity";
+import AdminSecurityMonitor from "@/pages/admin/AdminSecurityMonitor";
 import AdminApiKeys from "@/pages/admin/AdminApiKeys";
 import AdminAnalytics from "@/pages/admin/AdminAnalytics";
 import AdminBlog from "@/pages/admin/AdminBlog";
@@ -169,6 +170,7 @@ function App() {
             <Route path="content" element={<AdminContent />} />
             <Route path="settings" element={<AdminSettings />} />
             <Route path="security" element={<AdminSecurity />} />
+            <Route path="security-monitor" element={<AdminSecurityMonitor />} />
             <Route path="api-keys" element={<AdminApiKeys />} />
             <Route path="analytics" element={<AdminAnalytics />} />
             <Route path="blog" element={<AdminBlog />} />

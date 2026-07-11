@@ -1,6 +1,6 @@
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useEffect } from "react";
-import { LayoutDashboard, Users, Car, Store, MessagesSquare, FileText, Edit3, Settings, Shield, BarChart3, KeyRound, LogOut, BookOpen, Star, Share2 } from "lucide-react";
+import { LayoutDashboard, Users, Car, Store, MessagesSquare, FileText, Edit3, Settings, Shield, ShieldAlert, BarChart3, KeyRound, LogOut, BookOpen, Star, Share2 } from "lucide-react";
 
 const SECTIONS = [
   { to: "dashboard", icon: LayoutDashboard, label: "Dashboard" },
@@ -14,7 +14,8 @@ const SECTIONS = [
   { to: "legal", icon: FileText, label: "Legal Pages" },
   { to: "content", icon: Edit3, label: "Content CMS" },
   { to: "api-keys", icon: KeyRound, label: "API Keys & SMTP" },
-  { to: "security", icon: Shield, label: "Security" },
+  { to: "security-monitor", icon: ShieldAlert, label: "Security Monitor" },
+  { to: "security", icon: Shield, label: "Admin Auth Log" },
   { to: "settings", icon: Settings, label: "App Settings" },
   { to: "analytics", icon: BarChart3, label: "Analytics" },
 ];

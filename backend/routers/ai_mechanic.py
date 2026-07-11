@@ -2,12 +2,13 @@
 import os
 import uuid
 from datetime import datetime, timezone
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Request
 from pydantic import BaseModel
 from typing import Optional, List
 
 from db_helper import get_db
 from auth_utils import get_current_user
+from security import limiter
 import anthropic
 
 router = APIRouter(prefix="/ai", tags=["ai"])
@@ -131,7 +132,8 @@ def _trim_service_payload(items: list) -> list:
 
 
 @router.post("/ask")
-async def ask(payload: AskIn, user=Depends(get_current_user)):
+@limiter.limit("10/minute")
+async def ask(payload: AskIn, request: Request, user=Depends(get_current_user)):
     db = get_db()
     settings = await db.app_settings.find_one({"key": "ai_chatbot_enabled"})
     if settings and settings["value"] != "true":

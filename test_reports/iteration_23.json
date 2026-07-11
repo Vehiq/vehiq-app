@@ -1,0 +1,56 @@
+{
+  "summary": "Iter 48 security/GDPR audit — 9/10 backend tests PASS, 1 critical bug found: login by original email after soft-delete returns 401 (Invalid email or password) instead of the specified 410 (Account deleted). All security headers, rate limits, GDPR export, admin security endpoints, manual IP block/unblock, admin health probe, and PII masking on listings work as specified. Frontend MyDataSection + AdminSecurityMonitor render correctly with all required data-testids; wrong confirm text is blocked and correct 'USUŃ' triggers delete + shows PL toast + redirects to login.",
+  "backend_issues": {
+    "critical": [
+      {
+        "endpoint": "POST /api/auth/login (post soft-delete)",
+        "issue": "Spec requires 410 when logging in as a soft-deleted user. Actual behavior: 401 'Invalid email or password'. RCA: routers/gdpr.py:delete_account overwrites profiles.email to 'deleted-<uid8>@removed.sharago' and stores the ORIGINAL in profiles.deleted_email. But routers/auth.py:login looks up ONLY by {email: payload.email.lower()} — so the original email query returns None → 401 short-circuit fires BEFORE the deleted_at 410 check on line 242. Fix: expand login lookup to `{$or:[{email:X},{deleted_email:X}]}` so the 410 branch can execute.",
+        "priority": "HIGH"
+      }
+    ],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "verified_features": [
+    "Security headers on http://localhost:8001/api/health: X-Content-Type-Options=nosniff, X-Frame-Options=DENY, Referrer-Policy=strict-origin-when-cross-origin, Permissions-Policy contains geolocation=(), Cross-Origin-Opener-Policy=same-origin. HSTS is NOT set at origin (Cloudflare handles).",
+    "POST /api/auth/login rate-limited to 5/min (6th wrong-password attempt → 429 with Retry-After header and JSON {detail: 'Za dużo żądań ...'}).",
+    "POST /api/auth/register rate-limited to 3/min (observed 429 during test isolation).",
+    "GET /api/auth/export-data (auth) → 200 with Content-Disposition: attachment; filename=\"sharago-export-<uid8>-<yyyymmdd>.json\" and all 10 required keys (meta/profile/vehicles/service_history/listings/messages_sent/activity_log/referrals_i_made/referrals_i_received/ai_chats). profile stripped of password_hash & reset_token.",
+    "POST /api/auth/account/delete: 400 on wrong confirm, 401 on wrong password, 200 on success. Verified via mongo: email became 'deleted-<uid8>@removed.sharago', deleted_email preserved, deleted_at set.",
+    "POST /api/auth/account/undelete: 400 (bad confirm), 401 (bad password), 404 (unknown X-Restore-Email), 200 on success — email restored, subsequent login succeeds (after rate-limit window).",
+    "Admin /api/admin/security/stats returns all 8 fields incl. top_offender_ips array; /logs returns items; /blocks + POST /block-ip + DELETE /block-ip/{ip} round-trip works; /api/admin/health returns 3 services (MongoDB ok=true, R2 & Brevo ok=false because env not set in preview — expected).",
+    "PII masking (via direct mongo-inserted listing): owner Authorization=Bearer sees full jan.kowalski@example.com and +48123456789; anon GET sees ja***@example.com and +48***789 respectively.",
+    "Admin JWT enforced (401 on /api/admin/security/stats without Authorization header).",
+    "Frontend /gv91-admin/security-monitor renders [data-testid=admin-security-page] with health tiles (3 service cards), 8 stat tiles, top offender IPs list, manual block panel with IP + hours + Block IP button, event log with filter select + IP input + tbody.",
+    "Frontend /profile renders [data-testid=mydata-section] with mydata-export-btn + mydata-delete-btn. Clicking delete opens mydata-confirm-panel with password + confirm text inputs. Wrong confirm 'wrong' does NOT call API (verified /me still 200 with original data). Correct confirm 'USUŃ' triggers delete → PL toast 'Konto usunięte. Masz 30 dni na przywrócenie.' → redirect to login."
+  ],
+  "test_report_links": [
+    "/app/backend/tests/test_iter48_security.py",
+    "/app/test_reports/pytest/iter48.xml"
+  ],
+  "action_items": [
+    "Fix routers/auth.py:login to look up by both email and deleted_email (e.g. `db.profiles.find_one({'$or':[{'email':X},{'deleted_email':X}]})`) so the existing 410 branch fires when a soft-deleted user tries to log in with their original address."
+  ],
+  "critical_code_review_comments": [
+    "gdpr.py:undelete_account overwrites profiles.name with `deleted_email.split('@')[0]` instead of restoring the pre-delete real name — original name is lost (was set to '[usunięte]' at delete time and never preserved). Consider persisting `deleted_name` at delete-time symmetric to `deleted_email`.",
+    "gdpr.py:delete_account uses `blog_router.public/admin` collection sets (swap_listings uses 'active' flag) but vehicles/listings use `status='archived'` while spec asks for 'archived'. Symmetric undelete sets status='active' on any archived — correct — but does NOT re-activate swap_listings (they were set active=False on delete). Missing symmetric restore.",
+    "server.py IPBlockMiddleware queries mongo on EVERY /api/* request (find_one on ip_blocks) — no in-memory cache. Under sustained load this doubles DB load. Consider a 30-60s LRU cache of {ip → blocked_until} to short-circuit hot paths.",
+    "security.py:record_failed_login uses count_documents scan on security_logs filtered by ip+timestamp — with no index on (event_type, ip_address, timestamp) this will scan the whole collection once traffic grows. Recommend a compound index.",
+    "gdpr.py:export_data has no size cap on `activity_logs` (2000) / `service_history` (5000) — for a whale user (5000-entry service history) the JSON response could blow past 10MB. Consider streaming via StreamingResponse for large payloads.",
+    "auth.py login 401/410 ordering: the current lookup-by-email approach means 410 is only reachable if `deleted_email` also happens to still be set as `email` — which per delete flow never happens. Effectively the 410 branch is dead code without the lookup expansion above."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter48_security.py"
+  ],
+  "success_rate": {"backend": "90% (9/10)", "frontend": "100% (2/2 flows)"},
+  "test_credentials": "Admin kontakt@sharago.com / VehiqAdmin2026! (token via POST /api/admin/login, injected into localStorage.sharago_admin_token to bypass first-login change-password). Test users created on the fly with @example.com uuid suffix.",
+  "seed_data_creation": "Test inserts one listing directly via mongosh (id iter48-lst-*) and cleans it up in the finally block. Manual IP block for a random 10.99.*.* is created + deleted in test_block_unblock_ip. Multiple deleted iter48-del-* + iter48-exp-* profiles left in DB from rate-limit-aware register+delete flows; safe to leave (soft-deleted).",
+  "retest_needed": true,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Rate limits: login 5/min, register 3/min, export 3/hour. Tests sleep 65s between login batches — total pytest wall time ~97s. If soft-delete-410 test fails again re-verify the auth.py fix landed. mongosh available at /usr/bin/mongosh against mongodb://localhost:27017/vehiq_database. IP auto-block (20 fails / 30 min) NOT actively tested (would trigger a 2h block on the shared preview IP — see review_request warning). To clear IP blocks manually: `mongosh $URL --eval 'db.ip_blocks.deleteMany({})'`.",
+  "rca of the issue": "auth.py login queries `db.profiles.find_one({email: payload.email.lower()})`. Soft-delete overwrites `profiles.email` → 'deleted-<uid8>@removed.sharago' and stores the ORIGINAL in `deleted_email`. So querying by the user's ORIGINAL email post-delete finds nothing → early 401. The 410-if-deleted_at guard on line 242 is never reached. Fix: broaden lookup to `{$or:[{email:X},{deleted_email:X,deleted_at:{$ne:None}}]}` and then the existing 410 branch will fire."
+}

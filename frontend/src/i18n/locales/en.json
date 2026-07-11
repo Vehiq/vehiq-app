@@ -774,5 +774,20 @@
     "open": "Program open",
     "full": "Program closed",
     "blurb": "Register as one of the first 100 users and enter the draw for Regenwald tickets. Adding a vehicle = confirming your spot."
+  },
+  "gdpr": {
+    "title": "My data",
+    "subtitle": "Under GDPR you have the right to export and delete your data at any time.",
+    "exportBtn": "Export my data (JSON)",
+    "exportSuccess": "Data downloaded",
+    "exportRateLimited": "Too many exports — try later.",
+    "deleteBtn": "Delete account",
+    "deleteWarn": "Account will be hidden for 30 days — then permanently deleted. Messages are anonymised, listings and vehicles archived.",
+    "passwordPlaceholder": "Your password",
+    "passwordRequired": "Enter your password",
+    "confirmPlaceholder": "Type \"DELETE\" to confirm",
+    "confirmMismatch": "Confirmation mismatch",
+    "deleteConfirmFinal": "Delete permanently",
+    "deleteSuccess": "Account deleted. You have 30 days to restore."
   }
 }

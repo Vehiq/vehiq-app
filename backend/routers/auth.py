@@ -23,6 +23,7 @@ from email_service import (
     send_email, fire_and_forget,
     tpl_welcome, tpl_password_reset
 )
+from security import limiter, record_failed_login, log_security_event, EVENT_FAILED_LOGIN
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 APP_URL = os.environ.get("APP_URL", "https://sharago.pl")
@@ -110,7 +111,8 @@ DEFAULT_PRIVACY = {
 
 
 @router.post("/register")
-async def register(payload: RegisterIn):
+@limiter.limit("3/minute")
+async def register(payload: RegisterIn, request: Request):
     db = get_db()
     if not payload.accept_tos:
         raise HTTPException(status_code=400, detail="You must accept the Terms of Service")
@@ -178,6 +180,7 @@ class PasswordResetConfirmIn(BaseModel):
 
 
 @router.post("/password-reset/request")
+@limiter.limit("3/hour")
 async def password_reset_request(payload: PasswordResetRequestIn, request: Request):
     """Always returns 200 to avoid leaking which emails exist."""
     db = get_db()
@@ -216,17 +219,28 @@ async def password_reset_confirm(payload: PasswordResetConfirmIn):
 
 
 @router.post("/login")
-async def login(payload: LoginIn):
+@limiter.limit("5/minute")
+async def login(payload: LoginIn, request: Request):
     db = get_db()
     settings = await db.app_settings.find_one({"key": "email_login_enabled"})
     if settings and settings["value"] != "true":
         raise HTTPException(status_code=403, detail="Email login is disabled")
 
+    # Iter 48: source IP for brute-force tracking (trusts X-Forwarded-For
+    # because Render/Cloudflare terminate TLS in front of the app).
+    _client_ip = (request.headers.get("x-forwarded-for", "").split(",")[0].strip()
+                  or (request.client.host if request.client else ""))
+
     user = await db.profiles.find_one({"email": payload.email.lower()})
     if not user or not verify_password(payload.password, user.get("password_hash") or ""):
+        await record_failed_login(db, _client_ip, email=payload.email)
         raise HTTPException(status_code=401, detail="Invalid email or password")
     if user.get("suspended"):
         raise HTTPException(status_code=403, detail=f"Account suspended: {user.get('suspend_reason') or ''}")
+    # Iter 48: refuse login on soft-deleted accounts. The 30-day undo window
+    # is honored by /auth/account/undelete which flips the flag back.
+    if user.get("deleted_at"):
+        raise HTTPException(status_code=410, detail="Account has been deleted. Restore within 30 days by contacting support.")
 
     await db.profiles.update_one({"id": user["id"]}, {"$set": {"last_active": datetime.now(timezone.utc).isoformat()}})
     token = create_access_token({"sub": user["id"], "type": "user"})

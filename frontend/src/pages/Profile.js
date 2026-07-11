@@ -6,6 +6,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { Camera, Eye, ExternalLink, Ruler } from "lucide-react";
 import ReferralSection from "@/components/ReferralSection";
+import MyDataSection from "@/components/MyDataSection";
 
 const DEFAULT_PRIVACY = {
   profile_public: true,
@@ -181,6 +182,9 @@ export default function Profile() {
 
       {/* Iter 47: Referral / Invite friends widget */}
       <ReferralSection user={user} />
+
+      {/* Iter 48: GDPR — export data + delete account */}
+      <MyDataSection />
 
       {/* Privacy tab */}
       <div className="vehiq-card p-6 space-y-4" data-testid="profile-privacy">

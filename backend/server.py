@@ -90,6 +90,8 @@ from routers import public_share as public_share_router
 from routers import blog as blog_router
 from routers import swaps as swaps_router
 from routers import referral as referral_router
+from routers import gdpr as gdpr_router
+from routers import admin_security as admin_security_router
 from routers import demo as demo_router
 from seed import seed_database
 
@@ -294,6 +296,9 @@ api_router.include_router(swaps_router.router)
 api_router.include_router(referral_router.router)
 api_router.include_router(referral_router.community_router)
 api_router.include_router(referral_router.admin_referral_router)
+api_router.include_router(gdpr_router.router)
+api_router.include_router(admin_security_router.router)
+api_router.include_router(admin_security_router.health_router)
 
 app.include_router(api_router)
 
@@ -335,6 +340,61 @@ app.add_middleware(
     allow_headers=["*"],
 )
 app.add_middleware(VisitTrackingMiddleware)
+
+# ---------------- Iter 48: Security ----------------
+from security import (
+    limiter as _rl_limiter,
+    SecurityHeadersMiddleware,
+    is_ip_blocked as _is_ip_blocked,
+    log_security_event as _log_sec,
+    EVENT_RATE_LIMITED,
+)
+from slowapi.errors import RateLimitExceeded as _RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
+from db_helper import get_db as _get_db_for_sec
+
+# Rate limiter setup — decorators on individual routes control the actual
+# limits. This wires the middleware + exception handler.
+app.state.limiter = _rl_limiter
+app.add_middleware(SlowAPIMiddleware)
+app.add_middleware(SecurityHeadersMiddleware)
+
+
+@app.exception_handler(_RateLimitExceeded)
+async def _rate_limit_handler(request: Request, exc: _RateLimitExceeded):
+    # Log for the admin security dashboard. Fail-open on DB errors.
+    try:
+        ip = request.headers.get("x-forwarded-for", "").split(",")[0].strip() or (request.client.host if request.client else "")
+        await _log_sec(_get_db_for_sec(), EVENT_RATE_LIMITED, ip_address=ip, endpoint=str(request.url.path))
+    except Exception:
+        pass
+    return JSONResponse(
+        status_code=429,
+        content={"detail": f"Za dużo żądań — spróbuj ponownie za chwilę. ({exc.detail})"},
+        headers={"Retry-After": "60"},
+    )
+
+
+class IPBlockMiddleware(BaseHTTPMiddleware):
+    """Blocks requests from IPs in the auto-block table. Skips /api/health so
+    Kubernetes probes never trip the block, and static/OPTIONS traffic."""
+    async def dispatch(self, request, call_next):
+        path = request.url.path
+        if request.method == "OPTIONS" or path in ("/api/health", "/health") or not path.startswith("/api/"):
+            return await call_next(request)
+        db_local = _get_db_for_sec()
+        if db_local is not None:
+            ip = request.headers.get("x-forwarded-for", "").split(",")[0].strip() or (request.client.host if request.client else "")
+            if ip and await _is_ip_blocked(db_local, ip):
+                return JSONResponse(
+                    status_code=429,
+                    content={"detail": "IP tymczasowo zablokowane z powodu podejrzanej aktywności."},
+                    headers={"Retry-After": "3600"},
+                )
+        return await call_next(request)
+
+
+app.add_middleware(IPBlockMiddleware)
 
 
 # ---------------- Iter 42: DocumentTooLarge safety net ----------------

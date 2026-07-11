@@ -774,5 +774,20 @@
     "open": "Program otwarty",
     "full": "Program zamknięty",
     "blurb": "Zarejestruj się jako jeden z pierwszych 100 użytkowników i weź udział w losowaniu biletów na Regenwald. Dodanie pojazdu = potwierdzenie miejsca."
+  },
+  "gdpr": {
+    "title": "Moje dane",
+    "subtitle": "Zgodnie z RODO masz prawo do eksportu i usunięcia swoich danych w dowolnym momencie.",
+    "exportBtn": "Eksportuj moje dane (JSON)",
+    "exportSuccess": "Pobrano dane",
+    "exportRateLimited": "Za dużo eksportów — spróbuj później.",
+    "deleteBtn": "Usuń konto",
+    "deleteWarn": "Konto zostanie ukryte przez 30 dni — potem trwale usunięte. Wiadomości zostaną zanonimizowane, ogłoszenia i pojazdy schowane.",
+    "passwordPlaceholder": "Twoje hasło",
+    "passwordRequired": "Podaj hasło",
+    "confirmPlaceholder": "Wpisz \"USUŃ\" aby potwierdzić",
+    "confirmMismatch": "Nieprawidłowe potwierdzenie",
+    "deleteConfirmFinal": "Usuń trwale",
+    "deleteSuccess": "Konto usunięte. Masz 30 dni na przywrócenie."
   }
 }
