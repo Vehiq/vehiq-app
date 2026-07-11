@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { Car, MapPin, Award, MessageCircle } from "lucide-react";
+import FoundingMemberBadge from "@/components/FoundingMemberBadge";
 
 const BADGE_LABELS = {
   new: { key: "community.badges.new", color: "bg-blue-500/15 text-blue-300 border-blue-500/30" },
@@ -52,7 +53,12 @@ export default function GarageCard({ card, variant = "full", actions = true, onM
           <div className="h-16 w-16 rounded-full bg-vehiq-gold-dim text-vehiq-gold flex items-center justify-center text-2xl font-bold ring-2 ring-vehiq-gold/30">{user.name?.[0] || "?"}</div>
         )}
         <div className="flex-1 min-w-0">
-          <div className="vehiq-display text-xl text-vehiq-text truncate">{user.name}</div>
+          <div className="vehiq-display text-xl text-vehiq-text truncate inline-flex items-center gap-2 flex-wrap">
+            <span className="truncate">{user.name}</span>
+            {user.is_founding_member && (
+              <FoundingMemberBadge number={user.founding_member_number} />
+            )}
+          </div>
           <div className="text-xs text-vehiq-muted mt-0.5">{t("community.memberSince")}: {fmtJoined(user.created_at, lang)}</div>
           {user.location && <div className="text-xs text-vehiq-muted mt-0.5 inline-flex items-center gap-1"><MapPin size={11}/> {user.location}</div>}
         </div>

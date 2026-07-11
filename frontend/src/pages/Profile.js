@@ -5,6 +5,7 @@ import api, { apiErrorMessage } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { Camera, Eye, ExternalLink, Ruler } from "lucide-react";
+import ReferralSection from "@/components/ReferralSection";
 
 const DEFAULT_PRIVACY = {
   profile_public: true,
@@ -177,6 +178,9 @@ export default function Profile() {
         </div>
         <button className="vehiq-btn-primary" data-testid="profile-save">{t("common.save")}</button>
       </form>
+
+      {/* Iter 47: Referral / Invite friends widget */}
+      <ReferralSection user={user} />
 
       {/* Privacy tab */}
       <div className="vehiq-card p-6 space-y-4" data-testid="profile-privacy">

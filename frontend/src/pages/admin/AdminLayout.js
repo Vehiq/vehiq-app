@@ -1,12 +1,14 @@
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useEffect } from "react";
-import { LayoutDashboard, Users, Car, Store, MessagesSquare, FileText, Edit3, Settings, Shield, BarChart3, KeyRound, LogOut, BookOpen } from "lucide-react";
+import { LayoutDashboard, Users, Car, Store, MessagesSquare, FileText, Edit3, Settings, Shield, BarChart3, KeyRound, LogOut, BookOpen, Star, Share2 } from "lucide-react";
 
 const SECTIONS = [
   { to: "dashboard", icon: LayoutDashboard, label: "Dashboard" },
   { to: "users", icon: Users, label: "Users" },
   { to: "vehicles", icon: Car, label: "Vehicles" },
   { to: "marketplace", icon: Store, label: "Marketplace" },
+  { to: "founding", icon: Star, label: "Founding 100" },
+  { to: "referrals", icon: Share2, label: "Referrals" },
   { to: "forum", icon: MessagesSquare, label: "Forum" },
   { to: "blog", icon: BookOpen, label: "Blog" },
   { to: "legal", icon: FileText, label: "Legal Pages" },

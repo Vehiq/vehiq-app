@@ -8,6 +8,7 @@ import {
   Home, Wrench, Bot, ShoppingBag, Warehouse, MessageSquare,
   ArrowRight, ChevronRight, Loader2,
 } from "lucide-react";
+import FoundingCounter from "@/components/FoundingCounter";
 
 /**
  * Public landing page (Iter 35).
@@ -191,6 +192,11 @@ export default function Landing() {
               {demoBusy ? <Loader2 size={16} className="animate-spin" /> : null}
               {tx.tryDemo}
             </button>
+          </div>
+
+          {/* Iter 47: Founding 100 progress — social proof + urgency. */}
+          <div className="max-w-xl mx-auto mt-10">
+            <FoundingCounter />
           </div>
         </div>
       </header>

@@ -1,19 +1,46 @@
-import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useTranslation, Trans } from "react-i18next";
 import { useAuth } from "@/contexts/AuthContext";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import Logo from "@/components/Logo";
 import { toast } from "sonner";
 
+const REF_STORAGE_KEY = "sharago_pending_ref";
+const REF_SOURCE_KEY = "sharago_pending_ref_source";
+
 export default function RegisterPage() {
   const { t } = useTranslation();
   const { register } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [form, setForm] = useState({ name: "", email: "", password: "", location: "" });
   const [acceptTos, setAcceptTos] = useState(false);
   const [acceptMarketing, setAcceptMarketing] = useState(false);
   const [busy, setBusy] = useState(false);
+  // Iter 47: capture ?ref= (and utm_source) into localStorage so a user who
+  // clicks the referral link but registers later still credits the inviter.
+  const [refCode, setRefCode] = useState(null);
+  const [refSource, setRefSource] = useState(null);
+
+  useEffect(() => {
+    const urlRef = (searchParams.get("ref") || "").trim().toUpperCase();
+    const urlSrc = (searchParams.get("utm_source") || searchParams.get("source") || "").trim().toLowerCase();
+    if (urlRef) {
+      try { localStorage.setItem(REF_STORAGE_KEY, urlRef); } catch (_) { /* ignore */ }
+      if (urlSrc) { try { localStorage.setItem(REF_SOURCE_KEY, urlSrc); } catch (_) { /* ignore */ } }
+      // Best-effort click tracking (does not block registration flow).
+      import("@/lib/api").then(({ default: api }) =>
+        api.post("/referral/track", { referral_code: urlRef, source: urlSrc || "unknown" }).catch(() => {})
+      );
+    }
+    let stored = null;
+    try { stored = localStorage.getItem(REF_STORAGE_KEY); } catch (_) { /* ignore */ }
+    if (stored) {
+      setRefCode(stored);
+      try { setRefSource(localStorage.getItem(REF_SOURCE_KEY)); } catch (_) { /* ignore */ }
+    }
+  }, [searchParams]);
 
   const submit = async (e) => {
     e.preventDefault();
@@ -23,7 +50,17 @@ export default function RegisterPage() {
     }
     setBusy(true);
     try {
-      await register({ ...form, accept_tos: true, accept_marketing: acceptMarketing, language: localStorage.getItem("sharago_lang") || "pl" });
+      await register({
+        ...form,
+        accept_tos: true,
+        accept_marketing: acceptMarketing,
+        language: localStorage.getItem("sharago_lang") || "pl",
+        referral_code: refCode || undefined,
+        referral_source: refSource || undefined,
+      });
+      // Cleanup pending ref so a future re-registration on the same device
+      // doesn't double-credit anyone.
+      try { localStorage.removeItem(REF_STORAGE_KEY); localStorage.removeItem(REF_SOURCE_KEY); } catch (_) { /* ignore */ }
       toast.success(t("common.success"));
       navigate("/onboarding");
     } catch (err) {
@@ -55,6 +92,23 @@ export default function RegisterPage() {
             <h1 className="vehiq-display text-3xl text-vehiq-text">{t("auth.registerTitle")}</h1>
             <p className="text-sm text-vehiq-muted mt-1">{t("auth.registerSubtitle")}</p>
           </div>
+
+          {refCode && (
+            <div
+              className="mb-6 rounded-md border border-vehiq-gold/40 bg-vehiq-gold/10 px-4 py-3 text-sm text-vehiq-text"
+              data-testid="register-referral-notice"
+            >
+              <div className="font-medium text-vehiq-gold mb-0.5">
+                {t("referral.inviteNoticeTitle", { defaultValue: "Dołączasz przez zaproszenie" })}
+              </div>
+              <div className="text-vehiq-muted text-xs">
+                {t("referral.inviteNoticeBody", {
+                  code: refCode,
+                  defaultValue: "Kod {{code}} — dołączasz do programu Founding 100.",
+                })}
+              </div>
+            </div>
+          )}
 
           <form onSubmit={submit} className="space-y-4">
             <div>

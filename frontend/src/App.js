@@ -61,6 +61,8 @@ import AdminSecurity from "@/pages/admin/AdminSecurity";
 import AdminApiKeys from "@/pages/admin/AdminApiKeys";
 import AdminAnalytics from "@/pages/admin/AdminAnalytics";
 import AdminBlog from "@/pages/admin/AdminBlog";
+import AdminFoundingMembers from "@/pages/admin/AdminFoundingMembers";
+import AdminReferrals from "@/pages/admin/AdminReferrals";
 
 import api from "@/lib/api";
 import { useTranslation } from "react-i18next";
@@ -170,6 +172,8 @@ function App() {
             <Route path="api-keys" element={<AdminApiKeys />} />
             <Route path="analytics" element={<AdminAnalytics />} />
             <Route path="blog" element={<AdminBlog />} />
+            <Route path="founding" element={<AdminFoundingMembers />} />
+            <Route path="referrals" element={<AdminReferrals />} />
           </Route>
 
           {/* Authenticated app */}

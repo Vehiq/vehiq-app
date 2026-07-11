@@ -750,5 +750,29 @@
     "newPassword": "New password",
     "confirmPassword": "Confirm password",
     "currentPassword": "Current password"
+  },
+  "referral": {
+    "title": "Zaproś znajomych i wygraj bilety na Regenwald",
+    "subtitle": "Każdy znajomy, który zarejestruje się przez Twój link i doda pojazd, daje Ci dodatkowy los w konkursie.",
+    "copy": "Kopiuj",
+    "copied": "Skopiowano!",
+    "share": "Udostępnij",
+    "shareTitle": "Dołącz do Sharago",
+    "shareText": "Zbuduj swój wirtualny garaż na Sharago — używam tego i polecam.",
+    "inviteNoticeTitle": "Dołączasz przez zaproszenie",
+    "inviteNoticeBody": "Kod {{code}} — dołączasz do programu Founding 100.",
+    "stats": {
+      "invited": "Zaproszonych",
+      "qualified": "Zakwalifikowanych",
+      "tickets": "Twoje losy"
+    }
+  },
+  "founding": {
+    "title": "Founding Member",
+    "subtitle": "Jesteś jednym z pierwszych 100 użytkowników Sharago — dziękujemy!",
+    "counterLabel": "miejsc pozostało ze 100",
+    "open": "Program otwarty",
+    "full": "Program zamknięty",
+    "blurb": "Zarejestruj się jako jeden z pierwszych 100 użytkowników i weź udział w losowaniu biletów na Regenwald. Dodanie pojazdu = potwierdzenie miejsca."
   }
 }

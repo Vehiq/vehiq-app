@@ -471,6 +471,13 @@ async def create_vehicle(payload: VehicleIn, user=Depends(get_current_user)):
     await db.vehicles.insert_one(doc)
     doc.pop("_id", None)
     doc["cover_photo"] = _photo_full(photos[doc.get("cover_photo_index") or 0]) if photos else None
+    # Iter 47: qualify referral (if inviter) + award Founding Member (first
+    # vehicle only). Both are idempotent — safe on subsequent creates.
+    from routers.referral import qualify_referral_and_founding
+    try:
+        await qualify_referral_and_founding(db, user["id"])
+    except Exception as exc:
+        logger.warning("qualify_referral_and_founding failed for user=%s: %s", user["id"], exc)
     from activity import log_activity
     await log_activity(user["id"], "vehicle.create", "vehicle", v_id, f"{doc.get('make')} {doc.get('model')}")
     return doc

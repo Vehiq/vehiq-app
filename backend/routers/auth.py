@@ -36,6 +36,10 @@ class RegisterIn(BaseModel):
     language: str = "pl"
     accept_tos: bool = True
     accept_marketing: bool = False
+    # Iter 47: optional referral code passed from the register form (captured
+    # by frontend from ?ref= URL or localStorage cookie).
+    referral_code: Optional[str] = Field(default=None, max_length=12)
+    referral_source: Optional[str] = Field(default=None, max_length=32)
 
 
 class LoginIn(BaseModel):
@@ -87,6 +91,11 @@ def _public_user(u: dict) -> dict:
         "units": u.get("units") or {"distance": "km", "currency": "PLN"},
         "is_demo": bool(u.get("is_demo", False)),
         "plan": u.get("plan") or ("premium" if u.get("is_demo") else "free"),
+        # Iter 47: referral + founding member surface for the profile UI.
+        "referral_code": u.get("referral_code"),
+        "referral_count": int(u.get("referral_count") or 0),
+        "is_founding_member": bool(u.get("is_founding_member", False)),
+        "founding_member_number": u.get("founding_member_number"),
     }
 
 
@@ -144,6 +153,12 @@ async def register(payload: RegisterIn):
         "last_active": datetime.now(timezone.utc).isoformat(),
     }
     await db.profiles.insert_one(user)
+    # Iter 47: assign referral_code + link to inviter (if ?ref= present).
+    from routers.referral import attach_referral_code_to_new_user, link_referral_on_signup
+    user["referral_code"] = await attach_referral_code_to_new_user(db, user_id)
+    if payload.referral_code:
+        await link_referral_on_signup(db, user_id, payload.referral_code, payload.referral_source)
+        user["referred_by"] = payload.referral_code.strip().upper()
     # Welcome email (non-blocking)
     subject, html = tpl_welcome(user["name"], user.get("language", "pl"))
     fire_and_forget(send_email(user["email"], subject, html))
@@ -449,6 +464,12 @@ async def google_callback(code: Optional[str] = None, state: Optional[str] = Non
             "last_active": datetime.now(timezone.utc).isoformat(),
         }
         await db.profiles.insert_one(user)
+        # Iter 47: assign referral_code on OAuth-created accounts. Referral
+        # linking via OAuth would require passing ?ref= through the state
+        # param — deferred to Iter 48. New Google users get their own code so
+        # they can invite others immediately.
+        from routers.referral import attach_referral_code_to_new_user
+        user["referral_code"] = await attach_referral_code_to_new_user(db, user_id)
 
     token = create_access_token({"sub": user["id"], "type": "user"})
     target = _frontend_url()

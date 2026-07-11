@@ -141,6 +141,10 @@ async def _build_card(db, p: dict, viewer_is_owner: bool) -> dict:
             "location": p.get("location") if (viewer_is_owner or privacy.get("profile_public", True)) else None,
             "created_at": p.get("created_at"),
             "last_active": p.get("last_active"),
+            # Iter 47: Founding Member badge — always public (it's a status,
+            # not private data). Nothing else in the referral system leaks.
+            "is_founding_member": bool(p.get("is_founding_member", False)),
+            "founding_member_number": p.get("founding_member_number"),
         },
         "vehicle_count": len(public_vehicles),
         "total_km_driven": total_km,
