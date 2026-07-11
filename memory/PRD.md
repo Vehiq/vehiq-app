@@ -1457,3 +1457,103 @@ Ponadto usunięto flagowany minor: base64 leak w `owner.avatar` w
 - 🟡 R2 multipart upload endpoint dla listings
 - 🟡 User-facing base64→R2 migration button
 - 🔴 Stripe / GPS / Push / Project Mode / Facebook OAuth
+
+---
+
+## Iter 47 — Referral / Founding 100 / Admin Dashboard (2026-07-11)
+
+### Zakres (Faza A + B + F z prompt-u użytkownika)
+Kompletny system poleceń, program Founding 100, dashboard admina z nowymi
+metrykami, licznik Founding na landing page, UTM-tagged linki polecające.
+
+### Wybory użytkownika
+- Kolekcja użytkowników: **profiles** (istniejąca)
+- Kod polecający: **6 znaków A-Z0-9** (36^6 ≈ 2.2 mld kombinacji)
+- Kwalifikacja polecenia: **dodanie pierwszego pojazdu**
+- Limit Founding 100: **miękki** (przydzielamy #N > 100, `is_full` flaga tylko w API)
+- Kanały UTM: **facebook, tiktok, instagram, whatsapp, email, friend**
+
+### Backend
+
+**Nowy router** `/app/backend/routers/referral.py`:
+- `POST /api/referral/track` — best-effort click tracking (silent-ok dla nieprawidłowych kodów, anty-enumeracja)
+- `GET /api/referral/my-code` — auth; zwraca `{referral_code, referral_url}`
+- `GET /api/referral/stats` — auth; zwraca `{referral_code, total, qualified, contest_tickets=1+qualified, is_founding_member, founding_member_number}`
+- `GET /api/community/founding-count` — publiczny (bez auth); `{registered, remaining, cap=100, is_full}`
+- `GET /api/admin/founding-members` — admin; posortowane po numer, z metadanymi (kod, referral_count, awarded_at)
+- `GET /api/admin/referrals?qualified_only|pending_only` — admin; ranking (agregacja) + flat lista
+- `GET /api/admin/dashboard/stats` — admin; `{total_users, total_vehicles, founding_members, founding_cap, active_listings, total_referrals, qualified_referrals}`
+
+**Pola dodane do `profiles`** (na fly, bez migracji — nullable defaults):
+- `referral_code: str` (unikalny, generowany przy rejestracji + backfill dla starych userów)
+- `referred_by: str?` (kod polecającego)
+- `referral_count: int = 0` (zakwalifikowane polecenia)
+- `is_founding_member: bool` (`True` po dodaniu pierwszego pojazdu)
+- `founding_member_number: int?` (sekwencyjny rank)
+- `founding_awarded_at: iso?`
+
+**Nowe kolekcje**:
+- `referrals` — `{id, referrer_id, referred_id, referral_code, source, qualified, qualified_at, created_at}` (dedup per referred_id)
+- `referral_clicks` — soft click tracking przed rejestracją
+
+**Hook w `POST /api/vehicles`**:
+`qualify_referral_and_founding(db, user_id)` — atomic write z `$ne: True`
+guard. **KRYTYCZNY BUG naprawiony**: projection zwracająca puste dict `{}`
+było falsy w Pythonie → cichy skip. Teraz single atomic update.
+Idempotentne — drugi/trzeci pojazd nie re-awarduje.
+
+**Auth register**: `RegisterIn` przyjmuje opcjonalne `referral_code` +
+`referral_source`. OAuth (Google) też dostaje własny kod (bez linkowania —
+przekazanie ?ref= przez state param odłożone do Iter 48).
+
+**`_public_user`** zwraca: `referral_code, referral_count, is_founding_member,
+founding_member_number`.
+
+**`/api/users/{slug}`** — `card.user` teraz też zawiera
+`is_founding_member + founding_member_number` (badge public).
+
+### Frontend
+
+**Nowe komponenty**:
+- `ReferralSection.js` — widget w Profile: 6 przycisków kanałów UTM, link
+  z auto-updatującymi się UTM tagami, Copy + Share (Web Share API fallback),
+  3 karty statystyk, badge Founding Member gdy właściciel jest FM.
+- `FoundingCounter.js` — publiczny licznik na Landing (poniżej CTA), progress
+  bar, status "PROGRAM OTWARTY/ZAMKNIĘTY", blurb marketingowy.
+- `FoundingMemberBadge.js` — compact chip (na kartach) i stacked variant.
+
+**Rejestracja z `?ref=`**:
+- Odczytuje `ref` + `utm_source` z URL, zapisuje w localStorage
+  (`sharago_pending_ref`, `sharago_pending_ref_source`).
+- Wysyła POST `/api/referral/track` best-effort (bez blokowania).
+- Pokazuje notice `[data-testid=register-referral-notice]` z kodem.
+- Cleanup localStorage po pomyślnej rejestracji.
+
+**Admin panel** (`/gv91-admin`):
+- Nowe wpisy sidebara: **Founding 100** i **Referrals** między Marketplace a Forum.
+- `AdminFoundingMembers.js` — tabela FM + progress bar + Export CSV.
+- `AdminReferrals.js` — ranking + flat lista z filtrami all/qualified/pending.
+- `AdminDashboard.js` — nowa karta `Founding Members X/100`, karta
+  `Referrals total`, oraz oddzielny progress bar Founding 100.
+
+### Testy
+Testing agent v3 (`/app/test_reports/iteration_22.json`): **100% PASS**
+- Backend: 13/13 pytest tests
+- Frontend UI: 5/5 flows (landing counter, /register?ref=, ReferralSection,
+  founding badge, admin panels)
+- Regression Iter 45/46: OK
+
+### Nierozstrzygnięte (do przyszłych iteracji)
+- 🟡 Race condition w rank Founding Member przy równoczesnym create_vehicle
+  dwóch nowych userów (można dostać ten sam #N; przy trafiku < 100/s bez znaczenia).
+  Docelowa naprawa: atomic counter doc via findAndModify.
+- 🟡 Admin AdminLayout nie egzekwuje change-password guard — token bypass
+  możliwy jeśli ktoś wstrzyknie localStorage.sharago_admin_token bez zmiany hasła.
+- 🟡 FoundingCounter status "Program otwarty" → CSS uppercase (nie hard-uppercase w źródle).
+
+### Do następnej iteracji (Fazy C, D, E z pierwotnego prompt-u)
+- 🟡 Bug 15 — P&L nie widoczne w profilu pojazdu (diagnoza + naprawa)
+- 🟡 Monitoring paliwa (nowa zakładka Paliwo, kolekcja fuel_logs, stats)
+- 🟡 Audyt admina (Users/Vehicles/Blog/Settings) + System Health widget +
+  `/api/admin/health` (Mongo/R2/Brevo ping)
+- 🟡 OAuth Google: przekazać `?ref=` przez state param

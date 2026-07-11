@@ -46,14 +46,22 @@ CODE_ALPHABET = string.ascii_uppercase + string.digits  # 36 chars → 36^6 ≈ 
 # ---------------- helpers ----------------
 
 async def _generate_unique_code(db) -> str:
-    """6-char A-Z0-9 code, retried until unique. Collision rate ~1/2B."""
+    """6-char A-Z0-9 code, retried until unique. Collision rate ~1/2B on the
+    happy path; if we somehow burn all 12 attempts the fallback probes db too
+    (defence in depth vs. the astronomically unlikely case that the RNG is
+    stuck or the collection is enormous)."""
     for _ in range(12):
         code = "".join(secrets.choice(CODE_ALPHABET) for _ in range(6))
         exists = await db.profiles.find_one({"referral_code": code}, {"_id": 0, "id": 1})
         if not exists:
             return code
-    # Astronomically unlikely — fall back to timestamp-based unique code.
-    return f"F{secrets.token_hex(3).upper()[:5]}"
+    # Fallback: prefix 'F' + 5 hex chars, then verify. Retry a few times.
+    for _ in range(6):
+        code = f"F{secrets.token_hex(3).upper()[:5]}"
+        exists = await db.profiles.find_one({"referral_code": code}, {"_id": 0, "id": 1})
+        if not exists:
+            return code
+    raise RuntimeError("Could not generate a unique referral code — DB may be corrupt.")
 
 
 async def ensure_referral_code(db, user: dict) -> str:
