@@ -1,0 +1,23 @@
+{
+  "summary": "Iter 49 end-to-end verified. Backend timeline aggregator + Project CRUD + fuel_logs schema all functional (9/9 pytest). Frontend: Landing page has new PL/EN copy, Founding 100 section w/ Darłówko prize + CTA to /register, HOW-IT-WORKS removed. Vehicle profile tabs collapsed to Przegląd / Historia / Projekt / AI Mechanik (Serwis + Przebieg removed). History tab + all 5 filter chips render. Project tab renders budget card, progress bar, add form; item create → grouped list works; delete works.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_iter49.py",
+    "/app/test_reports/pytest/iter49.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Dead code: /app/frontend/src/pages/vehicle-tabs/MileageTab.js and ServiceTab.js are still on disk but no longer imported — safe to delete in a cleanup pass.",
+    "timeline.py sorts events by ISO date string reverse; works only because dates are stored in canonical ISO format. If any legacy row has a non-ISO date, sort order will drift. Consider defensive parse.",
+    "update_project_item filters `v is not None or k in ('description',)` — description=null is allowed to clear the field, but budget/actual_cost=null cannot clear once set. Fine for now, worth documenting."
+  ],
+  "updated_files": ["/app/backend/tests/test_iter49.py"],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "test_credentials": "smoke-test-vehiq@example.com / SmokePass123! (vehicle f9d17048-... 'Test Public' 2020)",
+  "seed_data_creation": "Backend tests use TEST_ prefixed titles for project items (auto-deleted) and TEST_ fuel logs (auto-deleted). Frontend Playwright created 'TEST_UI_iter49' item and cleaned up via DELETE.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Iter 49 fully signed off. Rate limits still active (login 5/min per IP) — batch test runs and sleep 65s between bursts. AuthContext stores JWT under localStorage['sharago_token'] (not 'token' / 'access_token'). Login API returns {token, user}, not {access_token}. Landing language toggle uses [data-testid='landing-lang-toggle']; setting localStorage.i18nextLng alone does not always re-render — click the toggle button. To reach a real vehicle, GET /api/vehicles (the sidebar '+' link /garage/new is a create route, skip it). Fuel UI still deferred to Iter 50.",
+  "rca of the issue": "N/A — no bugs found."
+}

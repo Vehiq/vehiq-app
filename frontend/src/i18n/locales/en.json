@@ -228,6 +228,8 @@
     "project": "Project",
     "tabs": {
       "overview": "Overview",
+      "history": "History",
+      "project": "Project",
       "service": "Service",
       "mileage": "Mileage",
       "pl": "P&L",

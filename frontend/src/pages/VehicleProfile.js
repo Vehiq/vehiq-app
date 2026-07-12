@@ -7,16 +7,16 @@ import { ArrowLeft, Trash2, Edit2, Share2, Eye, EyeOff, Check, Copy, Tag, CheckC
 import VehicleForm from "@/components/VehicleForm";
 import PrintQrDialog from "@/components/PrintQrDialog";
 import OverviewTab from "./vehicle-tabs/OverviewTab";
-import ServiceTab from "./vehicle-tabs/ServiceTab";
-import MileageTab from "./vehicle-tabs/MileageTab";
+import HistoryTab from "./vehicle-tabs/HistoryTab";
+import ProjectTab from "./vehicle-tabs/ProjectTab";
 import PLTab from "./vehicle-tabs/PLTab";
 import AITab from "./vehicle-tabs/AITab";
 import Confetti from "@/components/Confetti";
 
 const TABS = [
   { id: "overview", key: "vehicle.tabs.overview" },
-  { id: "service", key: "vehicle.tabs.service" },
-  { id: "mileage", key: "vehicle.tabs.mileage" },
+  { id: "history", key: "vehicle.tabs.history" },
+  { id: "project", key: "vehicle.tabs.project" },
   { id: "pl", key: "vehicle.tabs.pl" },
   { id: "ai", key: "vehicle.tabs.ai" },
 ];
@@ -195,8 +195,8 @@ export default function VehicleProfile() {
 
       <div>
         {tab === "overview" && <OverviewTab vehicle={vehicle} reload={reload} />}
-        {tab === "service" && <ServiceTab vehicle={vehicle} />}
-        {tab === "mileage" && <MileageTab vehicle={vehicle} />}
+        {tab === "history" && <HistoryTab vehicle={vehicle} />}
+        {tab === "project" && <ProjectTab vehicle={vehicle} />}
         {tab === "pl" && <PLTab vehicle={vehicle} />}
         {tab === "ai" && <AITab vehicle={vehicle} />}
       </div>

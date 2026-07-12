@@ -92,6 +92,7 @@ from routers import swaps as swaps_router
 from routers import referral as referral_router
 from routers import gdpr as gdpr_router
 from routers import admin_security as admin_security_router
+from routers import timeline as timeline_router
 from routers import demo as demo_router
 from seed import seed_database
 
@@ -299,6 +300,7 @@ api_router.include_router(referral_router.admin_referral_router)
 api_router.include_router(gdpr_router.router)
 api_router.include_router(admin_security_router.router)
 api_router.include_router(admin_security_router.health_router)
+api_router.include_router(timeline_router.router)
 
 app.include_router(api_router)
 

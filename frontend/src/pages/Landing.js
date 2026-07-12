@@ -94,21 +94,19 @@ export default function Landing() {
 
   const tx = {
     pl: {
-      heroH1: "Samochodowy Facebook. Twoje auto wreszcie ma swoje miejsce w sieci.",
-      heroSub: "A Ty — jakie auto skrywasz w garażu?",
+      heroH1: "Nadszedł czas oddzielić motoryzację od chaosu.",
+      heroSub: "Uporządkuj swoje pojazdy. Twoje auto wreszcie ma swoje miejsce w sieci.",
+      heroJoin: "Dołącz do pierwszych 100 kierowców którzy budują Sharago razem z nami.",
       tryDemo: "Zobacz demo",
       register: "Wypróbuj za darmo",
       login: "Zaloguj się",
       featuresTitle: "Wszystko czego potrzebujesz",
       featuresSub: "Sharago łączy najważniejsze narzędzia dla każdego właściciela auta.",
-      howTitle: "Zacznij w 3 minuty",
-      howSub: "Trzy proste kroki — gotowe szybciej niż kawa.",
-      step1Title: "Stwórz profil auta",
-      step1Desc: "Twoje auto wreszcie ma swoje miejsce w sieci. Dodaj zdjęcia i podstawowe dane — gotowe w 30 sekund.",
-      step2Title: "Prowadź historię",
-      step2Desc: "Każda naprawa, każdy przegląd, każdy wydatek — zapisany i zawsze pod ręką. Koniec z szufladą pełną paragonów.",
-      step3Title: "Wynajmij lub sprzedaj",
-      step3Desc: "Jeden klik i Twoje auto trafia na giełdę. Bez pośredników, bez prowizji, bez czekania.",
+      foundingTitle: "Pierwsi. Zawsze.",
+      foundingText: "Sharago jest budowane przez kierowców dla kierowców. Szukamy pierwszych 100 osób które chcą nie tylko korzystać z platformy — ale ją współtworzyć.",
+      foundingPrize: "🏆 Nagroda główna: Tydzień w Darłówku nad Bałtykiem — 7 nocy w prywatnym apartamencie dla 4 osób. Przyjeżdżacie swoimi autami!",
+      foundingSub: "Dodanie pojazdu = potwierdzenie miejsca w konkursie. Losowanie po zebraniu 100 uczestników — nagroda do zrealizowania w terminie uzgodnionym z laureatem.",
+      foundingCta: "Chcę być jednym z pierwszych →",
       ctaTitle: "Nie musisz się rejestrować żeby sprawdzić Sharago",
       ctaBtn: "Wypróbuj demo teraz",
       ctaSub: "Pełny dostęp do wszystkich funkcji. Bez karty kredytowej. Dane czyszczone po 24h.",
@@ -119,21 +117,19 @@ export default function Landing() {
       legalCont: "Kontakt",
     },
     en: {
-      heroH1: "Facebook for cars. Your vehicle finally has its place online.",
-      heroSub: "And you — what's parked in your garage?",
+      heroH1: "Time to separate your cars from the noise.",
+      heroSub: "Organise your vehicles. Your car finally has its place online.",
+      heroJoin: "Join the first 100 drivers building Sharago together with us.",
       tryDemo: "See the demo",
       register: "Try for free",
       login: "Sign in",
       featuresTitle: "Everything you need",
-      featuresSub: "Sharago combines the essentials for every car owner.",
-      howTitle: "Get started in 3 minutes",
-      howSub: "Three simple steps — done faster than your coffee.",
-      step1Title: "Create your car profile",
-      step1Desc: "Your car finally has a home online. Add photos and basic specs — ready in 30 seconds.",
-      step2Title: "Track its history",
-      step2Desc: "Every repair, every inspection, every cost — logged and always at hand. No more drawers full of receipts.",
-      step3Title: "Rent or sell",
-      step3Desc: "One click and your car hits the marketplace. No middlemen, no commission, no waiting.",
+      featuresSub: "Sharago combines the essential tools for every car owner.",
+      foundingTitle: "First. Always.",
+      foundingText: "Sharago is built by drivers, for drivers. We are looking for the first 100 people who want not just to use the platform — but to build it together with us.",
+      foundingPrize: "🏆 Main prize: A week in Darłówko on the Baltic Sea — 7 nights in a private apartment for 4 people. Come by car!",
+      foundingSub: "Adding a vehicle = confirming your spot in the contest. Draw after 100 participants — prize to be arranged with the winner.",
+      foundingCta: "I want to be one of the first →",
       ctaTitle: "You don't need to register to try Sharago",
       ctaBtn: "Try the demo now",
       ctaSub: "Full access to every feature. No credit card. Data wiped after 24h.",
@@ -172,8 +168,11 @@ export default function Landing() {
           <h1 className="text-4xl sm:text-5xl lg:text-6xl font-semibold leading-tight mb-6">
             {tx.heroH1}
           </h1>
-          <p className="text-base sm:text-lg text-vehiq-muted max-w-2xl mx-auto mb-10 leading-relaxed">
+          <p className="text-base sm:text-lg text-vehiq-muted max-w-2xl mx-auto mb-4 leading-relaxed">
             {tx.heroSub}
+          </p>
+          <p className="text-sm sm:text-base text-vehiq-gold/90 max-w-2xl mx-auto mb-10 leading-relaxed">
+            {tx.heroJoin}
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
             <Link
@@ -230,34 +229,33 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* HOW IT WORKS */}
-      <section className="max-w-6xl mx-auto px-6 py-20">
-        <div className="text-center mb-12">
-          <h2 className="text-2xl sm:text-3xl font-semibold mb-3">{tx.howTitle}</h2>
-          <p className="text-vehiq-muted">{tx.howSub}</p>
+      {/* FOUNDING 100 — replaces the old HOW IT WORKS section (Iter 49) */}
+      <section className="max-w-4xl mx-auto px-6 py-20" data-testid="landing-founding-section">
+        <div className="text-center mb-10">
+          <h2 className="text-3xl sm:text-4xl font-semibold mb-4 text-vehiq-text">{tx.foundingTitle}</h2>
+          <p className="text-base text-vehiq-muted leading-relaxed max-w-2xl mx-auto">{tx.foundingText}</p>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-          {[
-            { n: "1", t: tx.step1Title, d: tx.step1Desc },
-            { n: "2", t: tx.step2Title, d: tx.step2Desc },
-            { n: "3", t: tx.step3Title, d: tx.step3Desc },
-          ].map((s, i, arr) => (
-            <div key={s.n} className="relative">
-              <div className="bg-vehiq-nav border border-vehiq-border rounded-lg p-6">
-                <div className="h-9 w-9 rounded-full bg-[#2B7FE8] text-white font-semibold flex items-center justify-center mb-4">
-                  {s.n}
-                </div>
-                <h3 className="font-medium text-lg mb-1.5">{s.t}</h3>
-                <p className="text-sm text-vehiq-muted leading-relaxed">{s.d}</p>
-              </div>
-              {i < arr.length - 1 && (
-                <ChevronRight
-                  size={20}
-                  className="hidden md:block absolute top-1/2 -right-3 -translate-y-1/2 text-vehiq-muted/60"
-                />
-              )}
-            </div>
-          ))}
+
+        <div
+          className="rounded-xl border border-vehiq-gold/30 bg-vehiq-gold/5 p-6 sm:p-8 mb-8"
+          data-testid="landing-founding-prize"
+        >
+          <p className="text-vehiq-gold text-base sm:text-lg font-medium mb-3 leading-relaxed">
+            {tx.foundingPrize}
+          </p>
+          <p className="text-xs sm:text-sm text-vehiq-muted leading-relaxed">
+            {tx.foundingSub}
+          </p>
+        </div>
+
+        <div className="text-center">
+          <Link
+            to="/register"
+            data-testid="landing-founding-cta"
+            className="inline-flex items-center gap-2 px-8 py-3.5 rounded-md bg-vehiq-gold text-vehiq-bg font-semibold hover:bg-vehiq-gold/90 transition-colors"
+          >
+            {tx.foundingCta}
+          </Link>
         </div>
       </section>
 
