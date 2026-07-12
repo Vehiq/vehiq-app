@@ -231,7 +231,16 @@ async def login(payload: LoginIn, request: Request):
     _client_ip = (request.headers.get("x-forwarded-for", "").split(",")[0].strip()
                   or (request.client.host if request.client else ""))
 
-    user = await db.profiles.find_one({"email": payload.email.lower()})
+    user = await db.profiles.find_one({
+        "$or": [
+            {"email": payload.email.lower()},
+            # Iter 48 fix: soft-deleted accounts have `email` overwritten with
+            # a random placeholder and the original stored in `deleted_email`.
+            # Match on that too so the 410 branch below can fire correctly
+            # (instead of returning 401 as if the account never existed).
+            {"deleted_email": payload.email.lower(), "deleted_at": {"$ne": None}},
+        ]
+    })
     if not user or not verify_password(payload.password, user.get("password_hash") or ""):
         await record_failed_login(db, _client_ip, email=payload.email)
         raise HTTPException(status_code=401, detail="Invalid email or password")

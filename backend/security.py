@@ -115,20 +115,59 @@ async def log_security_event(
 
 
 async def is_ip_blocked(db, ip: str) -> bool:
-    """True if IP has an active auto-block record."""
+    """True if IP has an active auto-block record.
+
+    Iter 48 code-review: in-process LRU-ish cache to keep the hot path off
+    Mongo. TTL is short (30s) so unblocks propagate quickly. Cache stores
+    both hits and misses because "not blocked" is the 99.9% case.
+    """
     if not ip or db is None:
         return False
+    now = datetime.now(timezone.utc)
+    cached = _IP_BLOCK_CACHE.get(ip)
+    if cached is not None:
+        cached_until, checked_at = cached
+        if (now - checked_at).total_seconds() < _IP_BLOCK_CACHE_TTL_S:
+            return cached_until is not None and now < cached_until
     doc = await db.ip_blocks.find_one({"ip_address": ip})
     if not doc:
+        _IP_BLOCK_CACHE[ip] = (None, now)
         return False
     until = doc.get("blocked_until")
     if not until:
+        _IP_BLOCK_CACHE[ip] = (None, now)
         return False
     try:
         until_dt = datetime.fromisoformat(until.replace("Z", "+00:00")) if isinstance(until, str) else until
-        return datetime.now(timezone.utc) < until_dt
+        _IP_BLOCK_CACHE[ip] = (until_dt, now)
+        return now < until_dt
     except Exception:
         return True  # fail closed on parse errors
+
+
+# In-process cache: {ip: (blocked_until_dt_or_None, checked_at_dt)}.
+# Kept simple — max size cap prevents unbounded growth if we get scraped.
+_IP_BLOCK_CACHE: dict[str, tuple] = {}
+_IP_BLOCK_CACHE_TTL_S = 30
+_IP_BLOCK_CACHE_MAX = 5000
+
+
+def _cache_prune():
+    if len(_IP_BLOCK_CACHE) > _IP_BLOCK_CACHE_MAX:
+        # Drop the oldest 20% (rough sort by checked_at).
+        items = sorted(_IP_BLOCK_CACHE.items(), key=lambda kv: kv[1][1])
+        drop = len(items) // 5
+        for k, _ in items[:drop]:
+            _IP_BLOCK_CACHE.pop(k, None)
+
+
+def invalidate_ip_block_cache(ip: str = None):
+    """Called by admin_security router after block/unblock so the next
+    request sees the fresh state without waiting for TTL expiry."""
+    if ip is None:
+        _IP_BLOCK_CACHE.clear()
+    else:
+        _IP_BLOCK_CACHE.pop(ip, None)
 
 
 async def record_failed_login(db, ip: str, email: Optional[str] = None):
@@ -160,6 +199,9 @@ async def record_failed_login(db, ip: str, email: Optional[str] = None):
             }},
             upsert=True,
         )
+        # Iter 48: invalidate cache so the next request from this IP sees
+        # the block immediately (otherwise ≤30s of unblocked traffic).
+        invalidate_ip_block_cache(ip)
         await log_security_event(db, EVENT_IP_BLOCKED, ip_address=ip,
                                  details={"fails": fails, "until": blocked_until})
 

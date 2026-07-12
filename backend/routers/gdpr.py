@@ -129,6 +129,7 @@ async def delete_account(payload: DeleteAccountIn, request: Request, user=Depend
 
     now_iso = datetime.now(timezone.utc).isoformat()
     original_email = full.get("email")
+    original_name = full.get("name")
     anon_email = f"deleted-{user['id'][:8]}@removed.sharago"
 
     await db.profiles.update_one(
@@ -136,6 +137,10 @@ async def delete_account(payload: DeleteAccountIn, request: Request, user=Depend
         {"$set": {
             "deleted_at": now_iso,
             "deleted_email": original_email,
+            # Iter 48 fix: persist original name for symmetric restore in
+            # undelete_account (previously overwritten with '[usunięte]' and
+            # never recoverable).
+            "deleted_name": original_name,
             "email": anon_email,
             "name": "[usunięte]",
             "bio": None,
@@ -191,14 +196,21 @@ async def undelete_account(payload: DeleteAccountIn, request: Request):
     if not verify_password(payload.password, full.get("password_hash") or ""):
         raise HTTPException(status_code=401, detail="Password incorrect")
 
-    # Restore original identifiers.
+    # Restore original identifiers. Prefer preserved `deleted_name`; fall
+    # back to the email prefix only for legacy soft-deletes that predate the
+    # deleted_name field.
+    restored_name = full.get("deleted_name") or (full.get("deleted_email") or email).split("@")[0]
     await db.profiles.update_one(
         {"id": full["id"]},
-        {"$set": {"email": email, "name": full.get("deleted_email", email).split("@")[0]},
-         "$unset": {"deleted_at": "", "deleted_email": ""}},
+        {"$set": {"email": email, "name": restored_name},
+         "$unset": {"deleted_at": "", "deleted_email": "", "deleted_name": ""}},
     )
     await db.listings.update_many({"user_id": full["id"], "status": "archived"}, {"$set": {"status": "active"}})
     await db.vehicles.update_many({"user_id": full["id"], "status": "archived"}, {"$set": {"status": "active"}})
+    # Iter 48 fix: symmetric restore of swap_listings (delete_account sets
+    # active=False; undelete must flip them back or the user's swap deck
+    # entries stay hidden forever).
+    await db.swap_listings.update_many({"user_id": full["id"], "active": False}, {"$set": {"active": True}})
 
     ip = (request.headers.get("x-forwarded-for", "").split(",")[0].strip()
           or (request.client.host if request.client else ""))

@@ -451,6 +451,19 @@ async def on_startup():
             ("service_entries",  [("vehicle_id", 1), ("date", -1)], {}),
             ("swap_listings",    [("active", 1), ("created_at", -1)], {}),
             ("swap_interactions",[("from_user_id", 1), ("to_vehicle_id", 1)], {}),
+            # Iter 48: security & rate-limit hot paths. record_failed_login
+            # scans security_logs by ip+event+timestamp on every login miss
+            # → this index turns the scan into a bounded index range read.
+            ("security_logs",    [("event_type", 1), ("ip_address", 1), ("timestamp", -1)], {}),
+            ("security_logs",    [("timestamp", -1)], {}),
+            ("ip_blocks",        [("ip_address", 1)], {"unique": True}),
+            ("ip_blocks",        [("blocked_until", 1)], {}),
+            # Iter 48: soft-delete lookup on login (`$or: email OR deleted_email`).
+            ("profiles",         [("deleted_email", 1)], {"sparse": True}),
+            # Iter 47: referral hot paths.
+            ("referrals",        [("referrer_id", 1), ("qualified", 1)], {}),
+            ("referrals",        [("referred_id", 1)], {"unique": True, "sparse": True}),
+            ("profiles",         [("referral_code", 1)], {"sparse": True, "unique": True}),
         ]:
             coll, keys, opts = spec
             try:

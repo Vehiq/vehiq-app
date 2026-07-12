@@ -1557,3 +1557,117 @@ Testing agent v3 (`/app/test_reports/iteration_22.json`): **100% PASS**
 - 🟡 Audyt admina (Users/Vehicles/Blog/Settings) + System Health widget +
   `/api/admin/health` (Mongo/R2/Brevo ping)
 - 🟡 OAuth Google: przekazać `?ref=` przez state param
+
+---
+
+## Iter 48 — Security & GDPR (2026-07-11/12)
+
+### Zakres (Fazy A + B z prompt-u użytkownika)
+Ownership audit + rate limiting + security headers + IP block +
+GDPR (eksport + soft-delete) + admin Security Monitor + PII masking.
+
+### Wybory użytkownika (potwierdzone)
+- Rate limiter: **slowapi** in-memory (per-IP z X-Forwarded-For support)
+- Soft-delete: **30-dniowe okno undo** z anonimizacją
+- GDPR export: **jeden duży JSON** (nie ZIP)
+- Auto-blokada IP: **20 fails / 30 min → block 2h**
+- HSTS: **wyłączone** (Cloudflare handles it)
+- Maskowanie danych: **listings** (contact_email + contact_phone)
+
+### Backend
+
+**Nowe moduły**:
+- `/app/backend/security.py` — Limiter + SecurityHeadersMiddleware +
+  IP block LRU cache (30s TTL) + log_security_event + mask_email/mask_phone
+- `/app/backend/routers/gdpr.py` — /api/auth/export-data,
+  /api/auth/account/delete, /api/auth/account/undelete
+- `/app/backend/routers/admin_security.py` — /api/admin/security/{stats,logs,
+  block-ip,blocks} + /api/admin/health (Mongo/R2/Brevo probes)
+
+**Middleware chain** (dodany do server.py):
+1. `SlowAPIMiddleware` — rate limit hooks
+2. `SecurityHeadersMiddleware` — X-Content-Type-Options, X-Frame-Options,
+   Referrer-Policy, Permissions-Policy, Cross-Origin-Opener-Policy
+3. `IPBlockMiddleware` — sprawdza `ip_blocks` (z LRU cache), zwalnia
+   `/api/health` żeby k8s probes nie wpadały
+4. `@app.exception_handler(RateLimitExceeded)` → 429 JSON + Retry-After
+
+**Rate limits** (per IP):
+- `POST /api/auth/login` → 5/min
+- `POST /api/auth/register` → 3/min
+- `POST /api/auth/password-reset/request` → 3/hour
+- `POST /api/ai/ask` → 10/min
+- `GET /api/auth/export-data` → 3/hour
+- `POST /api/auth/account/delete|undelete` → 5/hour
+
+**IP auto-block**: 20 nieudanych loginów / 30 min → wpis w `ip_blocks` z
+`blocked_until = now + 2h` + LRU cache invalidation.
+
+**Nowe indeksy MongoDB** (startup):
+- `security_logs { event_type, ip_address, timestamp:-1 }` — bounded index
+  range dla record_failed_login
+- `security_logs { timestamp:-1 }` — feed w Admin Monitor
+- `ip_blocks { ip_address }` unique + `{ blocked_until }`
+- `profiles { deleted_email }` sparse — login lookup po soft-delete
+- `referrals { referrer_id, qualified }` + `referrals { referred_id }` unique
+- `profiles { referral_code }` unique sparse
+
+**PII masking**: `GET /api/marketplace/listings/{id}` — anon/non-owner widzi
+`ja***@example.com` i `+48***789`; owner z JWT widzi pełne wartości.
+
+### Frontend
+
+**Nowe komponenty**:
+- `/app/frontend/src/components/MyDataSection.js` — GDPR self-service w
+  Profile: przyciski Eksport (JSON download) + Usuń konto (potwierdzenie
+  hasłem + wpisanie "USUŃ"/"DELETE" jako safety net).
+- `/app/frontend/src/pages/admin/AdminSecurityMonitor.js` — pełny dashboard:
+  3 karty health (Mongo/R2/Brevo), 8 kart stats (24h counters), top offender
+  IPs, manual block panel, aktywne blokady, event log z filtrami.
+
+**Admin sidebar**: dodany wpis **Security Monitor** (ikona ShieldAlert)
+przed istniejącym Admin Auth Log.
+
+**i18n**: klucze `gdpr.*` w PL/EN (title, export/delete buttons, warn,
+confirm phrases, success messages).
+
+### Naprawione podczas iteracji
+
+**Krytyczne** (z testing agenta):
+- `auth.py:login` — soft-deleted user logował się swoim ORIGINAL emailem →
+  zwracało 401 zamiast 410 (early return przed 410 branch). **Fix**:
+  `{$or:[{email:X}, {deleted_email:X, deleted_at:{$ne:None}}]}` — teraz 410.
+
+**Code review issues fixed**:
+- `gdpr.py:delete_account` przechowuje `deleted_name` symetrycznie do
+  `deleted_email` → restore odzyskuje **pełne oryginalne imię** zamiast
+  fallback do email prefix.
+- `gdpr.py:undelete_account` restore'uje też `swap_listings.active=True`
+  (wcześniej pomijane — swap deck pozostawał pusty).
+- `security.py:is_ip_blocked` ma teraz LRU cache (30s TTL, max 5000 IPs)
+  + `invalidate_ip_block_cache(ip)` woływane przez record_failed_login
+  i admin manual block/unblock → hot-path nie tłucze Mongo.
+- Compound index `(event_type, ip_address, timestamp)` na security_logs
+  → `record_failed_login` scan → index range read.
+
+### Otwarte (do przyszłych iteracji)
+
+- 🟡 `export_data` bez streamowania — whale user z 5000 wpisami serwisowymi
+  może dostać >10MB JSON. Sugestia: StreamingResponse gdy vehicles+service
+  > próg.
+- 🟡 Cron hard-delete po 30 dniach nie zaimplementowany. Obecnie soft-delete
+  jest efektywnie "forever hidden" — trzeba dodać `retention.py` task.
+- 🟡 IP auto-block (20 fails/30min) nie tested end-to-end (mogłoby
+  zablokować preview IP na 2h). Sprawdzone tylko manualnie w admin.
+
+### Testy
+- `/app/test_reports/iteration_23.json` — 9/10 backend PASS, 2/2 UI PASS.
+- Po naprawie: krytyczny test login-after-delete → **410 potwierdzone curl**.
+- `/app/backend/tests/test_iter48_security.py` — pytest suite dodany przez
+  testing agenta.
+
+### Do następnej iteracji (Fazy C+D+E z pierwotnego prompt-u Iter 47)
+- 🔴 Bug 15 — P&L nie widoczne w profilu pojazdu
+- 🟡 Monitoring paliwa (fuel_logs + statystyki)
+- 🟡 Audyt sekcji admina + rozbudowa istniejących widoków
+- 🟡 Sanityzacja HTML (bleach) + walidacja magic bytes plików

@@ -18,6 +18,7 @@ from db_helper import get_db
 from auth_utils import get_admin
 from security import (
     log_security_event,
+    invalidate_ip_block_cache,
     EVENT_IP_BLOCKED,
     EVENT_FAILED_LOGIN,
     EVENT_RATE_LIMITED,
@@ -117,6 +118,7 @@ async def block_ip(payload: BlockIpIn, admin=Depends(get_admin)):
         }},
         upsert=True,
     )
+    invalidate_ip_block_cache(payload.ip)
     await log_security_event(db, EVENT_IP_BLOCKED, ip_address=payload.ip,
                              details={"reason": payload.reason, "hours": payload.hours, "manual": True})
     return {"ok": True, "blocked_until": blocked_until}
@@ -126,6 +128,7 @@ async def block_ip(payload: BlockIpIn, admin=Depends(get_admin)):
 async def unblock_ip(ip: str, admin=Depends(get_admin)):
     db = get_db()
     res = await db.ip_blocks.delete_one({"ip_address": ip})
+    invalidate_ip_block_cache(ip)
     return {"ok": True, "deleted": res.deleted_count}
 
 
