@@ -1671,3 +1671,97 @@ confirm phrases, success messages).
 - 🟡 Monitoring paliwa (fuel_logs + statystyki)
 - 🟡 Audyt sekcji admina + rozbudowa istniejących widoków
 - 🟡 Sanityzacja HTML (bleach) + walidacja magic bytes plików
+
+---
+
+## Iter 49 — Vehicle Timeline + Project Mode + Landing texts (2026-07-12)
+
+### Zakres (Fazy A+B+C)
+Nowe teksty landing hero + sekcja Founding 100 zamiast HOW-IT-WORKS;
+zjednoczona zakładka "Historia" (chronologiczna oś czasu agregująca 4 źródła)
+zastępująca Serwis+Przebieg; nowa zakładka "Projekt" (Project Mode) z
+budżetem, planami i częściami; schemat `fuel_logs` (bez UI, na Iter 50).
+
+### Wybory użytkownika (potwierdzone)
+- **Serwis + Przebieg → jedna zakładka Historia** (usunięte z nawigacji)
+- `fuel_logs` — **minimalna schemata teraz**, pełny UI w Iter 50
+- Project — **jedna kolekcja `project_items` z polem `type`** (modification/part/note)
+- Budżet projektu — **pole `project_budget` na `vehicles`** (atomowa aktualizacja)
+- Timeline↔Project — **wpis generowany on-the-fly** przy status=done (aggregation-time)
+
+### Backend
+
+**Nowy router** `/app/backend/routers/timeline.py` (jeden plik, cały scope):
+
+Endpointy:
+- `GET /api/vehicles/{id}/timeline?source={service|fuel|mileage|project}&limit=N`
+  → agreguje 4 kolekcje, sortuje desc po ISO date, każdy event ma
+  `{id, source, type, date, mileage, description, cost, status, ref_id}`
+- `GET /api/vehicles/{id}/project` → `{budget:{total,spent,remaining,notes}, items:[], by_type:{}}`
+- `POST /api/vehicles/{id}/project/items` — dodaj plan/część/notatkę
+- `PUT /api/vehicles/{id}/project/items/{item_id}` — aktualizuj, auto-stamp
+  `completed_date` gdy status→done
+- `DELETE /api/vehicles/{id}/project/items/{item_id}`
+- `PATCH /api/vehicles/{id}/project/budget` — ustaw `project_budget` + `project_notes` na vehicles doc
+- `GET|POST|DELETE /api/vehicles/{id}/fuel` — CRUD `fuel_logs`, auto-oblicza total_cost
+
+Ownership: `_owned_vehicle()` guard na wszystkich endpointach.
+
+**Nowe kolekcje**:
+- `project_items` — `{id, vehicle_id, user_id, type, title, description,
+  budget, actual_cost, status, planned_date, completed_date, priority, tags,
+  created_at, updated_at}`
+- `fuel_logs` — `{id, vehicle_id, user_id, date, liters, price_per_liter,
+  total_cost, mileage, full_tank, notes, created_at}`
+
+**Nowe pola na `vehicles`**: `project_budget: float?`, `project_notes: str?`.
+
+**Timeline aggregation logic**:
+- service_entries → `type` z fine 24-subtype `service_type` (fallback do legacy 7-type)
+- fuel_logs → `type=fuel`, opis "45.5L @ 6.79 PLN/L"
+- mileage_logs → `type=mileage`, opis z `note`
+- project_items → **tylko `status=done`**, `type=planned` (📐), cost z `actual_cost` fallback `budget`
+- Sort desc po `date` (ISO string compare — działa dla canonical ISO)
+
+**Spent budget calc**: `_sum_spent()` — `actual_cost` preferred; done items
+bez actual_cost używają `budget`; cancelled excluded.
+
+### Frontend
+
+**Landing.js** — nowe słowniki tx.pl/tx.en:
+- Hero H1: **"Nadszedł czas oddzielić motoryzację od chaosu."**
+- Sub: "Uporządkuj swoje pojazdy. Twoje auto wreszcie ma swoje miejsce w sieci."
+- Join line (nowy element): "Dołącz do pierwszych 100 kierowców którzy budują Sharago razem z nami."
+- Features: "Wszystko czego potrzebujesz"
+- **Sekcja Founding 100 zastąpiła HOW-IT-WORKS** — "Pierwsi. Zawsze.",
+  🏆 Darłówko 7 nocy dla 4 osób, CTA "Chcę być jednym z pierwszych →"
+
+**Nowe komponenty** (`/app/frontend/src/pages/vehicle-tabs/`):
+- **HistoryTab.js** — pionowa oś czasu, ikony EVENT_TYPES map, 5 filter chips
+  (Wszystkie/Serwis/Paliwo/Przebieg/Projekt), mobile-first (data column
+  hidden < sm; mobile-only date line inline), empty state.
+- **ProjectTab.js** — BudgetCard (total/spent/remaining + progress bar
+  zielono/czerwono gdy overspent), inline budget/notes editor, form dodawania
+  z type selector (modification/part/note), grupowanie po type, akcje na
+  itemie (Zrobione / Usuń).
+
+**VehicleProfile.js** — TABS array: `overview | history | project | pl | ai`
+(Service + Mileage usunięte z nawigacji).
+
+**Dead code usunięty**: `ServiceTab.js`, `MileageTab.js` — pliki skasowane,
+nikt ich nie importował.
+
+**i18n**: klucze `vehicle.tabs.history` + `vehicle.tabs.project` (PL/EN).
+
+### Testy
+`/app/test_reports/iteration_24.json`:
+- Backend: 9/9 pytest PASS (`/app/backend/tests/test_iter49.py`)
+- Frontend UI: PASS (landing texts, tabs, Historia+Projekt render, CRUD)
+- Kod review: 3 minor (dead files → fixed; ISO sort defensiveness → OK w praktyce; PATCH null semantics → nie kasuje pola dla budget/actual_cost — udokumentowane)
+
+### Do następnej iteracji
+- 🟡 **Iter 50**: pełny moduł Paliwa (FuelTab, l/100km stats, wykres,
+  form dodania tankowania z auto-fill z ostatniego)
+- 🔴 **Bug 15**: PLTab pusty/nie wyświetla P&L (backlog od Iter 47)
+- 🟡 Audit sekcji admina (Users/Vehicles/Blog) + System Health widget
+- 🟡 Sanityzacja HTML (bleach) + walidacja magic bytes plików
