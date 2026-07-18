@@ -2,7 +2,8 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import api from "@/lib/api";
 import { toast } from "sonner";
-import { Plus, X, Fuel, Trash2 } from "lucide-react";
+import { Plus, X, Fuel, Trash2, QrCode } from "lucide-react";
+import PrintQrDialog from "@/components/PrintQrDialog";
 
 /**
  * FuelTab (Iter 50) — fuel log dashboard.
@@ -93,6 +94,7 @@ export default function FuelTab({ vehicle }) {
   const [logs, setLogs] = useState(null);
   const [stats, setStats] = useState(null);
   const [showForm, setShowForm] = useState(false);
+  const [showQr, setShowQr] = useState(false);
 
   const load = () => {
     api.get(`/vehicles/${vehicle.id}/fuel`).then((r) => setLogs(r.data)).catch(() => setLogs([]));
@@ -116,17 +118,37 @@ export default function FuelTab({ vehicle }) {
         <h2 className="text-lg font-semibold text-vehiq-text inline-flex items-center gap-2">
           <Fuel size={16} className="text-vehiq-gold" /> {lang === "pl" ? "Paliwo" : "Fuel"}
         </h2>
-        {!showForm && (
+        <div className="flex items-center gap-2">
           <button
             type="button"
-            onClick={() => setShowForm(true)}
-            className="vehiq-btn-primary inline-flex items-center gap-1.5 px-3 py-1.5 text-xs"
-            data-testid="fuel-add-btn"
+            onClick={() => setShowQr(true)}
+            className="vehiq-btn-secondary inline-flex items-center gap-1.5 px-3 py-1.5 text-xs"
+            data-testid="fuel-print-qr-btn"
+            title={lang === "pl" ? "Drukuj QR wlewu paliwa" : "Print fuel-cap QR"}
           >
-            <Plus size={12} /> {lang === "pl" ? "Tankowanie" : "Refuel"}
+            <QrCode size={12} /> {lang === "pl" ? "Drukuj QR wlewu" : "Fuel QR"}
           </button>
-        )}
+          {!showForm && (
+            <button
+              type="button"
+              onClick={() => setShowForm(true)}
+              className="vehiq-btn-primary inline-flex items-center gap-1.5 px-3 py-1.5 text-xs"
+              data-testid="fuel-add-btn"
+            >
+              <Plus size={12} /> {lang === "pl" ? "Tankowanie" : "Refuel"}
+            </button>
+          )}
+        </div>
       </div>
+
+      {showQr && (
+        <PrintQrDialog
+          vehicleId={vehicle.id}
+          vehicleSlug={vehicle.slug}
+          onClose={() => setShowQr(false)}
+          qrKind="fuel"
+        />
+      )}
 
       {showForm && (
         <AddFuelForm

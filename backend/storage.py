@@ -54,8 +54,43 @@ def process_image(file_data: bytes, image_type: str = "full") -> bytes:
     return out.getvalue()
 
 
+# Iter 50 (Phase C): magic-byte signatures for supported image formats.
+# We check these BEFORE handing raw bytes to PIL — a wrongly named .exe with
+# a valid extension shouldn't even reach the decoder. PIL then re-verifies
+# and normalises the image so the two checks are complementary.
+_IMAGE_MAGIC_BYTES = (
+    b"\xff\xd8\xff",              # JPEG
+    b"\x89PNG\r\n\x1a\n",         # PNG
+    b"GIF87a", b"GIF89a",         # GIF (rarely used but harmless)
+    b"BM",                        # BMP
+)
+
+
+def _has_image_magic(data: bytes) -> bool:
+    if not data or len(data) < 12:
+        return False
+    if any(data.startswith(sig) for sig in _IMAGE_MAGIC_BYTES):
+        return True
+    # WebP: "RIFF....WEBP"
+    if data[:4] == b"RIFF" and data[8:12] == b"WEBP":
+        return True
+    # HEIC/HEIF: "....ftypheic|heix|mif1|msf1"
+    if len(data) >= 12 and data[4:8] == b"ftyp" and data[8:12] in (
+        b"heic", b"heix", b"hevc", b"hevx", b"mif1", b"msf1", b"heim", b"heis",
+    ):
+        return True
+    return False
+
+
 def detect_format(file_data: bytes) -> Optional[str]:
-    """Return PIL format string or None if unsupported."""
+    """Return PIL format string or None if unsupported.
+
+    Two-stage check: reject files without a recognised image magic-byte
+    signature BEFORE handing them to PIL. This blocks fake-extension uploads
+    (e.g., a renamed .exe) at the network edge.
+    """
+    if not _has_image_magic(file_data):
+        return None
     try:
         img = Image.open(io.BytesIO(file_data))
         return img.format

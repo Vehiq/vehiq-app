@@ -1,10 +1,11 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import api from "@/lib/api";
+import api, { apiErrorMessage } from "@/lib/api";
 import { compressImage } from "@/lib/imageCompress";
+import { photoThumb, photoId } from "@/lib/photos";
 import { toast } from "sonner";
-import { ArrowLeft, Upload, X } from "lucide-react";
+import { ArrowLeft, Upload, X, Star } from "lucide-react";
 import PlateBlurDialog from "@/components/PlateBlurDialog";
 
 // All popular brands. Pinned (Polish market) first, alphabetical rest.
@@ -36,6 +37,7 @@ const CONDITION_OPTIONS = [
 export default function VehicleForm({ initial, onSaved }) {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const isEdit = !!initial?.id;
   const [form, setForm] = useState(initial || {
     make: "", model: "", year: "", vin: "", engine: "", fuel: "petrol_95", color: "", plate: "",
     mileage_current: 0, mileage_at_purchase: "", mileage_at_sale: "",
@@ -43,6 +45,7 @@ export default function VehicleForm({ initial, onSaved }) {
     photos: [], cover_photo_index: 0,
   });
   const [busy, setBusy] = useState(false);
+  const [uploading, setUploading] = useState(false);
   // Iter 32: blur dialog queue — files picked but not yet reviewed/base64-encoded.
   const [blurQueue, setBlurQueue] = useState([]);
 
@@ -63,6 +66,37 @@ export default function VehicleForm({ initial, onSaved }) {
     // Iter 44: compress after plate-blur dialog so base64 payload stays small.
     let file = outFile;
     try { file = await compressImage(outFile); } catch { /* keep raw */ }
+
+    // Bug 18 (Iter 50): in EDIT mode, upload directly to R2 via
+    // /vehicles/{id}/photos so photos actually persist. On CREATE we
+    // still fall back to inline base64 since no vehicle_id exists yet.
+    if (isEdit) {
+      setUploading(true);
+      try {
+        const fd = new FormData();
+        fd.append("files", file);
+        const { data } = await api.post(`/vehicles/${initial.id}/photos`, fd, {
+          headers: { "Content-Type": "multipart/form-data" },
+        });
+        if ((data.failures || []).length) {
+          toast.error(`${data.failures.length} ${t("common.error")}`);
+        }
+        if ((data.uploaded || []).length) {
+          setForm((prev) => ({
+            ...prev,
+            photos: [...(prev.photos || []), ...data.uploaded],
+          }));
+          toast.success(`${data.uploaded.length} ${t("vehicle.photos")}`);
+        }
+      } catch (err) {
+        toast.error(apiErrorMessage(err, t("common.error")));
+      } finally {
+        setUploading(false);
+        setBlurQueue((q) => q.slice(1));
+      }
+      return;
+    }
+
     const reader = new FileReader();
     reader.onloadend = () => {
       setForm((prev) => ({
@@ -79,11 +113,34 @@ export default function VehicleForm({ initial, onSaved }) {
     setBlurQueue([]);
   };
 
-  const removePhoto = (idx) => {
+  const removePhoto = async (idx) => {
+    const p = (form.photos || [])[idx];
+    // Bug 18: in edit mode delete via R2 endpoint by photo id.
+    if (isEdit && p && typeof p === "object" && p.id) {
+      try {
+        await api.delete(`/vehicles/${initial.id}/photos/${p.id}`);
+      } catch (err) {
+        toast.error(apiErrorMessage(err, t("common.error")));
+        return;
+      }
+    }
     const photos = (form.photos || []).filter((_, i) => i !== idx);
     let cover = form.cover_photo_index || 0;
     if (cover >= photos.length) cover = 0;
     setForm({ ...form, photos, cover_photo_index: cover });
+  };
+
+  const setMain = async (idx) => {
+    const p = (form.photos || [])[idx];
+    if (isEdit && p && typeof p === "object" && p.id) {
+      try {
+        await api.post(`/vehicles/${initial.id}/photos/${p.id}/main`);
+      } catch (err) {
+        toast.error(apiErrorMessage(err, t("common.error")));
+        return;
+      }
+    }
+    setForm({ ...form, cover_photo_index: idx });
   };
 
   const submit = async (e) => {
@@ -102,6 +159,13 @@ export default function VehicleForm({ initial, onSaved }) {
         sale_date: form.sale_date || null,
         condition: form.condition || null,
       };
+      // Bug 18 (Iter 50): in EDIT mode, photos are managed via R2 endpoints
+      // (upload/delete/set-main) — never send them in the PUT payload, which
+      // would fail Pydantic's List[str] typing on existing R2 photo dicts.
+      if (isEdit) {
+        delete payload.photos;
+        delete payload.cover_photo_index;
+      }
       let resp;
       if (initial?.id) {
         resp = await api.put(`/vehicles/${initial.id}`, payload);
@@ -215,19 +279,19 @@ export default function VehicleForm({ initial, onSaved }) {
         <div>
           <label className="vehiq-overline mb-2 block">{t("vehicle.photos")}</label>
           <label className="vehiq-btn-secondary cursor-pointer inline-flex items-center gap-2" data-testid="vehicle-photo-upload">
-            <Upload size={14} /> {t("vehicle.uploadPhotos")}
-            <input type="file" accept="image/*" multiple onChange={handleFiles} className="hidden" />
+            <Upload size={14} /> {uploading ? t("common.loading") : t("vehicle.uploadPhotos")}
+            <input type="file" accept="image/*" multiple onChange={handleFiles} className="hidden" disabled={uploading} />
           </label>
           {form.photos?.length > 0 && (
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-4">
               {form.photos.map((p, idx) => (
-                <div key={idx} className={`relative group rounded-lg overflow-hidden border ${form.cover_photo_index === idx ? "border-vehiq-gold" : "border-vehiq-border"}`}>
-                  <img src={p} alt="" className="w-full h-32 object-cover" />
-                  <button type="button" onClick={() => removePhoto(idx)} className="absolute top-2 right-2 bg-vehiq-bg/80 text-vehiq-text p-1 rounded">
+                <div key={photoId(p, idx)} className={`relative group rounded-lg overflow-hidden border ${form.cover_photo_index === idx ? "border-vehiq-gold" : "border-vehiq-border"}`}>
+                  <img src={photoThumb(p)} alt="" className="w-full h-32 object-cover" />
+                  <button type="button" onClick={() => removePhoto(idx)} className="absolute top-2 right-2 bg-vehiq-bg/80 text-vehiq-text p-1 rounded" data-testid={`vf-photo-remove-${idx}`}>
                     <X size={14} />
                   </button>
-                  <button type="button" onClick={() => setForm({ ...form, cover_photo_index: idx })} className="absolute bottom-0 inset-x-0 bg-vehiq-bg/85 text-xs py-1 text-vehiq-gold uppercase tracking-wider">
-                    {form.cover_photo_index === idx ? "★ " + t("vehicle.selectMain") : t("vehicle.selectMain")}
+                  <button type="button" onClick={() => setMain(idx)} className="absolute bottom-0 inset-x-0 bg-vehiq-bg/85 text-xs py-1 text-vehiq-gold uppercase tracking-wider inline-flex items-center justify-center gap-1" data-testid={`vf-photo-main-${idx}`}>
+                    {form.cover_photo_index === idx ? <><Star size={10} className="fill-vehiq-gold"/> {t("vehicle.selectMain")}</> : t("vehicle.selectMain")}
                   </button>
                 </div>
               ))}

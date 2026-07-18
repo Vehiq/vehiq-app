@@ -18,13 +18,15 @@ import { toast } from "sonner";
  * Auth: uses browser fetch with Bearer token pulled from localStorage so the
  * image request goes through the auth gate (200 → owner, 403 → other users).
  */
-export default function PrintQrDialog({ vehicleId, vehicleSlug, onClose }) {
+export default function PrintQrDialog({ vehicleId, vehicleSlug, onClose, qrKind = "vehicle" }) {
   const { t } = useTranslation();
   const [variant, setVariant] = useState("dark");
   const [downloading, setDownloading] = useState(false);
 
   const apiBase = (process.env.REACT_APP_BACKEND_URL || "").replace(/\/$/, "");
   const token = typeof window !== "undefined" ? window.localStorage.getItem("sharago_token") : null;
+  const qrPath = qrKind === "fuel" ? "qr/fuel" : "qr";
+  const isFuel = qrKind === "fuel";
 
   // Use an authenticated fetch → blob URL so <img> can render without cookies.
   const [previewUrl, setPreviewUrl] = useState(null);
@@ -35,7 +37,7 @@ export default function PrintQrDialog({ vehicleId, vehicleSlug, onClose }) {
     setLoading(true);
     setPreviewError(null);
     try {
-      const r = await fetch(`${apiBase}/api/vehicles/${vehicleId}/qr?variant=${v}`, {
+      const r = await fetch(`${apiBase}/api/vehicles/${vehicleId}/${qrPath}?variant=${v}`, {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
@@ -50,7 +52,7 @@ export default function PrintQrDialog({ vehicleId, vehicleSlug, onClose }) {
     } finally {
       setLoading(false);
     }
-  }, [apiBase, vehicleId, token]);
+  }, [apiBase, vehicleId, token, qrPath]);
 
   // Load initial + on variant change
   useEffect(() => {
@@ -72,7 +74,7 @@ export default function PrintQrDialog({ vehicleId, vehicleSlug, onClose }) {
   const download = async () => {
     setDownloading(true);
     try {
-      const r = await fetch(`${apiBase}/api/vehicles/${vehicleId}/qr?variant=${variant}`, {
+      const r = await fetch(`${apiBase}/api/vehicles/${vehicleId}/${qrPath}?variant=${variant}`, {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
@@ -80,7 +82,7 @@ export default function PrintQrDialog({ vehicleId, vehicleSlug, onClose }) {
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `sharago-qr-${vehicleSlug || vehicleId.slice(0, 8)}-${variant}.png`;
+      a.download = `sharago-${isFuel ? "fuel-" : ""}qr-${vehicleSlug || vehicleId.slice(0, 8)}-${variant}.png`;
       document.body.appendChild(a);
       a.click();
       a.remove();
@@ -128,8 +130,8 @@ export default function PrintQrDialog({ vehicleId, vehicleSlug, onClose }) {
               <QrCode size={18} />
             </div>
             <div>
-              <h2 className="vehiq-display text-xl text-vehiq-text">Kod QR do druku</h2>
-              <p className="text-[11px] text-vehiq-muted">Naklej od wewnątrz szyby</p>
+              <h2 className="vehiq-display text-xl text-vehiq-text">{isFuel ? "Kod QR wlewu paliwa" : "Kod QR do druku"}</h2>
+              <p className="text-[11px] text-vehiq-muted">{isFuel ? "Naklej przy wlewie paliwa" : "Naklej od wewnątrz szyby"}</p>
             </div>
           </div>
           <button
@@ -183,8 +185,11 @@ export default function PrintQrDialog({ vehicleId, vehicleSlug, onClose }) {
         </div>
 
         <p className="text-[11px] text-vehiq-muted leading-snug">
-          Wydrukuj na przezroczystej folii i naklej od <strong>wewnętrznej</strong> strony szyby.
-          Kod jest lustrzanie odbity — po naklejeniu będzie czytelny od zewnątrz.
+          {isFuel ? (
+            <>Wydrukuj i naklej przy <strong>wlewie paliwa</strong>. Po zeskanowaniu otworzy się szybki formularz tankowania — wypełnisz i zapiszesz w kilka sekund.</>
+          ) : (
+            <>Wydrukuj na przezroczystej folii i naklej od <strong>wewnętrznej</strong> strony szyby. Kod jest lustrzanie odbity — po naklejeniu będzie czytelny od zewnątrz.</>
+          )}
         </p>
 
         <div className="flex gap-2 justify-end pt-2 border-t border-vehiq-border">

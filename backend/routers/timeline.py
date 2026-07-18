@@ -20,6 +20,7 @@ import logging
 
 from db_helper import get_db
 from auth_utils import get_current_user
+from sanitizer import sanitize_plain
 
 router = APIRouter(prefix="/vehicles", tags=["timeline"])
 logger = logging.getLogger(__name__)
@@ -240,6 +241,11 @@ async def add_project_item(vehicle_id: str, payload: ProjectItemIn, user=Depends
     db = get_db()
     await _owned_vehicle(db, vehicle_id, user["id"])
     doc = payload.model_dump()
+    # Iter 50 (Phase C): sanitize free-text HTML before persistence.
+    if doc.get("title"):
+        doc["title"] = sanitize_plain(doc["title"])
+    if doc.get("description"):
+        doc["description"] = sanitize_plain(doc["description"])
     now_iso = datetime.now(timezone.utc).isoformat()
     doc.update({
         "id": str(uuid.uuid4()),
@@ -262,6 +268,11 @@ async def update_project_item(
     update = {k: v for k, v in payload.model_dump(exclude_unset=True).items() if v is not None or k in ("description",)}
     if not update:
         raise HTTPException(status_code=400, detail="Nothing to update")
+    # Iter 50 (Phase C): sanitize free-text HTML before persistence.
+    if "title" in update and update["title"]:
+        update["title"] = sanitize_plain(update["title"])
+    if "description" in update and update["description"]:
+        update["description"] = sanitize_plain(update["description"])
     # When status flips to 'done', auto-stamp completed_date so the timeline
     # groups the event correctly.
     if update.get("status") == "done" and not update.get("completed_date"):
@@ -297,7 +308,7 @@ async def set_project_budget(vehicle_id: str, payload: ProjectBudgetIn, user=Dep
     if payload.budget is not None:
         update["project_budget"] = float(payload.budget)
     if payload.notes is not None:
-        update["project_notes"] = payload.notes
+        update["project_notes"] = sanitize_plain(payload.notes)
     if not update:
         raise HTTPException(status_code=400, detail="Nothing to update")
     await db.vehicles.update_one({"id": vehicle_id}, {"$set": update})
@@ -394,6 +405,8 @@ async def add_fuel(vehicle_id: str, payload: FuelLogIn, user=Depends(get_current
     db = get_db()
     await _owned_vehicle(db, vehicle_id, user["id"])
     doc = payload.model_dump()
+    if doc.get("notes"):
+        doc["notes"] = sanitize_plain(doc["notes"])
     doc["total_cost"] = doc.get("total_cost") or round(doc["liters"] * doc["price_per_liter"], 2)
     doc.update({
         "id": str(uuid.uuid4()),
@@ -416,3 +429,36 @@ async def delete_fuel(vehicle_id: str, log_id: str, user=Depends(get_current_use
     if res.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Fuel log not found")
     return {"ok": True}
+
+
+
+# ---------------- Fuel QR quick-add lookup (Iter 50) ----------------
+# QuickFuelPage lives at /fuel/{short_id} (fuel-cap sticker workflow).
+# This endpoint resolves the short_id → full vehicle for the OWNER only,
+# so the QuickFuelPage can prefill last mileage / last price.
+
+@router.get("/short/{short_id}/fuel-context")
+async def fuel_quick_context(short_id: str, user=Depends(get_current_user)):
+    """Return minimal vehicle context + last fuel entry for QuickFuelPage.
+
+    Owner-only lookup by 8-char UUID prefix. Non-owners get 404 (do not
+    reveal existence).
+    """
+    db = get_db()
+    safe = "".join(c for c in (short_id or "") if c.isalnum() or c == "-")[:8]
+    if not safe or len(safe) < 6:
+        raise HTTPException(status_code=404, detail="Vehicle not found")
+    v = await db.vehicles.find_one(
+        {"id": {"$regex": f"^{safe}"}, "user_id": user["id"]},
+        {"_id": 0, "id": 1, "make": 1, "model": 1, "year": 1, "mileage_current": 1, "slug": 1},
+    )
+    if not v:
+        raise HTTPException(status_code=404, detail="Vehicle not found")
+    last = await db.fuel_logs.find_one(
+        {"vehicle_id": v["id"]}, {"_id": 0, "price_per_liter": 1, "mileage": 1, "date": 1},
+        sort=[("date", -1)],
+    )
+    return {
+        "vehicle": v,
+        "last_log": last,
+    }

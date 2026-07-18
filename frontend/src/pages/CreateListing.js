@@ -17,6 +17,7 @@ export default function CreateListing() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [vehicles, setVehicles] = useState([]);
+  const [garagePhotos, setGaragePhotos] = useState([]); // Bug 22: photos of selected vehicle
   const [form, setForm] = useState({
     type: "car", category: "", title: "", description: "", price: "", location: "",
     photos: [], vehicle_id: "", make: "", model: "", year: "",
@@ -53,20 +54,22 @@ export default function CreateListing() {
       if (prefillId) {
         const v = (r.data || []).find((x) => x.id === prefillId);
         if (v) {
-          setForm((f) => ({
-            ...f,
-            vehicle_id: v.id,
-            make: v.make || "",
-            model: v.model || "",
-            year: v.year || "",
-            mileage: v.mileage_current || "",
-            title: `${v.make || ""} ${v.model || ""} ${v.year || ""}`.trim(),
-            description: `${v.engine || ""} ${v.fuel || ""}\nPrzebieg: ${v.mileage_current || 0} km`.trim(),
-            photos: (v.photos || []).map(p => {
-              if (!p) return null;
-              return typeof p === "string" ? p : p.url || p.thumbnail_url || null;
-            }).filter(Boolean),
-          }));
+          // Fetch full vehicle to hydrate photos[] (list endpoint strips them).
+          api.get(`/vehicles/${v.id}`).then(({ data }) => {
+            const full = _normalisePhotos(data.photos);
+            setGaragePhotos(full);
+            setForm((f) => ({
+              ...f,
+              vehicle_id: v.id,
+              make: v.make || "",
+              model: v.model || "",
+              year: v.year || "",
+              mileage: v.mileage_current || "",
+              title: `${v.make || ""} ${v.model || ""} ${v.year || ""}`.trim(),
+              description: `${v.engine || ""} ${v.fuel || ""}\nPrzebieg: ${v.mileage_current || 0} km`.trim(),
+              photos: full, // Bug 22: all garage photos pre-selected
+            }));
+          }).catch(() => { /* silent — form still usable */ });
         }
       }
     }).catch(() => { /* silent — form still usable without garage */ });
@@ -105,13 +108,29 @@ export default function CreateListing() {
       description: `${v.engine || ""} ${v.fuel || ""}\nPrzebieg: ${v.mileage_current || 0} km`.trim(),
       photos: seed,
     }));
+    setGaragePhotos(seed);
     try {
       const { data } = await api.get(`/vehicles/${vid}`);
       const full = _normalisePhotos(data.photos);
+      setGaragePhotos(full);
       if (full.length) {
+        // Bug 22: pre-select ALL garage photos by default — user can uncheck
+        // any they don't want in the listing via the checkbox gallery below.
         setForm((prev) => ({ ...prev, photos: full }));
       }
     } catch { /* keep seed cover — user can also upload more */ }
+  };
+
+  const toggleGaragePhoto = (url) => {
+    setForm((prev) => {
+      const has = (prev.photos || []).includes(url);
+      return {
+        ...prev,
+        photos: has
+          ? (prev.photos || []).filter((p) => p !== url)
+          : [...(prev.photos || []), url],
+      };
+    });
   };
 
   const handleFiles = async (e) => {
@@ -327,7 +346,7 @@ export default function CreateListing() {
           {form.vehicle_id && (
             <button
               type="button"
-              onClick={() => setForm({ ...form, vehicle_id: "", make: "", model: "", year: "", mileage: "", title: "", description: "", photos: [] })}
+              onClick={() => { setGaragePhotos([]); setForm({ ...form, vehicle_id: "", make: "", model: "", year: "", mileage: "", title: "", description: "", photos: [] }); }}
               className="text-xs text-vehiq-muted hover:text-vehiq-gold underline"
               data-testid="listing-clear-vehicle"
             >
@@ -534,16 +553,47 @@ export default function CreateListing() {
 
         <div>
           <label className="vehiq-overline mb-2 block">{t("vehicle.photos")}</label>
+
+          {/* Bug 22 (Iter 50): checkbox gallery of garage photos from the
+              selected vehicle. Users tick which ones to include in the
+              listing — no need to re-upload photos already on the profile. */}
+          {garagePhotos.length > 0 && (
+            <div className="mb-4 p-3 rounded border border-vehiq-border/50 bg-vehiq-bg/40" data-testid="listing-garage-photos">
+              <div className="text-[11px] uppercase tracking-widest text-vehiq-muted mb-2">
+                Z profilu pojazdu — zaznacz które użyć
+              </div>
+              <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
+                {garagePhotos.map((url, i) => {
+                  const checked = (form.photos || []).includes(url);
+                  return (
+                    <button
+                      type="button"
+                      key={i}
+                      onClick={() => toggleGaragePhoto(url)}
+                      className={`relative rounded overflow-hidden border transition-colors ${checked ? "border-vehiq-gold" : "border-vehiq-border"}`}
+                      data-testid={`listing-garage-photo-${i}`}
+                    >
+                      <img src={url} alt="" className={`w-full h-20 object-cover ${checked ? "" : "opacity-50"}`} />
+                      <span className={`absolute top-1 right-1 h-5 w-5 rounded-sm border text-[11px] flex items-center justify-center ${checked ? "bg-vehiq-gold border-vehiq-gold text-vehiq-bg" : "bg-vehiq-bg/70 border-vehiq-border text-transparent"}`}>
+                        ✓
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           <label className="vehiq-btn-secondary cursor-pointer inline-flex items-center gap-2">
             <Upload size={14}/> {t("vehicle.uploadPhotos")}
-            <input type="file" multiple accept="image/*" onChange={handleFiles} className="hidden" />
+            <input type="file" multiple accept="image/*" onChange={handleFiles} className="hidden" data-testid="listing-upload-input" />
           </label>
           {form.photos.length > 0 && (
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-3">
               {form.photos.map((p, i) => (
                 <div key={i} className="relative rounded overflow-hidden border border-vehiq-border">
                   <img src={p} alt="" className="w-full h-24 object-cover" />
-                  <button type="button" onClick={() => setForm({...form, photos: form.photos.filter((_, j) => j !== i)})} className="absolute top-1 right-1 bg-vehiq-bg/80 p-1 rounded"><X size={12}/></button>
+                  <button type="button" onClick={() => setForm({...form, photos: form.photos.filter((_, j) => j !== i)})} className="absolute top-1 right-1 bg-vehiq-bg/80 p-1 rounded" data-testid={`listing-photo-remove-${i}`}><X size={12}/></button>
                 </div>
               ))}
             </div>

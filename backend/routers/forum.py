@@ -9,6 +9,7 @@ from db_helper import get_db
 from auth_utils import get_current_user, get_optional_user
 from email_service import send_email, fire_and_forget, send_notification, tpl_forum_reply
 from activity import log_activity
+from sanitizer import sanitize_rich, sanitize_plain
 
 router = APIRouter(prefix="/forum", tags=["forum"])
 
@@ -113,6 +114,11 @@ async def create_thread(payload: ThreadIn, user=Depends(get_current_user)):
         raise HTTPException(status_code=400, detail="Invalid category")
     doc = payload.model_dump()
     doc["tags"] = (doc.get("tags") or [])[:5]
+    # Iter 50 (Phase C): sanitize free-text HTML before persistence.
+    if doc.get("title"):
+        doc["title"] = sanitize_plain(doc["title"])
+    if doc.get("content"):
+        doc["content"] = sanitize_rich(doc["content"])
     # If vehicle_id present, derive label from owner's garage (only that user's vehicle)
     if doc.get("vehicle_id"):
         v = await db.vehicles.find_one({"id": doc["vehicle_id"], "user_id": user["id"]}, {"_id": 0, "make": 1, "model": 1, "year": 1})
@@ -165,6 +171,9 @@ async def create_comment(payload: CommentIn, user=Depends(get_current_user)):
     if not t:
         raise HTTPException(status_code=404, detail="Thread not found")
     doc = payload.model_dump()
+    # Iter 50 (Phase C): sanitize free-text HTML before persistence.
+    if doc.get("content"):
+        doc["content"] = sanitize_rich(doc["content"])
     doc.update({
         "id": str(uuid.uuid4()),
         "user_id": user["id"],

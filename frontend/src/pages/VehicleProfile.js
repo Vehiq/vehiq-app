@@ -177,11 +177,7 @@ export default function VehicleProfile() {
       )}
 
       <div className="border-b border-vehiq-border flex gap-1 overflow-x-auto">
-        {TABS.filter(({ id: tid }) => {
-          // P&L visible only for sold/archived vehicles (lifetime financial summary)
-          if (tid === "pl") return vehicle.status === "sold" || vehicle.status === "archived";
-          return true;
-        }).map(({ id: tid, key }) => (
+        {TABS.map(({ id: tid, key }) => (
           <button
             key={tid}
             onClick={() => setTab(tid)}

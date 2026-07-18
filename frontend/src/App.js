@@ -41,6 +41,7 @@ import PublicProfile from "@/pages/PublicProfile";
 import LegalPage from "@/pages/LegalPage";
 import PublicVehicle from "@/pages/PublicVehicle";
 import VehicleShort from "@/pages/VehicleShort";
+import QuickFuelPage from "@/pages/QuickFuelPage";
 import Blog from "@/pages/Blog";
 import BlogPost from "@/pages/BlogPost";
 import NotFound from "@/pages/NotFound";
@@ -217,6 +218,7 @@ function App() {
             <Route path="/events" element={<Events />} />
             <Route path="/events/new" element={<AddEvent />} />
             <Route path="/events/:slug" element={<EventDetail />} />
+            <Route path="/fuel/:shortId" element={<QuickFuelPage />} />
           </Route>
 
           <Route path="*" element={<NotFound />} />

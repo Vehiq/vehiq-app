@@ -41,6 +41,9 @@ qrcode[pil]>=7.4.0
 # --- Rate limiting (Iter 48) ---
 slowapi>=0.1.9
 
+# --- HTML sanitization (Iter 50, Phase C) ---
+bleach>=6.0.0
+
 # --- Environment ---
 python-dotenv>=1.0.0
 

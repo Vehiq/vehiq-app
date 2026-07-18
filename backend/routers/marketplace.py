@@ -9,6 +9,7 @@ from db_helper import get_db
 from auth_utils import get_current_user, get_optional_user
 from email_service import send_email, fire_and_forget, send_notification, tpl_new_message
 from activity import log_activity
+from sanitizer import sanitize_plain
 
 router = APIRouter(prefix="/marketplace", tags=["marketplace"])
 
@@ -386,6 +387,11 @@ async def create_listing(payload: ListingIn, user=Depends(get_current_user)):
         raise HTTPException(status_code=400, detail=f"Max active listings reached ({max_l})")
 
     doc = payload.model_dump()
+    # Iter 50 (Phase C): sanitize free-text HTML on write. Strips <script>,
+    # inline event handlers, javascript: URLs, etc. before persistence.
+    for k in ("title", "description", "location"):
+        if doc.get(k):
+            doc[k] = sanitize_plain(doc[k])
     # Iter 42: guard against DocumentTooLarge from inline base64 photos —
     # same policy as vehicles: cap count/size and force large uploads through
     # the R2 photo endpoint. Reuses the vehicles module helper so limits stay
@@ -515,7 +521,7 @@ async def send_message(payload: MessageIn, user=Depends(get_current_user)):
         "listing_id": payload.listing_id,
         "sender_id": user["id"],
         "receiver_id": payload.receiver_id,
-        "content": payload.content,
+        "content": sanitize_plain(payload.content),
         "read": False,
         "created_at": datetime.now(timezone.utc).isoformat(),
     }

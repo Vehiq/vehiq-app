@@ -197,6 +197,43 @@ async def get_vehicle_qr(
     )
 
 
+# ---------------- Fuel QR (Iter 50) ----------------
+# Owner-only print-ready QR that points to /fuel/{short_id}. Sticker goes
+# near the fuel filler cap — after refueling, scan it and the QuickFuelPage
+# lets the (already logged-in) owner add a fuel log in seconds.
+
+@router.get("/vehicles/{vehicle_id}/qr/fuel")
+async def get_vehicle_fuel_qr(
+    vehicle_id: str,
+    variant: str = Query("light", pattern="^(dark|light)$"),
+    user: Optional[dict] = Depends(get_current_user_optional),
+):
+    """900x900 print-ready mirrored QR pointing to /fuel/{short_id}.
+
+    Owner-only — used for the fuel-cap sticker workflow.
+    """
+    db = get_db()
+    v = await db.vehicles.find_one({"id": vehicle_id}, {"_id": 0, "id": 1, "user_id": 1})
+    if not v:
+        raise HTTPException(status_code=404, detail="Vehicle not found")
+    if not user or user.get("id") != v.get("user_id"):
+        raise HTTPException(status_code=403, detail="Only the vehicle owner can generate a fuel QR")
+    short_id = v["id"][:8]
+    fuel_url = f"{APP_URL}/fuel/{short_id}"
+    try:
+        png = _generate_print_qr(fuel_url, variant)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"QR generation failed: {e}")
+    return Response(
+        content=png,
+        media_type="image/png",
+        headers={
+            "Cache-Control": "private, max-age=3600",
+            "Content-Disposition": f'inline; filename="sharago-fuel-{short_id}-{variant}.png"',
+        },
+    )
+
+
 _OG_TEMPLATE = """<!DOCTYPE html>
 <html lang="pl">
 <head>
