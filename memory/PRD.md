@@ -1765,3 +1765,75 @@ nikt ich nie importował.
 - 🔴 **Bug 15**: PLTab pusty/nie wyświetla P&L (backlog od Iter 47)
 - 🟡 Audit sekcji admina (Users/Vehicles/Blog) + System Health widget
 - 🟡 Sanityzacja HTML (bleach) + walidacja magic bytes plików
+
+
+---
+
+## Iter 50 — PL Tab + Bug 18/22 + Fuel QR + Phase C Sanitization (DONE 2026-07-18)
+
+### P0 Blocker fix
+- **PLTab visibility** — usunięto filtr w `VehicleProfile.js` który ukrywał
+  zakładkę P&L dla aktywnych pojazdów (poprzednio: tylko `sold`/`archived`).
+  Teraz P&L jest zawsze widoczne dla właściciela pojazdu.
+
+### P1 Bugi
+- **Bug 18** — zdjęcia w EDIT vehicle:
+  - `VehicleForm.js` w trybie edycji uploaduje zdjęcia bezpośrednio do R2
+    przez `POST /api/vehicles/{id}/photos` (nie mixuje base64 z dict w
+    payloadzie PUT).
+  - `photos` i `cover_photo_index` wykluczone z PUT payload w trybie edycji.
+  - Usuwanie zdjęć → `DELETE /vehicles/{id}/photos/{photo_id}` (R2).
+  - Ustawianie okładki → `POST /vehicles/{id}/photos/{photo_id}/main`.
+  - Grid używa `photoThumb()` / `photoId()` helperów z `lib/photos.js`.
+- **Bug 22** — checkbox gallery ze zdjęciami z profilu w CreateListing:
+  - Po wyborze pojazdu z garażu (`GET /vehicles/{id}`) pojawia się sekcja
+    `listing-garage-photos` z checkboxami dla każdego zdjęcia.
+  - Domyślnie wszystkie zaznaczone. Odznaczenie usuwa URL z `form.photos`.
+  - Ponowne kliknięcie w checkbox dodaje z powrotem — użytkownik nie musi
+    ponownie uploadować zdjęć.
+
+### P2 — Fuel QR (sticker workflow)
+- **Backend**: `GET /api/vehicles/{id}/qr/fuel?variant=dark|light` →
+  900×900 mirrored PNG, owner-only. Wskazuje na `/fuel/{short_id}`.
+- **Backend**: `GET /api/vehicles/short/{short_id}/fuel-context` →
+  minimal vehicle + last fuel entry (owner-only). Używane przez
+  QuickFuelPage do prefill ceny.
+- **Frontend**: `<QuickFuelPage>` na `/fuel/:shortId` — szybki formularz
+  tankowania (Litry + Cena/L + Przebieg), z auto-prefill przebiegu i
+  ostatniej ceny. Non-auth → redirect `/login?next=/fuel/{sid}`.
+- **UI**: Przycisk `fuel-print-qr-btn` w `FuelTab` otwiera
+  `PrintQrDialog qrKind="fuel"` (dark/light + download PNG).
+
+### P2 — Phase C sanityzacja
+- **`sanitizer.py`** (nowy): `bleach>=6.4`, callable-based attribute
+  filter dla `<a href>` (whitelista http/https/mailto + fragmenty/relative).
+- **`sanitize_plain`** stosowane w: marketplace listing (title/description/
+  location + messages content), timeline entry (title/description), project
+  item note, fuel log notes.
+- **`sanitize_rich`** stosowane w: forum thread (title→plain, content→rich)
+  i forum comment (content→rich).
+- **Magic-bytes gate** w `storage.detect_format()`: JPEG/PNG/GIF/BMP/
+  WEBP/HEIC signatures sprawdzane PRZED PIL. Fake-extension `.exe` z
+  `Content-Type: image/jpeg` → `None` → 400 przed dotarciem do PIL.
+
+### Zależności
+- Dodano `bleach>=6.0.0` do `requirements.txt`.
+
+### Testy
+`/app/test_reports/iteration_26.json`:
+- Backend: 10/10 pytest PASS + 1 skipped (R2 not configured w preview).
+- Frontend: 100% testids present + functional (PL tab, Fuel QR, QuickFuel,
+  CreateListing garage checkboxes). Sanityzacja marketplace + forum
+  zwalidowana round-trip przez API.
+- Bug 18 photo-upload przetestowany code-review-em; runtime test wymaga
+  ustawienia R2 kluczy w admin panel (w preview R2 → 503).
+
+### Do następnej iteracji (backlog)
+- 🟡 **Refaktoryzacja** `VehicleProfile.js` — routing tabów robi się złożony
+  (Overview + Historia + Projekt + Paliwo + P&L + AI); wydzielić do
+  osobnego route lub deklaratywnej tablicy.
+- 🟡 **Stripe** (P1) — integracja płatności.
+- 🟡 **GPS geolocation** (P1) — auto-mileage tracking.
+- 🟡 **Push notifications** (P1) — service worker + FCM.
+- 🟢 **Admin slow-queries endpoint** (P2) — profilowanie Mongo.
+- 🟢 **Facebook OAuth** (P2) — czeka na klucze usera.
