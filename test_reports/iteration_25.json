@@ -1,0 +1,29 @@
+{
+  "summary": "Iter 50 verified. Backend: 8/8 pytest pass (empty-string coercion on POST/PUT, /vehicles/{id}/service convenience, /pl full shape with current_value, swaps deck cover URL-only, /fuel/stats + fuel CRUD + avg_consumption=None with <2 full tanks). Frontend: ScrollToTop resets scroll on route change but preserves on same-pathname tab click (53→53 verified, /marketplace→0). FuelTab renders all 3 KPIs + add form + total-preview + submit closes form + delete works. HistoryTab add-entry button + form + submit → timeline reloads. Swap deck contains 0 base64 image leaks. PL Tab gating issue found — see action_items.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "VehicleProfile TABS filter", "issue": "PL tab is hidden unless vehicle.status is 'sold' or 'archived' (VehicleProfile.js line 182). Review request states PLTab should render editable purchase_price + current_value for ACTIVE vehicles (cost centre semantics). Current gating hides pl-tab / pl-total-cost / pl-cost-per-month / pl-cost-per-km / pl-monthly / pl-purchase-price-edit / pl-empty on active vehicles so the entire PL cost-centre UX is unreachable for the common case. Could not test PL testids because active test vehicle didn't show the tab.", "selector": "[data-testid=\"tab-pl\"]", "priority": "MEDIUM"}
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": ["/app/backend/tests/test_iter50.py", "/app/test_reports/pytest/iter50.xml"],
+  "action_items": [
+    "Decide PL tab visibility: if cost centre is intended for active vehicles per Iter 50 spec, remove the status==sold/archived gate at VehicleProfile.js:182. If it's intentional (owner sees P&L only after selling), update the review acceptance criteria — the requested testids cannot exist on active vehicles otherwise."
+  ],
+  "critical_code_review_comments": [
+    "PL tab gate (VehicleProfile.js:182) contradicts the Iter 50 cost-centre rewrite. Suggest: always show PL tab; the endpoint already returns net_result=null when not sold, so empty/mid-life states render fine.",
+    "FuelTab l/100km calculation formula: uses liters/km*100 for the CURRENT full tank (full[i].liters), correct behavior since consumption between fill i-1 and i is captured by filling to full at i. OK.",
+    "PLTab.js uses inline PATCH for purchase_price/current_value — untested here because PL tab was hidden. Ensure PATCH endpoint is /api/vehicles/{id} PUT (already validated for empty-string coercion) not a separate PATCH route.",
+    "Dead code from Iter 49 still present: MileageTab.js and ServiceTab.js at /app/frontend/src/pages/vehicle-tabs/ are not imported (VehicleProfile only imports the 6 active tabs). Safe to delete."
+  ],
+  "updated_files": ["/app/backend/tests/test_iter50.py"],
+  "success_rate": {"backend": "100%", "frontend": "90% (PL tab gated and not verifiable on active vehicle)"},
+  "test_credentials": "smoke-test-vehiq@example.com / SmokePass123! (vehicle f9d17048-1142-4fd3-ad2f-1f9bd9746d39 'REG iter39 2020', status=active)",
+  "seed_data_creation": "Fuel logs created (40L @ 6.50) and cleaned via UI delete; service entry TEST_Iter50 250 PLN via convenience endpoint left in place; TEST_Iter50_Empty vehicle cleaned by test.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "PL tab visibility is currently limited to sold/archived vehicles. To exercise the full P&L UI, either (a) mark test vehicle as sold via POST /api/vehicles/{id}/mark-sold, or (b) remove the gate. Cookie banner blocks login submit on first load — dismiss with click on 'Akceptuj wszystkie' before filling form. Tab testids use `tab-{id}` NOT `vehicle-tab-{id}` (review request had inaccurate testids).",
+  "rca of the issue": "PL tab hidden gate — VehicleProfile.js line 182 has explicit `if (tid === 'pl') return vehicle.status === 'sold' || vehicle.status === 'archived'`. This is a leftover from earlier P&L semantics (post-sale summary only). Iter 50 rewrites the endpoint to a cost-centre for active ownership, so the gate should be removed. Fix: replace filter with `.map(...)` unconditionally, or gate a different way (e.g., always show, disable edits when sold)."
+}

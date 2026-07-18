@@ -153,9 +153,10 @@ function WelcomeScreen({ onAdd, onSkip, t }) {
   );
 }
 
-/* ---------- 3-step wizard ---------- */
+/* ---------- 2-step wizard (Iter 50 Change 20: photo step removed —
+   photos added later from the vehicle profile page) ---------- */
 function WizardCard({ stage, setStage, form, setForm, handlePhoto, submitVehicle, busy, t }) {
-  const totalSteps = 3;
+  const totalSteps = 2;
   const progress = (stage / totalSteps) * 100;
 
   return (
@@ -197,37 +198,9 @@ function WizardCard({ stage, setStage, form, setForm, handlePhoto, submitVehicle
                 toast.error(t("onboarding.makeModelRequired"));
                 return;
               }
-              setStage(2);
+              // Change 20: skip photo step — go straight to mileage/purchase.
+              setStage(3);
             }}
-            t={t}
-          />
-        </div>
-      )}
-
-      {stage === 2 && (
-        <div className="space-y-5">
-          <h2 className="vehiq-display text-3xl text-vehiq-text">{t("onboarding.step2.title")}</h2>
-          <p className="text-sm text-vehiq-muted">{t("onboarding.step2.desc")}</p>
-          <div>
-            {form.photos[0] ? (
-              <div className="relative w-full aspect-[4/3] rounded-md overflow-hidden border border-vehiq-gold/40">
-                <img src={form.photos[0]} alt="cover" className="w-full h-full object-cover" />
-                <button type="button" onClick={() => setForm({ ...form, photos: [] })} className="absolute top-2 right-2 bg-vehiq-bg/80 rounded-full p-1.5 text-vehiq-text" data-testid="onboarding-photo-remove">
-                  <X size={14} />
-                </button>
-              </div>
-            ) : (
-              <label className="block w-full aspect-[4/3] rounded-md border-2 border-dashed border-vehiq-gold/40 hover:border-vehiq-gold cursor-pointer flex flex-col items-center justify-center gap-2 transition-colors" data-testid="onboarding-photo-upload">
-                <Upload size={28} className="text-vehiq-gold" />
-                <div className="text-sm text-vehiq-muted">{t("onboarding.step2.uploadHint")}</div>
-                <input type="file" accept="image/*" className="hidden" onChange={handlePhoto} />
-              </label>
-            )}
-          </div>
-          <NavRow
-            onBack={() => setStage(1)}
-            onNext={() => setStage(3)}
-            skipLabel={t("common.next")}
             t={t}
           />
         </div>
@@ -248,7 +221,7 @@ function WizardCard({ stage, setStage, form, setForm, handlePhoto, submitVehicle
             </div>
           </div>
           <NavRow
-            onBack={() => setStage(2)}
+            onBack={() => setStage(1)}
             onNext={submitVehicle}
             nextLabel={busy ? t("common.loading") : t("onboarding.finish")}
             disabled={busy}

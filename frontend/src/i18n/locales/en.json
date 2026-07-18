@@ -229,6 +229,7 @@
     "tabs": {
       "overview": "Overview",
       "history": "History",
+      "fuel": "Fuel",
       "project": "Project",
       "service": "Service",
       "mileage": "Mileage",

@@ -1,6 +1,6 @@
 """Vehicles router — CRUD, photos."""
 from fastapi import APIRouter, HTTPException, Depends, Body, UploadFile, File, Response
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from typing import Optional, List
 from datetime import datetime, timezone
 import uuid
@@ -159,6 +159,14 @@ async def _unique_slug(db, base: str, exclude_id: Optional[str] = None) -> str:
 
 
 class VehicleIn(BaseModel):
+    # Bug 19 (Iter 50): coerce empty-string form inputs to None BEFORE
+    # Optional[str] typing kicks in, so users submitting a blank "Data
+    # zakupu" don't get a Pydantic validation error.
+    @field_validator("*", mode="before")
+    @classmethod
+    def _empty_str_to_none(cls, v):
+        return None if isinstance(v, str) and v.strip() == "" else v
+
     make: str
     model: str
     year: Optional[int] = None
@@ -174,6 +182,8 @@ class VehicleIn(BaseModel):
     purchase_date: Optional[str] = None
     sale_price: Optional[float] = None
     sale_date: Optional[str] = None
+    # Bug 15 (Iter 50): current estimated market value for P&L calcs.
+    current_value: Optional[float] = None
     status: Optional[str] = "active"  # active | sold | archived
     condition: Optional[str] = None  # running|needs_repair|renovation|project|damaged|for_parts
     photos: Optional[List[str]] = []  # base64 data URLs
@@ -188,6 +198,11 @@ class VehicleIn(BaseModel):
 
 class VehicleUpdateIn(BaseModel):
     """Partial update — every field optional. Used by PUT /vehicles/{id}."""
+    @field_validator("*", mode="before")
+    @classmethod
+    def _empty_str_to_none(cls, v):
+        return None if isinstance(v, str) and v.strip() == "" else v
+
     make: Optional[str] = None
     model: Optional[str] = None
     year: Optional[int] = None
@@ -203,6 +218,8 @@ class VehicleUpdateIn(BaseModel):
     purchase_date: Optional[str] = None
     sale_price: Optional[float] = None
     sale_date: Optional[str] = None
+    # Bug 15 (Iter 50): editable current value for P&L calculations.
+    current_value: Optional[float] = None
     status: Optional[str] = None
     condition: Optional[str] = None
     photos: Optional[List[str]] = None
@@ -539,23 +556,122 @@ async def delete_vehicle(vehicle_id: str, user=Depends(get_current_user)):
     return {"ok": True}
 
 
+@router.post("/{vehicle_id}/service")
+async def add_service_entry(vehicle_id: str, payload: dict, user=Depends(get_current_user)):
+    """Bug 17 (Iter 50): convenience endpoint used by HistoryTab's inline
+    '+ Add entry' form. Wraps the existing POST /api/service insert with the
+    vehicle_id from the URL so the frontend doesn't need to know it lives on
+    a different mount point.
+    """
+    db = get_db()
+    v = await db.vehicles.find_one({"id": vehicle_id, "user_id": user["id"]}, {"_id": 0, "id": 1})
+    if not v:
+        raise HTTPException(status_code=404, detail="Vehicle not found")
+    doc = {
+        "id": str(uuid.uuid4()),
+        "vehicle_id": vehicle_id,
+        "user_id": user["id"],
+        "service_type": (payload.get("service_type") or "other")[:64],
+        "type": (payload.get("service_type") or "other")[:64],
+        "date": payload.get("date") or datetime.now(timezone.utc).date().isoformat(),
+        "mileage": int(payload["mileage"]) if payload.get("mileage") not in (None, "") else None,
+        "notes": (payload.get("notes") or None),
+        "cost": float(payload["cost"]) if payload.get("cost") not in (None, "") else None,
+        "workshop": payload.get("workshop") or None,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+    await db.service_entries.insert_one(doc)
+    doc.pop("_id", None)
+    return doc
+
+
 @router.get("/{vehicle_id}/pl")
 async def get_pl(vehicle_id: str, user=Depends(get_current_user)):
-    """P&L summary for one vehicle."""
+    """Bug 15 (Iter 50): full cost centre — total, cost/month, cost/km, and
+    category breakdown across service_entries + fuel_logs + insurance/
+    inspection buckets derived from service_type."""
     db = get_db()
     v = await db.vehicles.find_one({"id": vehicle_id, "user_id": user["id"]}, {"_id": 0})
     if not v:
         raise HTTPException(status_code=404, detail="Vehicle not found")
+
     services = await db.service_entries.find({"vehicle_id": vehicle_id}, {"_id": 0}).to_list(2000)
-    total_service_cost = sum(float(s.get("cost") or 0) for s in services)
+    fuel = await db.fuel_logs.find({"vehicle_id": vehicle_id}, {"_id": 0}).to_list(2000)
+
+    # Category breakdown. `service_type` uses the 24-subtype vocabulary from
+    # Iter 38 — group by domain for a readable summary in the UI.
+    cat_totals = {"service_repairs": 0.0, "fuel": 0.0, "insurance": 0.0, "inspection": 0.0, "other": 0.0}
+    for s in services:
+        cost = float(s.get("cost") or 0)
+        st = (s.get("service_type") or s.get("type") or "").lower()
+        if "insurance" in st:
+            cat_totals["insurance"] += cost
+        elif "inspection" in st or "mot" in st:
+            cat_totals["inspection"] += cost
+        elif st in ("", "other"):
+            cat_totals["other"] += cost
+        else:
+            cat_totals["service_repairs"] += cost
+    cat_totals["fuel"] = sum(float(f.get("total_cost") or 0) for f in fuel)
+
+    total_cost = round(sum(cat_totals.values()), 2)
+    breakdown = [
+        {"key": k, "amount": round(v_, 2), "pct": round((v_ / total_cost * 100) if total_cost else 0, 1)}
+        for k, v_ in cat_totals.items() if v_ > 0
+    ]
+    breakdown.sort(key=lambda x: x["amount"], reverse=True)
+
+    # Ownership window: min(entry date) → today (or sale_date if sold). Fall
+    # back to created_at when there are no entries yet.
+    from datetime import date as _date
+    def _to_date(s):
+        if not s: return None
+        try: return _date.fromisoformat(str(s)[:10])
+        except Exception: return None
+    entry_dates = [d for d in (_to_date(x.get("date")) for x in (services + fuel)) if d]
+    start = min(entry_dates) if entry_dates else _to_date(v.get("purchase_date")) or _to_date(v.get("created_at"))
+    end = _to_date(v.get("sale_date")) or _date.today()
+    months = 1
+    if start and end and end >= start:
+        months = max(1, (end.year - start.year) * 12 + (end.month - start.month) + 1)
+    cost_per_month = round(total_cost / months, 2) if total_cost else 0.0
+
+    # Cost per km — use the widest mileage span visible from entries.
+    mileages = [int(x.get("mileage") or 0) for x in (services + fuel) if x.get("mileage")]
+    if mileages and v.get("mileage_current"):
+        mileages.append(int(v["mileage_current"]))
+    km_range = (max(mileages) - min(mileages)) if len(mileages) >= 2 else 0
+    cost_per_km = round(total_cost / km_range, 2) if km_range > 0 else 0.0
+
+    # Monthly cost histogram — last 12 months, buckets by YYYY-MM.
+    monthly = {}
+    for x in services + fuel:
+        d = _to_date(x.get("date"))
+        if not d: continue
+        key = f"{d.year:04d}-{d.month:02d}"
+        cost_val = float(x.get("cost") or x.get("total_cost") or 0)
+        monthly[key] = round(monthly.get(key, 0.0) + cost_val, 2)
+    monthly_series = [{"month": k, "amount": monthly[k]} for k in sorted(monthly.keys())[-12:]]
+
     purchase = float(v.get("purchase_price") or 0)
     sale = float(v.get("sale_price") or 0)
-    net = (sale - purchase - total_service_cost) if sale else (-(purchase + total_service_cost))
+    current_value = float(v.get("current_value") or 0)
+    net = (sale - purchase - total_cost) if sale else None
+
     return {
         "vehicle_id": vehicle_id,
         "purchase_price": purchase,
+        "purchase_date": v.get("purchase_date"),
+        "current_value": current_value,
         "sale_price": sale,
-        "total_service_cost": total_service_cost,
+        "sale_date": v.get("sale_date"),
+        "total_cost": total_cost,
+        "cost_per_month": cost_per_month,
+        "cost_per_km": cost_per_km,
+        "ownership_months": months,
+        "km_range": km_range,
+        "breakdown": breakdown,
+        "monthly_series": monthly_series,
         "net_result": net,
         "is_sold": bool(sale and v.get("status") == "archived"),
     }

@@ -9,6 +9,7 @@ import PrintQrDialog from "@/components/PrintQrDialog";
 import OverviewTab from "./vehicle-tabs/OverviewTab";
 import HistoryTab from "./vehicle-tabs/HistoryTab";
 import ProjectTab from "./vehicle-tabs/ProjectTab";
+import FuelTab from "./vehicle-tabs/FuelTab";
 import PLTab from "./vehicle-tabs/PLTab";
 import AITab from "./vehicle-tabs/AITab";
 import Confetti from "@/components/Confetti";
@@ -16,6 +17,7 @@ import Confetti from "@/components/Confetti";
 const TABS = [
   { id: "overview", key: "vehicle.tabs.overview" },
   { id: "history", key: "vehicle.tabs.history" },
+  { id: "fuel", key: "vehicle.tabs.fuel" },
   { id: "project", key: "vehicle.tabs.project" },
   { id: "pl", key: "vehicle.tabs.pl" },
   { id: "ai", key: "vehicle.tabs.ai" },
@@ -196,6 +198,7 @@ export default function VehicleProfile() {
       <div>
         {tab === "overview" && <OverviewTab vehicle={vehicle} reload={reload} />}
         {tab === "history" && <HistoryTab vehicle={vehicle} />}
+        {tab === "fuel" && <FuelTab vehicle={vehicle} />}
         {tab === "project" && <ProjectTab vehicle={vehicle} />}
         {tab === "pl" && <PLTab vehicle={vehicle} />}
         {tab === "ai" && <AITab vehicle={vehicle} />}

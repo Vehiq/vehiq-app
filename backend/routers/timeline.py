@@ -326,6 +326,69 @@ async def list_fuel(vehicle_id: str, user=Depends(get_current_user)):
     return items
 
 
+@router.get("/{vehicle_id}/fuel/stats")
+async def fuel_stats(vehicle_id: str, user=Depends(get_current_user)):
+    """Iter 50: aggregated fuel stats for FuelTab dashboard.
+
+    - avg_consumption (l/100km) — only computed between consecutive FULL
+      tanks (partial refuels distort the reading). None when < 2 full tanks.
+    - cost_per_km — total_cost / max-min mileage across all logs.
+    - total_cost / total_liters — lifetime.
+    - monthly_series — last 12 months buckets for a bar chart.
+    """
+    db = get_db()
+    await _owned_vehicle(db, vehicle_id, user["id"])
+    logs = await db.fuel_logs.find(
+        {"vehicle_id": vehicle_id}, {"_id": 0}
+    ).to_list(2000)
+
+    total_cost = round(sum(float(f.get("total_cost") or 0) for f in logs), 2)
+    total_liters = round(sum(float(f.get("liters") or 0) for f in logs), 2)
+
+    # Consumption between full tanks only.
+    full = sorted([f for f in logs if f.get("full_tank") and f.get("mileage")],
+                  key=lambda f: int(f["mileage"]))
+    avg_consumption = None
+    if len(full) >= 2:
+        samples = []
+        for i in range(1, len(full)):
+            km = int(full[i]["mileage"]) - int(full[i - 1]["mileage"])
+            liters = float(full[i].get("liters") or 0)
+            if km > 0 and liters > 0:
+                samples.append(liters / km * 100)
+        if samples:
+            avg_consumption = round(sum(samples) / len(samples), 2)
+
+    # Cost/km lifetime.
+    mileages = [int(f.get("mileage") or 0) for f in logs if f.get("mileage")]
+    cost_per_km = None
+    if len(mileages) >= 2:
+        km_range = max(mileages) - min(mileages)
+        if km_range > 0:
+            cost_per_km = round(total_cost / km_range, 2)
+
+    # Monthly histogram.
+    from datetime import date as _date
+    monthly = {}
+    for f in logs:
+        try:
+            d = _date.fromisoformat(str(f.get("date"))[:10])
+        except Exception:
+            continue
+        key = f"{d.year:04d}-{d.month:02d}"
+        monthly[key] = round(monthly.get(key, 0.0) + float(f.get("total_cost") or 0), 2)
+    monthly_series = [{"month": k, "amount": monthly[k]} for k in sorted(monthly.keys())[-12:]]
+
+    return {
+        "total_cost": total_cost,
+        "total_liters": total_liters,
+        "avg_consumption": avg_consumption,
+        "cost_per_km": cost_per_km,
+        "entries": len(logs),
+        "monthly_series": monthly_series,
+    }
+
+
 @router.post("/{vehicle_id}/fuel")
 async def add_fuel(vehicle_id: str, payload: FuelLogIn, user=Depends(get_current_user)):
     db = get_db()

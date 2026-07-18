@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import "@/App.css";
 import "@/i18n";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { Toaster } from "sonner";
 import { HelmetProvider } from "react-helmet-async";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
@@ -123,6 +123,18 @@ function LangSync() {
   return null;
 }
 
+// Bug 16 (Iter 50): scroll to top on every route change so users don't
+// land mid-page after navigation (esp. hitting AI Mechanic tab from a long
+// vehicle profile). Tab-internal state changes DO NOT trigger this — those
+// stay in place because pathname doesn't change.
+function ScrollToTop() {
+  const { pathname } = useLocation();
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: "instant" });
+  }, [pathname]);
+  return null;
+}
+
 function App() {
   return (
     <HelmetProvider>
@@ -131,6 +143,7 @@ function App() {
           <ErrorBoundary>
             <LangSync />
             <PageTracker />
+            <ScrollToTop />
             <Toaster theme="dark" position="top-right" toastOptions={{ style: { background: "#162035", border: "1px solid rgba(43,127,232,0.2)", color: "#FFFFFF" } }} />
             <CookieBanner />
 

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { Plus, X } from "lucide-react";
 import api from "@/lib/api";
 import { toast } from "sonner";
 
@@ -58,6 +59,7 @@ export default function HistoryTab({ vehicle }) {
   const lang = i18n.language?.startsWith("en") ? "en" : "pl";
   const [events, setEvents] = useState(null);
   const [filter, setFilter] = useState("");
+  const [showForm, setShowForm] = useState(false);
 
   const load = () => {
     const params = filter ? `?source=${filter}` : "";
@@ -76,24 +78,43 @@ export default function HistoryTab({ vehicle }) {
 
   return (
     <div className="space-y-6" data-testid="history-tab">
-      {/* Filter chips */}
-      <div className="flex flex-wrap gap-2" data-testid="history-filters">
-        {FILTERS.map((f) => (
-          <button
-            key={f.key || "all"}
-            type="button"
-            onClick={() => setFilter(f.key)}
-            className={`px-3 py-1.5 text-xs rounded-full border transition-colors ${
-              filter === f.key
-                ? "border-vehiq-gold bg-vehiq-gold/15 text-vehiq-gold"
-                : "border-vehiq-border text-vehiq-muted hover:text-vehiq-text hover:border-vehiq-muted"
-            }`}
-            data-testid={`history-filter-${f.key || "all"}`}
-          >
-            {f[lang]}
-          </button>
-        ))}
+      {/* Bug 17 (Iter 50): add-entry button — opens inline form to create
+          a new service_entries row that instantly shows up on the timeline. */}
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <div className="flex flex-wrap gap-2" data-testid="history-filters">
+          {FILTERS.map((f) => (
+            <button
+              key={f.key || "all"}
+              type="button"
+              onClick={() => setFilter(f.key)}
+              className={`px-3 py-1.5 text-xs rounded-full border transition-colors ${
+                filter === f.key
+                  ? "border-vehiq-gold bg-vehiq-gold/15 text-vehiq-gold"
+                  : "border-vehiq-border text-vehiq-muted hover:text-vehiq-text hover:border-vehiq-muted"
+              }`}
+              data-testid={`history-filter-${f.key || "all"}`}
+            >
+              {f[lang]}
+            </button>
+          ))}
+        </div>
+        <button
+          type="button"
+          onClick={() => setShowForm((s) => !s)}
+          className="vehiq-btn-primary inline-flex items-center gap-1.5 px-3 py-1.5 text-xs shrink-0"
+          data-testid="history-add-entry-btn"
+        >
+          {showForm ? <><X size={12} /> {lang === "pl" ? "Anuluj" : "Cancel"}</> : <><Plus size={12} /> {lang === "pl" ? "Dodaj wpis" : "Add entry"}</>}
+        </button>
       </div>
+
+      {showForm && (
+        <AddEntryForm
+          vehicleId={vehicle.id}
+          lang={lang}
+          onDone={() => { setShowForm(false); load(); }}
+        />
+      )}
 
       {events === null ? (
         <div className="text-sm text-vehiq-muted py-8 text-center">…</div>
@@ -171,5 +192,59 @@ export default function HistoryTab({ vehicle }) {
         </ol>
       )}
     </div>
+  );
+}
+
+const SERVICE_TYPES_FORM = [
+  "oil_change", "timing_belt", "brake_pads", "brake_discs", "tires",
+  "inspection", "insurance", "battery", "suspension", "other",
+];
+
+function AddEntryForm({ vehicleId, lang, onDone }) {
+  const [form, setForm] = useState({
+    service_type: "oil_change",
+    date: new Date().toISOString().slice(0, 10),
+    mileage: "",
+    notes: "",
+    cost: "",
+    workshop: "",
+  });
+  const [busy, setBusy] = useState(false);
+
+  const submit = async (e) => {
+    e.preventDefault();
+    setBusy(true);
+    try {
+      await api.post(`/vehicles/${vehicleId}/service`, {
+        service_type: form.service_type,
+        date: form.date,
+        mileage: form.mileage ? Number(form.mileage) : null,
+        notes: form.notes || null,
+        cost: form.cost ? Number(form.cost) : null,
+        workshop: form.workshop || null,
+      });
+      toast.success(lang === "pl" ? "Dodano wpis" : "Entry added");
+      onDone();
+    } catch (err) {
+      toast.error(err?.response?.data?.detail || "Error");
+    } finally { setBusy(false); }
+  };
+
+  return (
+    <form onSubmit={submit} className="rounded-lg border border-vehiq-border bg-vehiq-nav/30 p-4 space-y-3" data-testid="history-add-entry-form">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <select value={form.service_type} onChange={(e) => setForm({ ...form, service_type: e.target.value })} className="vehiq-input text-sm" data-testid="history-add-type">
+          {SERVICE_TYPES_FORM.map((k) => (<option key={k} value={k}>{(EVENT_TYPES[k] || {})[lang] || k}</option>))}
+        </select>
+        <input type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} className="vehiq-input text-sm" data-testid="history-add-date" required />
+        <input type="number" min={0} placeholder={lang === "pl" ? "Przebieg (km)" : "Mileage (km)"} value={form.mileage} onChange={(e) => setForm({ ...form, mileage: e.target.value })} className="vehiq-input text-sm" data-testid="history-add-mileage" />
+        <input type="number" step="0.01" min={0} placeholder={lang === "pl" ? "Koszt (PLN)" : "Cost (PLN)"} value={form.cost} onChange={(e) => setForm({ ...form, cost: e.target.value })} className="vehiq-input text-sm" data-testid="history-add-cost" />
+      </div>
+      <input type="text" placeholder={lang === "pl" ? "Warsztat (opcjonalnie)" : "Workshop (optional)"} value={form.workshop} onChange={(e) => setForm({ ...form, workshop: e.target.value })} className="vehiq-input text-sm w-full" data-testid="history-add-workshop" />
+      <textarea rows={2} placeholder={lang === "pl" ? "Opis / notatki" : "Description / notes"} value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} className="vehiq-input text-sm w-full resize-none" data-testid="history-add-notes" />
+      <button type="submit" disabled={busy} className="vehiq-btn-primary w-full py-2 text-sm" data-testid="history-add-submit">
+        {busy ? "…" : lang === "pl" ? "Zapisz wpis" : "Save entry"}
+      </button>
+    </form>
   );
 }
