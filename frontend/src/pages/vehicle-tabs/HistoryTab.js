@@ -34,8 +34,6 @@ const EVENT_TYPES = {
 const FILTERS = [
   { key: "",         pl: "Wszystkie",  en: "All" },
   { key: "service",  pl: "Serwis",     en: "Service" },
-  { key: "fuel",     pl: "Paliwo",     en: "Fuel" },
-  { key: "mileage",  pl: "Przebieg",   en: "Mileage" },
   { key: "project",  pl: "Projekt",    en: "Project" },
 ];
 
@@ -120,7 +118,7 @@ export default function HistoryTab({ vehicle }) {
         <div className="text-sm text-vehiq-muted py-8 text-center">…</div>
       ) : events.length === 0 ? (
         <div className="text-sm text-vehiq-muted py-8 text-center border border-dashed border-vehiq-border rounded-lg" data-testid="history-empty">
-          {lang === "pl" ? "Brak wpisów historii dla tego filtra." : "No history entries for this filter."}
+          {lang === "pl" ? "Brak wpisów serwisowych — dodaj pierwszy serwis." : "No service entries yet — add the first one."}
         </div>
       ) : (
         <ol className="relative" data-testid="history-timeline">

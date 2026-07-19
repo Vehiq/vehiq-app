@@ -60,9 +60,12 @@ async def get_timeline(
     limit: int = 500,
     user=Depends(get_current_user),
 ):
-    """Return a merged, sorted event list.
+    """Return a merged, sorted event list — service + completed projects only.
 
-    Filter with `?source=service|fuel|mileage|project` — omit to include all.
+    Filter with `?source=service|project` — omit to include all.
+    Iter 51: fuel and standalone mileage entries were REMOVED from the
+    timeline. Fuel lives in the dedicated Fuel tab (its own P&L category);
+    mileage is a computed field on the vehicle, not an event list.
     Each event has: {id, source, type, date, mileage, description, cost,
     status, ref_id} so the frontend can render icons + click-through.
     """
@@ -91,45 +94,7 @@ async def get_timeline(
                 "ref_id": e["id"],
             })
 
-    # 2. Fuel logs (schema-only support for now; UI in Iter 50)
-    if want in ("", "fuel"):
-        fuel = await db.fuel_logs.find(
-            {"vehicle_id": vehicle_id}, {"_id": 0}
-        ).to_list(2000)
-        for f in fuel:
-            liters = f.get("liters") or 0
-            ppl = f.get("price_per_liter") or 0
-            events.append({
-                "id": f"fuel-{f['id']}",
-                "source": "fuel",
-                "type": "fuel",
-                "date": f.get("date"),
-                "mileage": f.get("mileage"),
-                "description": f"{liters}L @ {ppl} PLN/L" if liters and ppl else "Tankowanie",
-                "cost": f.get("total_cost"),
-                "status": "full" if f.get("full_tank") else "partial",
-                "ref_id": f["id"],
-            })
-
-    # 3. Mileage logs
-    if want in ("", "mileage"):
-        mi = await db.mileage_logs.find(
-            {"vehicle_id": vehicle_id}, {"_id": 0}
-        ).to_list(2000)
-        for m in mi:
-            events.append({
-                "id": f"mi-{m['id']}",
-                "source": "mileage",
-                "type": "mileage",
-                "date": m.get("date"),
-                "mileage": m.get("odometer"),
-                "description": m.get("note") or "Odczyt licznika",
-                "cost": None,
-                "status": None,
-                "ref_id": m["id"],
-            })
-
-    # 4. Project items — only 'done' surface as historical events. Planned
+    # 2. Project items — only 'done' surface as historical events. Planned
     # ones live in the Project tab, not on the timeline (would clutter with
     # future dates).
     if want in ("", "project"):

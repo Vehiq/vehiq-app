@@ -5,11 +5,23 @@ from typing import Optional, List
 from datetime import datetime, timezone
 import uuid
 import re
+import os
+import secrets
 import logging
 
 from db_helper import get_db
 from auth_utils import get_current_user, get_optional_user
 import storage as r2_storage
+
+
+def _app_url() -> str:
+    """Public app URL used to build share links. Falls back to sharago.pl."""
+    return (os.environ.get("APP_URL") or os.environ.get("FRONTEND_URL") or "https://sharago.pl").rstrip("/")
+
+
+def _generate_share_token() -> str:
+    """URL-safe 32-byte random token for the timeline share links."""
+    return secrets.token_urlsafe(24)  # ~32 chars
 
 # ---------------- Iter 42/44: photo payload guard ----------------
 # Prevents pymongo.errors.DocumentTooLarge (16MB BSON hard limit) by rejecting
@@ -498,6 +510,162 @@ async def create_vehicle(payload: VehicleIn, user=Depends(get_current_user)):
     from activity import log_activity
     await log_activity(user["id"], "vehicle.create", "vehicle", v_id, f"{doc.get('make')} {doc.get('model')}")
     return doc
+
+
+# ---------------- Timeline Share (Iter 51) ----------------
+# "Cyfrowa książka serwisowa" — owner generates a share token; buyer scans/
+# opens /historia/{token} on Sharago and sees the service history WITHOUT
+# any financial data. Toggle enabled/disabled without regenerating token.
+# The 404 response for a disabled or unknown token is intentional: we don't
+# want to reveal existence of tokens that used to work.
+
+class TimelineShareToggle(BaseModel):
+    enabled: bool
+
+
+@router.get("/historia/{share_token}")
+async def get_timeline_share(share_token: str):
+    """Public read-only service-history page reachable via the owner's
+    share token. Returns vehicle summary + service entries (NO costs, NO
+    financial data, NO fuel logs)."""
+    db = get_db()
+    # length gate — reject obviously malformed tokens without hitting the DB
+    if not share_token or len(share_token) < 16 or len(share_token) > 64:
+        raise HTTPException(status_code=404, detail="Nie znaleziono historii")
+    v = await db.vehicles.find_one(
+        {"share_token": share_token, "share_enabled": True},
+        {"_id": 0},
+    )
+    if not v:
+        raise HTTPException(status_code=404, detail="Nie znaleziono historii")
+
+    photos = v.get("photos") or []
+    idx = v.get("cover_photo_index") or 0
+    cover = _photo_full(photos[idx]) if (0 <= idx < len(photos)) else (_photo_full(photos[0]) if photos else None)
+
+    # Service history — strip cost + workshop + notes (private).
+    services = await db.service_entries.find(
+        {"vehicle_id": v["id"]}, {"_id": 0}
+    ).sort("date", -1).to_list(500)
+    for s in services:
+        s.pop("cost", None)
+        s.pop("workshop", None)
+        s.pop("notes", None)
+
+    # Owner display name only.
+    owner = await db.profiles.find_one(
+        {"id": v.get("user_id")}, {"_id": 0, "name": 1}
+    ) or {}
+
+    return {
+        "mode": "service-history",
+        "id": v.get("id"),
+        "slug": v.get("slug"),
+        "make": v.get("make"),
+        "model": v.get("model"),
+        "year": v.get("year"),
+        "engine": v.get("engine"),
+        "fuel": v.get("fuel"),
+        "color": v.get("color"),
+        "mileage_current": v.get("mileage_current"),
+        "photos": [_photo_full(p) for p in photos],
+        "cover_photo": cover,
+        "owner": owner,
+        "public": bool(v.get("public")),  # so the "Sprawdź na Sharago" CTA can be shown when the profile is public
+        "service_entries": services,
+        # Explicit `null` for fields the client might look at — makes the
+        # contract crystal-clear that these are hidden from the shared view.
+        "active_listing": None,
+        "purchase_price": None,
+        "current_value": None,
+        "project_budget": None,
+    }
+
+
+@router.post("/{vehicle_id}/timeline/share")
+async def create_timeline_share(vehicle_id: str, user=Depends(get_current_user)):
+    """Owner-only. Idempotent: if a token already exists, reuse it and set
+    enabled=True. Returns share URL + token + enabled state."""
+    db = get_db()
+    v = await db.vehicles.find_one(
+        {"id": vehicle_id, "user_id": user["id"]},
+        {"_id": 0, "id": 1, "share_token": 1},
+    )
+    if not v:
+        raise HTTPException(status_code=404, detail="Vehicle not found")
+    token = v.get("share_token") or _generate_share_token()
+    await db.vehicles.update_one(
+        {"id": vehicle_id},
+        {"$set": {
+            "share_token": token,
+            "share_enabled": True,
+            "share_created_at": datetime.now(timezone.utc).isoformat(),
+        }},
+    )
+    return {
+        "share_token": token,
+        "share_enabled": True,
+        "share_url": f"{_app_url()}/historia/{token}",
+    }
+
+
+@router.patch("/{vehicle_id}/timeline/share")
+async def toggle_timeline_share(
+    vehicle_id: str,
+    payload: TimelineShareToggle,
+    user=Depends(get_current_user),
+):
+    """Owner-only. Toggle share_enabled without regenerating the token — so
+    the buyer's saved link keeps working after re-enabling."""
+    db = get_db()
+    v = await db.vehicles.find_one(
+        {"id": vehicle_id, "user_id": user["id"]},
+        {"_id": 0, "id": 1, "share_token": 1},
+    )
+    if not v:
+        raise HTTPException(status_code=404, detail="Vehicle not found")
+    token = v.get("share_token")
+    if not token:
+        # No token yet — generate one on first enable
+        if not payload.enabled:
+            return {"share_token": None, "share_enabled": False, "share_url": None}
+        token = _generate_share_token()
+        await db.vehicles.update_one(
+            {"id": vehicle_id},
+            {"$set": {
+                "share_token": token,
+                "share_created_at": datetime.now(timezone.utc).isoformat(),
+            }},
+        )
+    await db.vehicles.update_one(
+        {"id": vehicle_id},
+        {"$set": {"share_enabled": bool(payload.enabled)}},
+    )
+    return {
+        "share_token": token,
+        "share_enabled": bool(payload.enabled),
+        "share_url": f"{_app_url()}/historia/{token}" if payload.enabled else None,
+    }
+
+
+@router.get("/{vehicle_id}/timeline/share")
+async def get_timeline_share_status(vehicle_id: str, user=Depends(get_current_user)):
+    """Owner-only. Returns current token + enabled state (used by the modal
+    to show the link on first open)."""
+    db = get_db()
+    v = await db.vehicles.find_one(
+        {"id": vehicle_id, "user_id": user["id"]},
+        {"_id": 0, "share_token": 1, "share_enabled": 1, "share_created_at": 1},
+    )
+    if not v:
+        raise HTTPException(status_code=404, detail="Vehicle not found")
+    token = v.get("share_token")
+    return {
+        "share_token": token,
+        "share_enabled": bool(v.get("share_enabled")),
+        "share_created_at": v.get("share_created_at"),
+        "share_url": f"{_app_url()}/historia/{token}" if (token and v.get("share_enabled")) else None,
+    }
 
 
 @router.get("/{vehicle_id}")

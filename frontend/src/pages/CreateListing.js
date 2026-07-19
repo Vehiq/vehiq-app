@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams, useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import api, { apiErrorMessage } from "@/lib/api";
 import { compressImage, fileToDataURL } from "@/lib/imageCompress";
@@ -16,6 +16,8 @@ export default function CreateListing() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const { id: editId } = useParams(); // Bug 23 (Iter 51): edit mode via /marketplace/:id/edit
+  const isEdit = !!editId;
   const [vehicles, setVehicles] = useState([]);
   const [garagePhotos, setGaragePhotos] = useState([]); // Bug 22: photos of selected vehicle
   const [form, setForm] = useState({
@@ -37,7 +39,40 @@ export default function CreateListing() {
   const [busy, setBusy] = useState(false);
   const [limitModal, setLimitModal] = useState(false);
 
-  // Prefill category from URL (e.g. when arriving from /wynajem "Add listing" button).
+  // Bug 23 (Iter 51): Edit mode — load the existing listing and prefill.
+  useEffect(() => {
+    if (!isEdit) return;
+    api.get(`/marketplace/listings/${editId}`)
+      .then(({ data }) => {
+        setForm((f) => ({
+          ...f,
+          type: data.type || "car",
+          category: data.category || "",
+          title: data.title || "",
+          description: data.description || "",
+          price: data.price ?? "",
+          location: data.location || "",
+          photos: data.photos || [],
+          vehicle_id: data.vehicle_id || "",
+          make: data.make || "",
+          model: data.model || "",
+          year: data.year || "",
+          condition: data.condition || "",
+          mileage: data.mileage ?? "",
+          steering: data.steering || "left",
+          parts_category: data.parts_category || "",
+          parts_subcategory: data.parts_subcategory || "",
+          desired_swaps: data.desired_swaps || [],
+          rental: data.rental || f.rental,
+          service: data.service || f.service,
+        }));
+      })
+      .catch(() => {
+        toast.error("Ogłoszenie nie znalezione");
+        navigate("/marketplace/mine");
+      });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editId]);
   useEffect(() => {
     const cat = searchParams.get("category");
     if (cat === "rental_car" || cat === "rental_garage") {
@@ -242,14 +277,18 @@ export default function CreateListing() {
       }
       // Title is required by backend — block empty submission early
       if (!payload.title.trim()) { toast.error(t("marketplace.titleRequired")); return; }
-      await api.post("/marketplace/listings", payload);
-      // Iter 41: GA4 conversion event
-      try {
-        const { trackEvent } = await import("@/hooks/usePageTracking");
-        trackEvent("create_listing", { category: payload.category || payload.type });
-      } catch { /* noop */ }
+      if (isEdit) {
+        await api.put(`/marketplace/listings/${editId}`, payload);
+      } else {
+        await api.post("/marketplace/listings", payload);
+        // Iter 41: GA4 conversion event (only on create — not on edit)
+        try {
+          const { trackEvent } = await import("@/hooks/usePageTracking");
+          trackEvent("create_listing", { category: payload.category || payload.type });
+        } catch { /* noop */ }
+      }
       toast.success(t("common.success"));
-      navigate(isRental ? "/wynajem" : (isService ? "/marketplace/mine" : "/garage"));
+      navigate(isEdit ? "/marketplace/mine" : (isRental ? "/wynajem" : (isService ? "/marketplace/mine" : "/garage")));
     } catch (err) {
       const detail = err?.response?.data?.detail;
       if (err?.response?.status === 402 && (detail?.code === "rental_limit_free" || detail?.code === "service_limit_free")) {

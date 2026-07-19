@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { useTranslation } from "react-i18next";
-import { Heart, X, Repeat, Trash2, MessageCircle, Plus } from "lucide-react";
+import { Heart, X, Repeat, Trash2, MessageCircle, Plus, Car } from "lucide-react";
 import { toast } from "sonner";
 import api from "@/lib/api";
 import LazyImage from "@/components/LazyImage";
@@ -151,7 +151,7 @@ export default function SwapPage() {
           <Repeat size={20} />
         </div>
         <div>
-          <h1 className="vehiq-display text-3xl text-vehiq-text">Giełda zamian</h1>
+          <h1 className="vehiq-display text-3xl text-vehiq-text">Zamiana</h1>
           <p className="text-sm text-vehiq-muted mt-1">
             Zamień swoje auto na inne. Gdy obie strony klikną "Pogadajmy" — łączymy Was.
           </p>
@@ -218,8 +218,12 @@ export default function SwapPage() {
           ) : (
             matches.map((m) => (
               <div key={m.id} className="vehiq-card p-4 flex items-center gap-4" data-testid={`swap-match-${m.id}`}>
-                <div className="h-16 w-24 rounded overflow-hidden shrink-0 bg-vehiq-bg">
-                  <LazyImage src={m.other_vehicle.cover_photo} alt="" className="w-full h-full" />
+                <div className="h-16 w-24 rounded overflow-hidden shrink-0 bg-vehiq-bg flex items-center justify-center">
+                  {m.other_vehicle.cover_photo ? (
+                    <LazyImage src={m.other_vehicle.cover_photo} alt="" className="w-full h-full" />
+                  ) : (
+                    <Car size={22} className="text-vehiq-muted" />
+                  )}
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="font-medium text-vehiq-text">{m.other_vehicle.label}</div>
@@ -306,8 +310,12 @@ export default function SwapPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {mine.map((l) => (
                 <div key={l.id} className="vehiq-card p-4 flex items-center gap-3" data-testid={`swap-mine-${l.id}`}>
-                  <div className="h-14 w-20 rounded overflow-hidden shrink-0 bg-vehiq-bg">
-                    <LazyImage src={l.vehicle?.cover_photo} alt="" className="w-full h-full" />
+                  <div className="h-14 w-20 rounded overflow-hidden shrink-0 bg-vehiq-bg flex items-center justify-center">
+                    {l.vehicle?.cover_photo ? (
+                      <LazyImage src={l.vehicle.cover_photo} alt="" className="w-full h-full" />
+                    ) : (
+                      <Car size={20} className="text-vehiq-muted" data-testid={`swap-mine-placeholder-${l.id}`} />
+                    )}
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="font-medium text-vehiq-text truncate">{l.vehicle?.label || "—"}</div>
@@ -330,10 +338,18 @@ export default function SwapPage() {
 
 function SwapCard({ card, onReact, busy }) {
   const v = card.vehicle;
+  // Bug 21 (Iter 51): explicit placeholder when cover_photo is missing —
+  // LazyImage returns null for `!src` which left cards imageless.
   return (
     <div className="vehiq-card overflow-hidden" data-testid="swap-card">
-      <div className="aspect-[4/3] bg-vehiq-bg">
-        <LazyImage src={v.cover_photo} alt="" className="w-full h-full" />
+      <div className="aspect-[4/3] bg-vehiq-bg flex items-center justify-center">
+        {v.cover_photo ? (
+          <LazyImage src={v.cover_photo} alt={`${v.make || ""} ${v.model || ""}`.trim()} className="w-full h-full" eager />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center bg-vehiq-bg" data-testid="swap-card-placeholder">
+            <Car size={48} className="text-vehiq-muted" />
+          </div>
+        )}
       </div>
       <div className="p-5 space-y-3">
         <div>

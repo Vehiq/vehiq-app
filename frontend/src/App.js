@@ -163,6 +163,7 @@ function App() {
 
           {/* Public vehicle profile (shareable) */}
           <Route path="/vehicles/:slug" element={<PublicVehicle />} />
+          <Route path="/historia/:token" element={<PublicVehicle />} />
           <Route path="/v/:shortId" element={<VehicleShort />} />
           <Route path="/u/:slug" element={<PublicProfile />} />
 
@@ -201,6 +202,7 @@ function App() {
             <Route path="/marketplace/mine" element={<MyListings />} />
             <Route path="/marketplace/messages" element={<Messages />} />
             <Route path="/marketplace/new" element={<CreateListing />} />
+            <Route path="/marketplace/:id/edit" element={<CreateListing />} />
             <Route path="/marketplace/:id" element={<ListingDetail />} />
             <Route path="/wynajem" element={<Rentals />} />
             <Route path="/rentals" element={<Rentals />} />

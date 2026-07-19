@@ -8,6 +8,7 @@ import os
 import asyncio
 import html as html_lib
 import logging
+from typing import Optional
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 import aiosmtplib
@@ -42,12 +43,21 @@ async def _get_smtp_config():
     }
 
 
-LOGO_URL = os.environ.get("EMAIL_LOGO_URL", "https://sharago.pl/logo.png")
+LOGO_URL = os.environ.get("EMAIL_LOGO_URL") or os.environ.get("LOGO_URL", "https://sharago.pl/logo.png")
 
 
-def _wrap_html(title: str, body_html: str, lang: str = "pl") -> str:
+def _wrap_html(title: str, body_html: str, lang: str = "pl", unsubscribe_url: Optional[str] = None) -> str:
     """Wrap email body in Sharago premium template (navy header + blue accents)."""
-    footer_unsubscribe = "Możesz wypisać się z powiadomień w ustawieniach konta." if lang == "pl" else "You can unsubscribe from notifications in your account settings."
+    unsub_href = unsubscribe_url or f"{APP_URL}/account/notifications"
+    privacy_href = f"{APP_URL}/legal/privacy-policy"
+    if lang == "en":
+        team_line = "Sharago team"
+        unsub_label = "Unsubscribe from notifications"
+        privacy_label = "Privacy policy"
+    else:
+        team_line = "Zespół Sharago"
+        unsub_label = "Wypisz się z powiadomień"
+        privacy_label = "Polityka prywatności"
     return f"""<!doctype html>
 <html lang="{lang}"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
@@ -56,21 +66,23 @@ def _wrap_html(title: str, body_html: str, lang: str = "pl") -> str:
 <body style="margin:0;padding:0;background:#eef2f8;font-family:Arial,Helvetica,sans-serif;color:#222;">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#eef2f8;padding:24px 12px;">
   <tr><td align="center">
-    <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:8px;overflow:hidden;max-width:600px;width:100%;box-shadow:0 2px 12px rgba(13,22,38,0.08);">
+    <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="background:#0D1626;border-radius:8px;overflow:hidden;max-width:600px;width:100%;box-shadow:0 2px 12px rgba(13,22,38,0.12);">
       <!-- Header -->
-      <tr><td style="background:#0D1626;padding:28px 32px;text-align:left;">
+      <tr><td style="padding:24px;text-align:center;border-bottom:1px solid #1E3A5F;">
         <a href="{APP_URL}" style="text-decoration:none;display:inline-block;">
-          <img src="{LOGO_URL}" alt="Sharago" width="160" height="40" style="display:block;border:0;outline:none;max-width:160px;height:auto;">
+          <img src="{LOGO_URL}" alt="Sharago" height="50" style="display:inline-block;border:0;outline:none;height:50px;">
         </a>
       </td></tr>
       <!-- Body -->
-      <tr><td style="padding:36px 32px;color:#222;font-size:15px;line-height:1.6;">
+      <tr><td style="padding:32px 24px;color:#ffffff;font-size:15px;line-height:1.6;">
         {body_html}
       </td></tr>
       <!-- Footer -->
-      <tr><td style="background:#0D1626;padding:20px 32px;text-align:center;color:#9BA8C0;font-size:11px;">
-        © 2026 Sharago &middot; <a href="{APP_URL}" style="color:#2B7FE8;text-decoration:none;">sharago.pl</a><br>
-        <span style="color:#5C6B85;">{footer_unsubscribe}</span>
+      <tr><td style="padding:20px 24px;border-top:1px solid #1E3A5F;text-align:left;color:#8899AA;font-size:12px;">
+        {team_line} &middot; <a href="{APP_URL}" style="color:#2B7FE8;text-decoration:none;">sharago.pl</a>
+        <br>
+        <a href="{unsub_href}" style="color:#8899AA;text-decoration:underline;">{unsub_label}</a> &middot;
+        <a href="{privacy_href}" style="color:#8899AA;text-decoration:underline;">{privacy_label}</a>
       </td></tr>
     </table>
   </td></tr>
@@ -82,51 +94,63 @@ def _btn(text: str, href: str) -> str:
     return f'<table role="presentation" cellpadding="0" cellspacing="0" style="margin:24px 0;"><tr><td style="background:#2B7FE8;border-radius:6px;"><a href="{href}" style="display:inline-block;padding:12px 28px;color:#ffffff;font-weight:600;text-decoration:none;font-family:Arial,Helvetica,sans-serif;font-size:14px;">{text}</a></td></tr></table>'
 
 
-# ---------- Templates ----------
+# ---------- Templates (Iter 51 — refreshed copy + dark-body styles) ----------
+# All templates render on a #0D1626 (navy) body — headings + copy must be
+# light-colored. Buttons stay Sharago-blue (#2B7FE8) via _btn().
+_H2 = 'font-family:Georgia,serif;color:#ffffff;font-size:26px;margin:0 0 12px;'
+_P = 'color:#DCE5F0;font-size:15px;line-height:1.6;margin:0 0 14px;'
+_MUTE = 'color:#8899AA;font-size:13px;line-height:1.5;margin:0;'
+_QUOTE = 'border-left:3px solid #2B7FE8;margin:12px 0;padding:8px 14px;color:#DCE5F0;background:#1E3A5F;border-radius:4px;'
+
+
 def tpl_welcome(name: str, lang: str = "pl"):
     name = html_lib.escape(name or "")
     if lang == "en":
-        subject = "Welcome to Sharago — Your garage is ready"
-        body = f"""<h2 style="font-family:Georgia,serif;color:#0D1626;font-size:28px;margin:0 0 12px;">Welcome, {name}!</h2>
-<p>Your virtual garage is ready. Add your vehicles, track service history, monitor mileage, and chat with our AI Mechanic powered by Claude Sonnet 4.5.</p>
-{_btn("Add your first vehicle", f"{APP_URL}/garage/new")}
-<p style="color:#666;font-size:13px;">Need help? Reply to this email — we're here.</p>"""
+        subject = "Welcome to Sharago — your virtual garage is ready"
+        body = f"""<h2 style="{_H2}">Welcome, {name}!</h2>
+<p style="{_P}">Your virtual garage is waiting for its first vehicle. Add it now and join the first 100 Founding Members of Sharago.</p>
+{_btn("Add first vehicle →", f"{APP_URL}/garage/new")}
+<p style="{_MUTE}">Founding Members get lifetime access to premium features. Only 100 spots.</p>"""
     else:
-        subject = "Witaj w Sharago — Twój garaż czeka"
-        body = f"""<h2 style="font-family:Georgia,serif;color:#0D1626;font-size:28px;margin:0 0 12px;">Witaj, {name}!</h2>
-<p>Twój wirtualny garaż jest gotowy. Dodawaj pojazdy, śledź historię serwisową, monitoruj przebieg i rozmawiaj z naszym AI Mechanikiem opartym o Claude Sonnet 4.5.</p>
-{_btn("Dodaj pierwszy pojazd", f"{APP_URL}/garage/new")}
-<p style="color:#666;font-size:13px;">Potrzebujesz pomocy? Odpisz na tego maila.</p>"""
+        subject = "Witaj w Sharago — Twój wirtualny garaż gotowy 🚗"
+        body = f"""<h2 style="{_H2}">Cześć, {name}!</h2>
+<p style="{_P}">Twój wirtualny garaż właśnie czeka na pierwsze auto. Dodaj je teraz i dołącz do pierwszych 100 Founding Members Sharago.</p>
+{_btn("Dodaj pierwsze auto →", f"{APP_URL}/garage/new")}
+<p style="{_MUTE}">Founding Members otrzymują dożywotni dostęp do funkcji premium. Tylko 100 miejsc.</p>"""
     return subject, _wrap_html(subject, body, lang)
 
 
 def tpl_password_reset(reset_url: str, lang: str = "pl"):
     if lang == "en":
         subject = "Sharago — Password reset"
-        body = f"""<h2 style="font-family:Georgia,serif;color:#0D1626;font-size:26px;margin:0 0 12px;">Reset your password</h2>
-<p>Click the button below to set a new password. This link is valid for <strong>1 hour</strong>.</p>
-{_btn("Reset password", reset_url)}
-<p style="color:#666;font-size:13px;">If you did not request this, ignore this email — your password remains unchanged.</p>"""
+        body = f"""<h2 style="{_H2}">Password reset</h2>
+<p style="{_P}">We received a request to reset your password. Click below to set a new one. Link expires in <strong style="color:#ffffff;">1 hour</strong>.</p>
+{_btn("Set new password →", reset_url)}
+<p style="{_MUTE}">If this wasn't you — ignore this message. Your current password stays unchanged.</p>"""
     else:
-        subject = "Sharago — Reset hasła"
-        body = f"""<h2 style="font-family:Georgia,serif;color:#0D1626;font-size:26px;margin:0 0 12px;">Resetuj hasło</h2>
-<p>Kliknij przycisk poniżej, aby ustawić nowe hasło. Link jest ważny przez <strong>1 godzinę</strong>.</p>
-{_btn("Resetuj hasło", reset_url)}
-<p style="color:#666;font-size:13px;">Jeśli nie prosiłeś o reset, zignoruj ten email — hasło pozostaje bez zmian.</p>"""
+        subject = "Reset hasła Sharago"
+        body = f"""<h2 style="{_H2}">Reset hasła</h2>
+<p style="{_P}">Otrzymaliśmy prośbę o reset hasła. Kliknij poniżej żeby ustawić nowe. Link wygasa za <strong style="color:#ffffff;">1 godzinę</strong>.</p>
+{_btn("Ustaw nowe hasło →", reset_url)}
+<p style="{_MUTE}">Jeśli to nie Ty — zignoruj tę wiadomość. Twoje hasło pozostaje bez zmian.</p>"""
     return subject, _wrap_html(subject, body, lang)
 
 
-def tpl_service_reminder(vehicle_label: str, reminder_type: str, due_date: str, lang: str = "pl"):
+def tpl_service_reminder(vehicle_label: str, reminder_type: str, due_date: str, lang: str = "pl", vehicle_id: str = ""):
+    vehicle_label = html_lib.escape(vehicle_label or "")
+    reminder_type = html_lib.escape(reminder_type or "")
+    due_date = html_lib.escape(due_date or "")
+    history_url = f"{APP_URL}/garage/{vehicle_id}" if vehicle_id else f"{APP_URL}/garage"
     if lang == "en":
-        subject = f"Your {vehicle_label} needs attention in 7 days"
-        body = f"""<h2 style="font-family:Georgia,serif;color:#0D1626;font-size:26px;margin:0 0 12px;">Upcoming reminder</h2>
-<p>Your <strong>{vehicle_label}</strong> has a <strong>{reminder_type}</strong> due on <strong>{due_date}</strong>.</p>
-{_btn("Open in Sharago", f"{APP_URL}/garage")}"""
+        subject = f"Your {vehicle_label} needs attention 🔧"
+        body = f"""<h2 style="{_H2}">Your {vehicle_label} needs attention</h2>
+<p style="{_P}">Your <strong style="color:#ffffff;">{vehicle_label}</strong> has an overdue service: <strong style="color:#ffffff;">{reminder_type}</strong> (due {due_date}). Book a workshop visit.</p>
+{_btn("See service history →", history_url)}"""
     else:
-        subject = f"Twój {vehicle_label} wymaga uwagi za 7 dni"
-        body = f"""<h2 style="font-family:Georgia,serif;color:#0D1626;font-size:26px;margin:0 0 12px;">Nadchodzące przypomnienie</h2>
-<p>Twój pojazd <strong>{vehicle_label}</strong> ma zaplanowane <strong>{reminder_type}</strong> na <strong>{due_date}</strong>.</p>
-{_btn("Sprawdź w Sharago", f"{APP_URL}/garage")}"""
+        subject = f"Twój {vehicle_label} wymaga uwagi 🔧"
+        body = f"""<h2 style="{_H2}">Twój {vehicle_label} wymaga uwagi</h2>
+<p style="{_P}">Twój <strong style="color:#ffffff;">{vehicle_label}</strong> ma zaległy serwis: <strong style="color:#ffffff;">{reminder_type}</strong> (termin: {due_date}). Zaplanuj wizytę w warsztacie.</p>
+{_btn("Zobacz historię serwisową →", history_url)}"""
     return subject, _wrap_html(subject, body, lang)
 
 
@@ -134,46 +158,86 @@ def tpl_new_message(sender_name: str, listing_title: str, preview: str, listing_
     sender_name = html_lib.escape(sender_name or "")
     listing_title = html_lib.escape(listing_title or "")
     preview = html_lib.escape(preview or "")
+    reply_url = f"{APP_URL}/marketplace/messages?listing={listing_id}&user={sender_id}"
     if lang == "en":
-        subject = "You have a new message on Sharago"
-        body = f"""<h2 style="font-family:Georgia,serif;color:#0D1626;font-size:26px;margin:0 0 12px;">New message from {sender_name}</h2>
-<p style="color:#666;font-size:13px;">Listing: <em>{listing_title}</em></p>
-<blockquote style="border-left:3px solid #2B7FE8;margin:12px 0;padding:8px 14px;color:#444;background:#fafafa;">{preview}</blockquote>
-{_btn("Reply", f"{APP_URL}/marketplace/messages?listing={listing_id}&user={sender_id}")}"""
+        subject = "You have a new message on Sharago 💬"
+        body = f"""<h2 style="{_H2}">You have a new message</h2>
+<p style="{_P}"><strong style="color:#ffffff;">{sender_name}</strong> wrote to you about the listing "<em style="color:#ffffff;">{listing_title}</em>".</p>
+<blockquote style="{_QUOTE}">{preview}</blockquote>
+{_btn("Reply →", reply_url)}"""
     else:
-        subject = "Masz nową wiadomość w Sharago"
-        body = f"""<h2 style="font-family:Georgia,serif;color:#0D1626;font-size:26px;margin:0 0 12px;">Nowa wiadomość od {sender_name}</h2>
-<p style="color:#666;font-size:13px;">Ogłoszenie: <em>{listing_title}</em></p>
-<blockquote style="border-left:3px solid #2B7FE8;margin:12px 0;padding:8px 14px;color:#444;background:#fafafa;">{preview}</blockquote>
-{_btn("Odpowiedz", f"{APP_URL}/marketplace/messages?listing={listing_id}&user={sender_id}")}"""
+        subject = "Masz nową wiadomość w Sharago 💬"
+        body = f"""<h2 style="{_H2}">Masz nową wiadomość</h2>
+<p style="{_P}"><strong style="color:#ffffff;">{sender_name}</strong> napisał/a do Ciebie w sprawie ogłoszenia "<em style="color:#ffffff;">{listing_title}</em>".</p>
+<blockquote style="{_QUOTE}">{preview}</blockquote>
+{_btn("Odpowiedz →", reply_url)}"""
     return subject, _wrap_html(subject, body, lang)
 
 
 def tpl_forum_reply(thread_title: str, replier_name: str, preview: str, thread_id: str, lang: str = "pl"):
+    replier_name = html_lib.escape(replier_name or "")
+    thread_title = html_lib.escape(thread_title or "")
+    preview = html_lib.escape(preview or "")
     if lang == "en":
-        subject = "Someone replied to your thread"
-        body = f"""<h2 style="font-family:Georgia,serif;color:#0D1626;font-size:26px;margin:0 0 12px;">{replier_name} replied</h2>
-<p style="color:#666;font-size:13px;">Thread: <strong>{thread_title}</strong></p>
-<blockquote style="border-left:3px solid #2B7FE8;margin:12px 0;padding:8px 14px;color:#444;background:#fafafa;">{preview}</blockquote>
-{_btn("View reply", f"{APP_URL}/forum/{thread_id}")}"""
+        subject = "Someone replied to your post on Sharago"
+        body = f"""<h2 style="{_H2}">New reply on your post</h2>
+<p style="{_P}"><strong style="color:#ffffff;">{replier_name}</strong> replied to your post "<em style="color:#ffffff;">{thread_title}</em>".</p>
+<blockquote style="{_QUOTE}">{preview}</blockquote>
+{_btn("See reply →", f"{APP_URL}/forum/{thread_id}")}"""
     else:
-        subject = "Ktoś odpowiedział na Twój wątek"
-        body = f"""<h2 style="font-family:Georgia,serif;color:#0D1626;font-size:26px;margin:0 0 12px;">{replier_name} odpowiedział</h2>
-<p style="color:#666;font-size:13px;">Wątek: <strong>{thread_title}</strong></p>
-<blockquote style="border-left:3px solid #2B7FE8;margin:12px 0;padding:8px 14px;color:#444;background:#fafafa;">{preview}</blockquote>
-{_btn("Zobacz odpowiedź", f"{APP_URL}/forum/{thread_id}")}"""
+        subject = "Ktoś odpowiedział na Twój post w Sharago"
+        body = f"""<h2 style="{_H2}">Nowa odpowiedź na Twój post</h2>
+<p style="{_P}"><strong style="color:#ffffff;">{replier_name}</strong> odpowiedział/a na Twój post "<em style="color:#ffffff;">{thread_title}</em>".</p>
+<blockquote style="{_QUOTE}">{preview}</blockquote>
+{_btn("Zobacz odpowiedź →", f"{APP_URL}/forum/{thread_id}")}"""
+    return subject, _wrap_html(subject, body, lang)
+
+
+def tpl_swap_match(other_name: str, other_vehicle: str, my_vehicle: str, lang: str = "pl"):
+    """Iter 51: emitted on a mutual swap interest match."""
+    other_name = html_lib.escape(other_name or "")
+    other_vehicle = html_lib.escape(other_vehicle or "")
+    my_vehicle = html_lib.escape(my_vehicle or "")
+    if lang == "en":
+        subject = "You found a swap partner! 🤝"
+        body = f"""<h2 style="{_H2}">You found a swap partner!</h2>
+<p style="{_P}"><strong style="color:#ffffff;">{other_name}</strong> is interested in swapping their <strong style="color:#ffffff;">{other_vehicle}</strong> for your <strong style="color:#ffffff;">{my_vehicle}</strong>. Message them and start the conversation.</p>
+{_btn("Message now →", f"{APP_URL}/zamiany")}"""
+    else:
+        subject = "Znalazłeś partnera do zamiany! 🤝"
+        body = f"""<h2 style="{_H2}">Znalazłeś partnera do zamiany!</h2>
+<p style="{_P}"><strong style="color:#ffffff;">{other_name}</strong> jest zainteresowany/a zamianą swojego <strong style="color:#ffffff;">{other_vehicle}</strong> na Twojego <strong style="color:#ffffff;">{my_vehicle}</strong>. Napisz do niego/niej i zacznijcie rozmawiać.</p>
+{_btn("Napisz teraz →", f"{APP_URL}/zamiany")}"""
+    return subject, _wrap_html(subject, body, lang)
+
+
+def tpl_account_deleted(name: str, lang: str = "pl"):
+    """Iter 51: emitted on soft-delete — 30-day restore window."""
+    name = html_lib.escape(name or "")
+    if lang == "en":
+        subject = "Your Sharago account has been deleted"
+        body = f"""<h2 style="{_H2}">Account deleted</h2>
+<p style="{_P}">Hi {name}, your account has been deleted. You have <strong style="color:#ffffff;">30 days</strong> to restore it if you change your mind. After that, all data will be permanently erased.</p>
+{_btn("Restore account →", f"{APP_URL}/account/restore")}
+<p style="{_MUTE}">If you didn't request this, contact us immediately at kontakt@sharago.pl.</p>"""
+    else:
+        subject = "Twoje konto Sharago zostało usunięte"
+        body = f"""<h2 style="{_H2}">Konto usunięte</h2>
+<p style="{_P}">Cześć {name}, Twoje konto zostało usunięte. Masz <strong style="color:#ffffff;">30 dni</strong> na przywrócenie konta jeśli zmienisz zdanie. Po tym czasie wszystkie dane zostaną trwale usunięte.</p>
+{_btn("Przywróć konto →", f"{APP_URL}/account/restore")}
+<p style="{_MUTE}">Jeśli to nie Ty — skontaktuj się z nami pod adresem kontakt@sharago.pl.</p>"""
     return subject, _wrap_html(subject, body, lang)
 
 
 def tpl_test(lang: str = "pl"):
     if lang == "en":
         subject = "Sharago — SMTP test"
-        body = """<h2 style="font-family:Georgia,serif;color:#0D1626;font-size:26px;margin:0 0 12px;">SMTP test successful ✓</h2>
-<p>If you received this email, your Sharago SMTP configuration is working correctly.</p>"""
+        body = f"""<h2 style="{_H2}">SMTP test successful ✓</h2>
+<p style="{_P}">If you received this email, your Sharago SMTP configuration is working correctly.</p>"""
     else:
         subject = "Sharago — Test SMTP"
-        body = """<h2 style="font-family:Georgia,serif;color:#0D1626;font-size:26px;margin:0 0 12px;">Test SMTP udany ✓</h2>
-<p>Jeśli otrzymałeś tego maila, konfiguracja SMTP w Sharago działa poprawnie.</p>"""
+        body = f"""<h2 style="{_H2}">Test SMTP udany ✓</h2>
+<p style="{_P}">Jeśli otrzymałeś tego maila, konfiguracja SMTP w Sharago działa poprawnie.</p>"""
     return subject, _wrap_html(subject, body, lang)
 
 

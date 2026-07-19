@@ -23,7 +23,11 @@ export default function PublicVehicle() {
   const { t, i18n } = useTranslation();
   const { user } = useAuth();
   const units = getUnits(user);
-  const { slug } = useParams();
+  const { slug, token } = useParams();
+  // Iter 51: same component serves 3 modes:
+  //   1. /vehicles/{slug}       → full public profile
+  //   2. /historia/{token}      → service-history-only (cyfrowa książka serwisowa)
+  const isServiceHistory = !!token;
   const navigate = useNavigate();
   const [v, setV] = useState(null);
   const [error, setError] = useState(null);
@@ -35,14 +39,19 @@ export default function PublicVehicle() {
 
   useEffect(() => {
     let cancelled = false;
+    const url = isServiceHistory
+      ? `/vehicles/historia/${token}`
+      : `/vehicles/public/by-slug/${slug}`;
     api
-      .get(`/vehicles/public/by-slug/${slug}`)
+      .get(url)
       .then((r) => {
         if (cancelled) return;
         setV(r.data);
         setViewCount(r.data?.view_count || 0);
         setShareCount(r.data?.share_count || 0);
-        // Fire-and-forget view tracking (de-duped server-side per session/day).
+        // View tracking only for the public-profile route; the service-history
+        // share intentionally doesn't accrue view/share counters.
+        if (isServiceHistory) return;
         api
           .post(`/vehicles/public/${slug}/view`, { session_id: getOrCreateSessionId() })
           .then((vr) => {
@@ -59,7 +68,7 @@ export default function PublicVehicle() {
     return () => {
       cancelled = true;
     };
-  }, [slug]);
+  }, [slug, token, isServiceHistory]);
 
   // Set OG-style document meta dynamically
   useEffect(() => {
@@ -189,24 +198,33 @@ export default function PublicVehicle() {
               </div>
             )}
 
-            {/* View + share counters */}
-            <div className="flex items-center gap-4 mt-4 text-xs text-vehiq-muted" data-testid="public-vehicle-stats">
-              <span className="inline-flex items-center gap-1.5" data-testid="public-vehicle-views">
-                <Eye size={14} className="text-vehiq-gold" />
-                <span className="text-vehiq-text font-medium">{viewCount.toLocaleString(lang === "en" ? "en-US" : "pl-PL")}</span>
-                <span>{lang === "en" ? "views" : "wyświetleń"}</span>
-              </span>
-              <span className="inline-flex items-center gap-1.5" data-testid="public-vehicle-shares">
-                <Share2 size={14} className="text-vehiq-gold" />
-                <span className="text-vehiq-text font-medium">{shareCount.toLocaleString(lang === "en" ? "en-US" : "pl-PL")}</span>
-                <span>{lang === "en" ? "shares" : "udostępnień"}</span>
-              </span>
-            </div>
-            {v.is_owner && (
-              <div className="text-[11px] text-vehiq-gold mt-2" data-testid="public-vehicle-owner-stats">
-                {lang === "en"
-                  ? `Your vehicle was viewed by ${viewCount.toLocaleString("en-US")} people`
-                  : `Twój pojazd zobaczyło ${viewCount.toLocaleString("pl-PL")} osób`}
+            {/* View + share counters — hidden in cyfrowa-książka-serwisowa mode */}
+            {!isServiceHistory && (
+              <>
+                <div className="flex items-center gap-4 mt-4 text-xs text-vehiq-muted" data-testid="public-vehicle-stats">
+                  <span className="inline-flex items-center gap-1.5" data-testid="public-vehicle-views">
+                    <Eye size={14} className="text-vehiq-gold" />
+                    <span className="text-vehiq-text font-medium">{viewCount.toLocaleString(lang === "en" ? "en-US" : "pl-PL")}</span>
+                    <span>{lang === "en" ? "views" : "wyświetleń"}</span>
+                  </span>
+                  <span className="inline-flex items-center gap-1.5" data-testid="public-vehicle-shares">
+                    <Share2 size={14} className="text-vehiq-gold" />
+                    <span className="text-vehiq-text font-medium">{shareCount.toLocaleString(lang === "en" ? "en-US" : "pl-PL")}</span>
+                    <span>{lang === "en" ? "shares" : "udostępnień"}</span>
+                  </span>
+                </div>
+                {v.is_owner && (
+                  <div className="text-[11px] text-vehiq-gold mt-2" data-testid="public-vehicle-owner-stats">
+                    {lang === "en"
+                      ? `Your vehicle was viewed by ${viewCount.toLocaleString("en-US")} people`
+                      : `Twój pojazd zobaczyło ${viewCount.toLocaleString("pl-PL")} osób`}
+                  </div>
+                )}
+              </>
+            )}
+            {isServiceHistory && (
+              <div className="mt-3 inline-flex items-center gap-2 rounded-full border border-vehiq-gold/40 bg-vehiq-gold-dim px-3 py-1 text-[11px] text-vehiq-gold uppercase tracking-widest" data-testid="service-history-badge">
+                <Wrench size={12} /> {lang === "pl" ? "Cyfrowa książka serwisowa" : "Digital service book"}
               </div>
             )}
 
@@ -217,7 +235,7 @@ export default function PublicVehicle() {
               <Spec Icon={Palette} label={t("vehicle.color")} value={v.color || "—"} />
             </ul>
 
-            {v.active_listing && (
+            {v.active_listing && !isServiceHistory && (
               <Link to={`/marketplace/${v.active_listing.id}`} className="vehiq-card flex items-center justify-between gap-3 p-4 mt-6 border-vehiq-gold/40 hover:border-vehiq-gold transition-colors" data-testid="public-active-listing">
                 <div>
                   <div className="vehiq-overline">{t("share.forSale")}</div>
@@ -227,49 +245,74 @@ export default function PublicVehicle() {
               </Link>
             )}
 
+            {isServiceHistory && v.public && v.slug && (
+              <Link
+                to={`/vehicles/${v.slug}`}
+                className="vehiq-card flex items-center justify-between gap-3 p-4 mt-6 border-vehiq-gold/40 hover:border-vehiq-gold transition-colors"
+                data-testid="service-history-see-full"
+              >
+                <div>
+                  <div className="vehiq-overline">{lang === "pl" ? "Pełny profil" : "Full profile"}</div>
+                  <div className="text-vehiq-text font-medium text-sm">
+                    {lang === "pl" ? "Sprawdź to auto na Sharago →" : "See this vehicle on Sharago →"}
+                  </div>
+                </div>
+                <CarIcon size={20} className="text-vehiq-gold" />
+              </Link>
+            )}
+
             <div className="flex gap-2 mt-6">
               {v.is_owner && (
                 <Link to={`/garage/${v.id}`} className="vehiq-btn-secondary" data-testid="public-back-to-private">{t("share.openPrivate")}</Link>
               )}
             </div>
 
-            <div className="mt-6 pt-6 border-t border-vehiq-border space-y-4">
-              <SocialShare vehicle={v} url={shareUrl} />
-              {shortId && (
-                <div className="flex items-start gap-4 flex-wrap">
-                  <div className="flex-1 min-w-[200px]">
-                    <div className="text-[10px] uppercase tracking-widest text-vehiq-muted mb-2">{t("share.shortUrl")}</div>
-                    <code className="text-xs text-vehiq-text bg-vehiq-bg border border-vehiq-border rounded px-2 py-1 inline-block break-all" data-testid="vehicle-short-link">
-                      /v/{shortId}
-                    </code>
+            {!isServiceHistory && (
+              <div className="mt-6 pt-6 border-t border-vehiq-border space-y-4">
+                <SocialShare vehicle={v} url={shareUrl} />
+                {shortId && (
+                  <div className="flex items-start gap-4 flex-wrap">
+                    <div className="flex-1 min-w-[200px]">
+                      <div className="text-[10px] uppercase tracking-widest text-vehiq-muted mb-2">{t("share.shortUrl")}</div>
+                      <code className="text-xs text-vehiq-text bg-vehiq-bg border border-vehiq-border rounded px-2 py-1 inline-block break-all" data-testid="vehicle-short-link">
+                        /v/{shortId}
+                      </code>
+                    </div>
+                    {/* Iter 46 (Bug 13): QR generator is an owner-only tool (used
+                        to print a sticker for the car window). Guests browsing
+                        the public profile should never see it. */}
+                    {v.is_owner && <VehicleQr vehicleId={v.id} shortId={shortId} />}
                   </div>
-                  {/* Iter 46 (Bug 13): QR generator is an owner-only tool (used
-                      to print a sticker for the car window). Guests browsing
-                      the public profile should never see it. */}
-                  {v.is_owner && <VehicleQr vehicleId={v.id} shortId={shortId} />}
-                </div>
-              )}
-            </div>
+                )}
+              </div>
+            )}
           </div>
         </section>
 
-        {/* Service history (optional) */}
-        {Array.isArray(v.service_entries) && v.service_entries.length > 0 && (
+        {/* Service history (always shown in service-history share mode) */}
+        {(isServiceHistory || (Array.isArray(v.service_entries) && v.service_entries.length > 0)) && (
           <section className="vehiq-card p-5">
             <div className="flex items-center gap-2 mb-3">
               <Wrench size={16} className="text-vehiq-gold" />
               <div className="vehiq-overline">{t("service.title")}</div>
-              {!v.is_owner && <span className="text-[10px] text-vehiq-muted ml-auto">{t("share.servicePublicNote")}</span>}
+              {!v.is_owner && !isServiceHistory && <span className="text-[10px] text-vehiq-muted ml-auto">{t("share.servicePublicNote")}</span>}
+              {isServiceHistory && <span className="text-[10px] text-vehiq-muted ml-auto">{lang === "pl" ? "Widok bez danych finansowych" : "Non-financial view"}</span>}
             </div>
-            <ul className="divide-y divide-vehiq-border">
-              {v.service_entries.slice(0, 50).map((s, i) => (
-                <li key={i} className="py-2 flex items-center gap-3 text-sm" data-testid={`public-service-${i}`}>
-                  <span className="text-vehiq-muted text-xs min-w-[90px]">{s.date}</span>
-                  <span className="text-vehiq-text flex-1 truncate">{t(`service.types.${s.type}`, s.type)}</span>
-                  {v.is_owner && s.cost ? <span className="text-vehiq-gold text-xs">{fmtPrice(s.cost, units)}</span> : null}
-                </li>
-              ))}
-            </ul>
+            {(!v.service_entries || v.service_entries.length === 0) ? (
+              <div className="text-sm text-vehiq-muted py-4 text-center" data-testid="service-history-empty">
+                {lang === "pl" ? "Brak wpisów serwisowych." : "No service entries."}
+              </div>
+            ) : (
+              <ul className="divide-y divide-vehiq-border">
+                {v.service_entries.slice(0, 50).map((s, i) => (
+                  <li key={i} className="py-2 flex items-center gap-3 text-sm" data-testid={`public-service-${i}`}>
+                    <span className="text-vehiq-muted text-xs min-w-[90px]">{s.date}</span>
+                    <span className="text-vehiq-text flex-1 truncate">{t(`service.types.${s.type}`, s.type)}</span>
+                    {v.is_owner && s.cost ? <span className="text-vehiq-gold text-xs">{fmtPrice(s.cost, units)}</span> : null}
+                  </li>
+                ))}
+              </ul>
+            )}
           </section>
         )}
 
