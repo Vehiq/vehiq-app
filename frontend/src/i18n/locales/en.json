@@ -97,7 +97,7 @@
     "mile": "Miles (mi)"
   },
   "nav": {
-    "garage": "Garage",
+    "garage": "My garage",
     "service": "Service",
     "marketplace": "Marketplace",
     "rentals": "Rentals",
@@ -110,7 +110,13 @@
     "notifications": "Notifications",
     "search": "Search",
     "swaps": "Swap",
-    "openToOffers": "Buy offers"
+    "openToOffers": "Buy offers",
+    "groups": {
+      "garage": "Garage",
+      "marketplace": "Marketplace",
+      "community": "Community",
+      "account": "Account"
+    }
   },
   "auth": {
     "loginTitle": "Your virtual garage online",

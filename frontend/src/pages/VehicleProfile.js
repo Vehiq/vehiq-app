@@ -1,9 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import api from "@/lib/api";
 import { toast } from "sonner";
-import { ArrowLeft, Trash2, Edit2, Share2, Eye, EyeOff, Check, Copy, Tag, CheckCircle2, QrCode, HandCoins, Repeat, BookOpen } from "lucide-react";
+import { ArrowLeft, Trash2, Edit2, Share2, Eye, EyeOff, Check, Copy, Tag, CheckCircle2, QrCode, HandCoins, Repeat } from "lucide-react";
 import VehicleForm from "@/components/VehicleForm";
 import PrintQrDialog from "@/components/PrintQrDialog";
 import OverviewTab from "./vehicle-tabs/OverviewTab";
@@ -35,6 +35,7 @@ export default function VehicleProfile() {
   const [showDelete, setShowDelete] = useState(false);
   const [soldResult, setSoldResult] = useState(null);
   const [showPrintQr, setShowPrintQr] = useState(false);
+  const tabsRef = useRef(null);
 
   const reload = () => api.get(`/vehicles/${id}`).then(r => setVehicle(r.data));
 
@@ -73,6 +74,10 @@ export default function VehicleProfile() {
         <ArrowLeft size={14} /> {t("common.back")}
       </button>
 
+      {/* Bug 25 (Iter 52a): action buttons moved into OverviewTab; header
+          shows only the title + Powrót do garażu. Print-QR / open-to-offers /
+          sell / mark-sold / delete still live here as they open modals that
+          must remain mounted across tab switches. */}
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <div className="vehiq-overline flex items-center gap-2">
@@ -84,51 +89,6 @@ export default function VehicleProfile() {
           <h1 className="vehiq-display text-4xl sm:text-5xl text-vehiq-text mt-1" data-testid="vehicle-title">
             {vehicle.make} {vehicle.model}
           </h1>
-        </div>
-        <div className="flex gap-2 flex-wrap">
-          {isActive && !hasActiveListing && (
-            <button onClick={() => setShowSell(true)} className="vehiq-btn-primary inline-flex items-center gap-2" data-testid="vehicle-sell-btn">
-              <Tag size={14} /> {t("sell.sellVehicle")}
-            </button>
-          )}
-          {isActive && (
-            <button
-              onClick={async () => {
-                try {
-                  const next = !vehicle.open_to_offers;
-                  await api.patch(`/vehicles/${vehicle.id}/open-to-offers`, { open_to_offers: next });
-                  if (next) {
-                    try {
-                      const { trackEvent } = await import("@/hooks/usePageTracking");
-                      trackEvent("open_to_offers");
-                    } catch { /* noop */ }
-                  }
-                  toast.success(next ? "Auto otwarte na oferty" : "Wyłączone");
-                  reload && reload();
-                } catch (e) {
-                  toast.error("Nie udało się zmienić statusu");
-                }
-              }}
-              className={`inline-flex items-center gap-2 ${vehicle.open_to_offers ? "vehiq-btn-primary" : "vehiq-btn-secondary"}`}
-              data-testid="vehicle-open-to-offers-btn"
-              title="Pokazuje auto w sekcji 'Chętnie odkupię' na giełdzie"
-            >
-              <HandCoins size={14} />
-              {vehicle.open_to_offers ? "Otwarty na oferty ✓" : "Otwórz na oferty"}
-            </button>
-          )}
-          {isActive && hasActiveListing && (
-            <button onClick={() => setShowMarkSold(true)} className="vehiq-btn-primary inline-flex items-center gap-2" data-testid="vehicle-mark-sold-btn">
-              <CheckCircle2 size={14} /> {t("sell.markSold")}
-            </button>
-          )}
-          <ShareMenu vehicle={vehicle} reload={reload} />
-          <ServiceBookButton vehicle={vehicle} />
-          <button onClick={() => setShowPrintQr(true)} className="vehiq-btn-secondary inline-flex items-center gap-2" data-testid="vehicle-print-qr-btn" title="Kod QR do naklejenia na szybę">
-            <QrCode size={14} /> Drukuj QR
-          </button>
-          <button onClick={() => setEditing(true)} className="vehiq-btn-secondary inline-flex items-center gap-2" data-testid="vehicle-edit-btn"><Edit2 size={14} /> {t("common.edit")}</button>
-          <button onClick={() => setShowDelete(true)} className="vehiq-btn-secondary inline-flex items-center gap-2 !border-red-500/40 !text-red-400 hover:!bg-red-500/10" data-testid="vehicle-delete-btn"><Trash2 size={14} /> {t("common.delete")}</button>
         </div>
       </div>
 
@@ -177,11 +137,22 @@ export default function VehicleProfile() {
         />
       )}
 
-      <div className="border-b border-vehiq-border flex gap-1 overflow-x-auto">
+      {/* Bug 25 (Iter 52a): Overview tab now hosts the vehicle actions
+          block. VehicleProfile is owner-only (route requires auth); guests
+          land on PublicVehicle. So we always show the full tab set here. */}
+      <div ref={tabsRef} className="border-b border-vehiq-border flex gap-1 overflow-x-auto">
         {TABS.map(({ id: tid, key }) => (
           <button
             key={tid}
-            onClick={() => setTab(tid)}
+            onClick={() => {
+              setTab(tid);
+              // Change 16 (Iter 52a): after switching tabs, scroll the tab
+              // bar into view so users don't land halfway down a long tab
+              // (especially AI Mechanik which auto-scrolls to bottom of chat).
+              requestAnimationFrame(() => {
+                tabsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+              });
+            }}
             data-testid={`tab-${tid}`}
             className={`px-4 py-3 text-sm font-medium uppercase tracking-wider transition-colors border-b-2 -mb-px whitespace-nowrap ${
               tab === tid ? "border-vehiq-gold text-vehiq-gold" : "border-transparent text-vehiq-muted hover:text-vehiq-text"
@@ -193,13 +164,82 @@ export default function VehicleProfile() {
       </div>
 
       <div>
-        {tab === "overview" && <OverviewTab vehicle={vehicle} reload={reload} />}
+        {tab === "overview" && (
+          <OverviewTab
+            vehicle={vehicle}
+            reload={reload}
+            actions={
+              <VehicleActionsRow
+                vehicle={vehicle}
+                isActive={isActive}
+                hasActiveListing={hasActiveListing}
+                onSell={() => setShowSell(true)}
+                onMarkSold={() => setShowMarkSold(true)}
+                onPrintQr={() => setShowPrintQr(true)}
+                onEdit={() => setEditing(true)}
+                onDelete={() => setShowDelete(true)}
+                reload={reload}
+              />
+            }
+          />
+        )}
         {tab === "history" && <HistoryTab vehicle={vehicle} />}
         {tab === "fuel" && <FuelTab vehicle={vehicle} />}
         {tab === "project" && <ProjectTab vehicle={vehicle} />}
         {tab === "pl" && <PLTab vehicle={vehicle} />}
         {tab === "ai" && <AITab vehicle={vehicle} />}
       </div>
+    </div>
+  );
+}
+
+// ---------- VehicleActionsRow (Iter 52a — moved from header to Overview) ----------
+function VehicleActionsRow({ vehicle, isActive, hasActiveListing, onSell, onMarkSold, onPrintQr, onEdit, onDelete, reload }) {
+  const { t } = useTranslation();
+  return (
+    <div className="flex gap-2 flex-wrap mb-6" data-testid="vehicle-actions-row">
+      {isActive && !hasActiveListing && (
+        <button onClick={onSell} className="vehiq-btn-primary inline-flex items-center gap-2" data-testid="vehicle-sell-btn">
+          <Tag size={14} /> {t("sell.sellVehicle")}
+        </button>
+      )}
+      {isActive && (
+        <button
+          onClick={async () => {
+            try {
+              const next = !vehicle.open_to_offers;
+              await api.patch(`/vehicles/${vehicle.id}/open-to-offers`, { open_to_offers: next });
+              if (next) {
+                try {
+                  const { trackEvent } = await import("@/hooks/usePageTracking");
+                  trackEvent("open_to_offers");
+                } catch { /* noop */ }
+              }
+              toast.success(next ? "Auto otwarte na oferty" : "Wyłączone");
+              reload && reload();
+            } catch (e) {
+              toast.error("Nie udało się zmienić statusu");
+            }
+          }}
+          className={`inline-flex items-center gap-2 ${vehicle.open_to_offers ? "vehiq-btn-primary" : "vehiq-btn-secondary"}`}
+          data-testid="vehicle-open-to-offers-btn"
+          title="Pokazuje auto w sekcji 'Chętnie odkupię' na giełdzie"
+        >
+          <HandCoins size={14} />
+          {vehicle.open_to_offers ? "Otwarty na oferty ✓" : "Otwórz na oferty"}
+        </button>
+      )}
+      {isActive && hasActiveListing && (
+        <button onClick={onMarkSold} className="vehiq-btn-primary inline-flex items-center gap-2" data-testid="vehicle-mark-sold-btn">
+          <CheckCircle2 size={14} /> {t("sell.markSold")}
+        </button>
+      )}
+      <ShareMenu vehicle={vehicle} reload={reload} />
+      <button onClick={onPrintQr} className="vehiq-btn-secondary inline-flex items-center gap-2" data-testid="vehicle-print-qr-btn" title="Kod QR do naklejenia na szybę">
+        <QrCode size={14} /> Drukuj QR
+      </button>
+      <button onClick={onEdit} className="vehiq-btn-secondary inline-flex items-center gap-2" data-testid="vehicle-edit-btn"><Edit2 size={14} /> {t("common.edit")}</button>
+      <button onClick={onDelete} className="vehiq-btn-secondary inline-flex items-center gap-2 !border-red-500/40 !text-red-400 hover:!bg-red-500/10" data-testid="vehicle-delete-btn"><Trash2 size={14} /> {t("common.delete")}</button>
     </div>
   );
 }
@@ -423,156 +463,3 @@ function SoldResultBanner({ result, vehicle, onClose }) {
 }
 
 
-// -------- ServiceBookButton (Iter 51) --------
-// Owner-only modal for generating and toggling the "Cyfrowa książka
-// serwisowa" share link. The URL points to /historia/{share_token} which
-// renders PublicVehicle in service-history mode (no financial data).
-function ServiceBookButton({ vehicle }) {
-  const [open, setOpen] = useState(false);
-  const [status, setStatus] = useState(null); // {share_token, share_enabled, share_url}
-  const [loading, setLoading] = useState(false);
-  const [copied, setCopied] = useState(false);
-
-  const openModal = async () => {
-    setOpen(true);
-    if (status) return;
-    setLoading(true);
-    try {
-      const { data } = await api.get(`/vehicles/${vehicle.id}/timeline/share`);
-      setStatus(data);
-    } catch {
-      toast.error("Błąd pobierania statusu");
-    } finally { setLoading(false); }
-  };
-
-  const generate = async () => {
-    setLoading(true);
-    try {
-      const { data } = await api.post(`/vehicles/${vehicle.id}/timeline/share`);
-      setStatus(data);
-      toast.success("Link wygenerowany");
-    } catch {
-      toast.error("Błąd generowania");
-    } finally { setLoading(false); }
-  };
-
-  const toggle = async (enabled) => {
-    setLoading(true);
-    try {
-      const { data } = await api.patch(`/vehicles/${vehicle.id}/timeline/share`, { enabled });
-      setStatus(data);
-      toast.success(enabled ? "Link aktywny" : "Link dezaktywowany");
-    } catch {
-      toast.error("Błąd zmiany statusu");
-    } finally { setLoading(false); }
-  };
-
-  const copy = async () => {
-    if (!status?.share_url) return;
-    try {
-      await navigator.clipboard.writeText(status.share_url);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
-      toast.success("Skopiowano");
-    } catch { toast.error("Nie udało się skopiować"); }
-  };
-
-  return (
-    <>
-      <button
-        onClick={openModal}
-        className="vehiq-btn-secondary inline-flex items-center gap-2"
-        data-testid="vehicle-service-book-btn"
-        title="Cyfrowa książka serwisowa"
-      >
-        <BookOpen size={14} /> Książka serwisowa
-      </button>
-      {open && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" data-testid="service-book-modal" onClick={() => setOpen(false)}>
-          <div onClick={(e) => e.stopPropagation()} className="vehiq-card max-w-md w-full p-6 space-y-4">
-            <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-full bg-vehiq-gold-dim text-vehiq-gold flex items-center justify-center">
-                <BookOpen size={18} />
-              </div>
-              <h2 className="vehiq-display text-2xl text-vehiq-text">Cyfrowa książka serwisowa</h2>
-            </div>
-            <p className="text-sm text-vehiq-muted leading-relaxed">
-              Udostępnij historię swojego auta przy sprzedaży. Kupujący zobaczy
-              pełną historię serwisową <strong className="text-vehiq-text">bez Twoich danych finansowych</strong>.
-            </p>
-
-            {loading && !status ? (
-              <div className="text-sm text-vehiq-muted py-4 text-center">…</div>
-            ) : !status?.share_token ? (
-              <button
-                onClick={generate}
-                disabled={loading}
-                className="vehiq-btn-primary w-full py-2.5"
-                data-testid="service-book-generate"
-              >
-                Wygeneruj link do udostępnienia
-              </button>
-            ) : (
-              <>
-                <div className={`flex items-stretch gap-0 rounded-lg overflow-hidden border ${status.share_enabled ? "border-vehiq-gold/50" : "border-vehiq-border"}`}>
-                  <input
-                    type="text"
-                    readOnly
-                    value={status.share_url || `${window.location.origin}/historia/${status.share_token}`}
-                    className="flex-1 bg-vehiq-bg px-3 py-2 text-xs text-vehiq-text font-mono truncate"
-                    data-testid="service-book-url"
-                    onFocus={(e) => e.target.select()}
-                  />
-                  <button
-                    onClick={copy}
-                    className="px-3 bg-vehiq-gold-dim text-vehiq-gold text-xs uppercase tracking-wider hover:bg-vehiq-gold hover:text-vehiq-bg transition-colors"
-                    data-testid="service-book-copy"
-                  >
-                    {copied ? <Check size={14}/> : <Copy size={14}/>}
-                  </button>
-                </div>
-
-                <div className="flex items-center justify-between text-xs">
-                  <label className="inline-flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={!!status.share_enabled}
-                      onChange={(e) => toggle(e.target.checked)}
-                      disabled={loading}
-                      className="accent-vehiq-gold"
-                      data-testid="service-book-toggle"
-                    />
-                    <span className={status.share_enabled ? "text-vehiq-gold" : "text-vehiq-muted"}>
-                      {status.share_enabled ? "Link aktywny" : "Link dezaktywowany"}
-                    </span>
-                  </label>
-                  {status.share_enabled && (
-                    <a
-                      href={status.share_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-vehiq-muted hover:text-vehiq-gold underline"
-                      data-testid="service-book-preview"
-                    >
-                      Podgląd →
-                    </a>
-                  )}
-                </div>
-              </>
-            )}
-
-            <div className="pt-2 flex justify-end">
-              <button
-                onClick={() => setOpen(false)}
-                className="vehiq-btn-secondary"
-                data-testid="service-book-close"
-              >
-                Zamknij
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </>
-  );
-}

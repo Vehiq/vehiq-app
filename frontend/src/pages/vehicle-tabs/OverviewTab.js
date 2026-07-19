@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { photoUrl, photoThumb } from "@/lib/photos";
 import ServiceReminders from "@/components/ServiceReminders";
 
-export default function OverviewTab({ vehicle, reload }) {
+export default function OverviewTab({ vehicle, reload, actions = null }) {
   const { t } = useTranslation();
   const [active, setActive] = useState(0);
   const [uploading, setUploading] = useState(false);
@@ -87,6 +87,9 @@ export default function OverviewTab({ vehicle, reload }) {
 
   return (
     <div className="space-y-6" data-testid="overview-tab">
+      {/* Bug 25 (Iter 52a): action buttons injected from VehicleProfile — moved
+          out of the header so the header is title-only. */}
+      {actions}
       <ServiceReminders vehicleId={vehicle.id} />
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
       <div className="vehiq-card overflow-hidden">

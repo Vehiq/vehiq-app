@@ -276,6 +276,10 @@ export default function VehicleForm({ initial, onSaved }) {
           )}
         </div>
 
+        {/* Change 20 (Iter 52a): photo upload only in EDIT mode. On CREATE
+            the user first saves the vehicle, then uploads photos from the
+            vehicle profile — keeps the initial form quick + friction-free. */}
+        {isEdit && (
         <div>
           <label className="vehiq-overline mb-2 block">{t("vehicle.photos")}</label>
           <label className="vehiq-btn-secondary cursor-pointer inline-flex items-center gap-2" data-testid="vehicle-photo-upload">
@@ -298,6 +302,7 @@ export default function VehicleForm({ initial, onSaved }) {
             </div>
           )}
         </div>
+        )}
       </div>
 
       <div className="flex gap-3">

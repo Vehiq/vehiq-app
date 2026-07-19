@@ -52,10 +52,26 @@ class RentalDetails(BaseModel):
     requirements: Optional[str] = None
     owner_type: Optional[str] = None       # private | business
     business_name: Optional[str] = None
+    # Change 27 (Iter 52a) — car-only extras
+    deposit: Optional[float] = None
+    min_days: Optional[int] = None
+    max_days: Optional[int] = None
+    delivery: Optional[bool] = None
+    delivery_radius_km: Optional[int] = None
+    min_driver_age: Optional[int] = None
+    min_license_years: Optional[int] = None
+    # Change 27 (Iter 52a) — garage-only extras
+    garage_type: Optional[str] = None       # closed | parking | canopy | workshop
+    area_m2: Optional[float] = None
+    height_m: Optional[float] = None
+    monitoring: Optional[bool] = None
+    access_24h: Optional[bool] = None
+    electricity: Optional[bool] = None
+    heating: Optional[bool] = None
 
     @field_validator(
         "currency", "availability_text", "pickup_location", "garage_address",
-        "requirements", "owner_type", "business_name",
+        "requirements", "owner_type", "business_name", "garage_type",
         mode="before",
     )
     @classmethod

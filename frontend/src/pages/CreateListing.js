@@ -30,6 +30,13 @@ export default function CreateListing() {
       price_per_day: "", price_per_week: "", price_per_month: "", currency: "PLN",
       availability_text: "", pickup_location: "", garage_address: "",
       requirements: "", owner_type: "private", business_name: "",
+      // Change 27 (Iter 52a) — car-only extras
+      deposit: "", min_days: "", max_days: "",
+      delivery: false, delivery_radius_km: "",
+      min_driver_age: "", min_license_years: "",
+      // Change 27 (Iter 52a) — garage-only extras
+      garage_type: "closed", area_m2: "", height_m: "",
+      monitoring: false, access_24h: false, electricity: false, heating: false,
     },
     service: {
       pricing_type: "hourly", price_from: "", coverage_area: "",
@@ -251,6 +258,25 @@ export default function CreateListing() {
           requirements: s(r.requirements),
           owner_type: r.owner_type || "private",
           business_name: r.owner_type === "business" ? s(r.business_name) : null,
+          // Change 27 (Iter 52a) — car extras
+          deposit: r.deposit ? parseFloat(r.deposit) : null,
+          min_days: r.min_days ? parseInt(r.min_days) : null,
+          max_days: r.max_days ? parseInt(r.max_days) : null,
+          delivery: form.category === "rental_car" ? !!r.delivery : null,
+          delivery_radius_km: (form.category === "rental_car" && r.delivery && r.delivery_radius_km)
+            ? parseInt(r.delivery_radius_km) : null,
+          min_driver_age: (form.category === "rental_car" && r.min_driver_age)
+            ? parseInt(r.min_driver_age) : null,
+          min_license_years: (form.category === "rental_car" && r.min_license_years)
+            ? parseInt(r.min_license_years) : null,
+          // Change 27 (Iter 52a) — garage extras
+          garage_type: form.category === "rental_garage" ? (r.garage_type || "closed") : null,
+          area_m2: (form.category === "rental_garage" && r.area_m2) ? parseFloat(r.area_m2) : null,
+          height_m: (form.category === "rental_garage" && r.height_m) ? parseFloat(r.height_m) : null,
+          monitoring:  form.category === "rental_garage" ? !!r.monitoring  : null,
+          access_24h:  form.category === "rental_garage" ? !!r.access_24h  : null,
+          electricity: form.category === "rental_garage" ? !!r.electricity : null,
+          heating:     form.category === "rental_garage" ? !!r.heating     : null,
         };
         // For rentals the top-level `price` mirrors price_per_day to keep
         // existing sort/filter queries by `price` consistent.
@@ -688,29 +714,182 @@ export default function CreateListing() {
           </div>
 
           {form.category === "rental_car" && (
-            <div>
-              <label className="vehiq-overline mb-2 block">Miejsce odbioru</label>
-              <input
-                value={form.rental.pickup_location}
-                onChange={(e) => setForm({ ...form, rental: { ...form.rental, pickup_location: e.target.value } })}
-                placeholder="np. Warszawa, Mokotów"
-                className="vehiq-input"
-                data-testid="rental-pickup"
-              />
-            </div>
+            <>
+              <div>
+                <label className="vehiq-overline mb-2 block">Miejsce odbioru</label>
+                <input
+                  value={form.rental.pickup_location}
+                  onChange={(e) => setForm({ ...form, rental: { ...form.rental, pickup_location: e.target.value } })}
+                  placeholder="np. Warszawa, Mokotów"
+                  className="vehiq-input"
+                  data-testid="rental-pickup"
+                />
+              </div>
+
+              {/* Change 27 (Iter 52a): dowóz + promień */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <label className="inline-flex items-center gap-2 text-sm cursor-pointer col-span-1">
+                  <input
+                    type="checkbox"
+                    checked={!!form.rental.delivery}
+                    onChange={(e) => setForm({ ...form, rental: { ...form.rental, delivery: e.target.checked } })}
+                    className="accent-vehiq-gold"
+                    data-testid="rental-delivery"
+                  />
+                  <span>Możliwość dowozu</span>
+                </label>
+                {form.rental.delivery && (
+                  <div className="col-span-2">
+                    <label className="vehiq-overline mb-2 block">Promień dowozu (km)</label>
+                    <input
+                      type="number" min="0" step="1"
+                      value={form.rental.delivery_radius_km}
+                      onChange={(e) => setForm({ ...form, rental: { ...form.rental, delivery_radius_km: e.target.value } })}
+                      className="vehiq-input"
+                      data-testid="rental-delivery-radius"
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* Change 27 (Iter 52a): kaucja + min/max okres + wymagania kierowcy */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div>
+                  <label className="vehiq-overline mb-2 block">Kaucja (PLN)</label>
+                  <input
+                    type="number" min="0" step="1"
+                    value={form.rental.deposit}
+                    onChange={(e) => setForm({ ...form, rental: { ...form.rental, deposit: e.target.value } })}
+                    className="vehiq-input"
+                    data-testid="rental-deposit"
+                  />
+                </div>
+                <div>
+                  <label className="vehiq-overline mb-2 block">Min. dni</label>
+                  <input
+                    type="number" min="1" step="1"
+                    value={form.rental.min_days}
+                    onChange={(e) => setForm({ ...form, rental: { ...form.rental, min_days: e.target.value } })}
+                    className="vehiq-input"
+                    data-testid="rental-min-days"
+                  />
+                </div>
+                <div>
+                  <label className="vehiq-overline mb-2 block">Max. dni</label>
+                  <input
+                    type="number" min="1" step="1"
+                    value={form.rental.max_days}
+                    onChange={(e) => setForm({ ...form, rental: { ...form.rental, max_days: e.target.value } })}
+                    className="vehiq-input"
+                    data-testid="rental-max-days"
+                  />
+                </div>
+                <div>
+                  <label className="vehiq-overline mb-2 block">Min. wiek kierowcy</label>
+                  <input
+                    type="number" min="18" step="1"
+                    value={form.rental.min_driver_age}
+                    onChange={(e) => setForm({ ...form, rental: { ...form.rental, min_driver_age: e.target.value } })}
+                    className="vehiq-input"
+                    data-testid="rental-min-age"
+                  />
+                </div>
+                <div>
+                  <label className="vehiq-overline mb-2 block">Min. staż prawa jazdy (lat)</label>
+                  <input
+                    type="number" min="0" step="1"
+                    value={form.rental.min_license_years}
+                    onChange={(e) => setForm({ ...form, rental: { ...form.rental, min_license_years: e.target.value } })}
+                    className="vehiq-input"
+                    data-testid="rental-min-license"
+                  />
+                </div>
+              </div>
+            </>
           )}
 
           {form.category === "rental_garage" && (
-            <div>
-              <label className="vehiq-overline mb-2 block">Adres garażu</label>
-              <input
-                value={form.rental.garage_address}
-                onChange={(e) => setForm({ ...form, rental: { ...form.rental, garage_address: e.target.value } })}
-                placeholder="np. ul. Kwiatowa 12, Warszawa"
-                className="vehiq-input"
-                data-testid="rental-address"
-              />
-            </div>
+            <>
+              <div>
+                <label className="vehiq-overline mb-2 block">Adres garażu</label>
+                <input
+                  value={form.rental.garage_address}
+                  onChange={(e) => setForm({ ...form, rental: { ...form.rental, garage_address: e.target.value } })}
+                  placeholder="np. ul. Kwiatowa 12, Warszawa"
+                  className="vehiq-input"
+                  data-testid="rental-address"
+                />
+              </div>
+
+              {/* Change 27 (Iter 52a): typ + dane techniczne garażu */}
+              <div>
+                <label className="vehiq-overline mb-2 block">Typ</label>
+                <select
+                  value={form.rental.garage_type}
+                  onChange={(e) => setForm({ ...form, rental: { ...form.rental, garage_type: e.target.value } })}
+                  className="vehiq-input"
+                  data-testid="rental-garage-type"
+                >
+                  <option value="closed">Garaż zamknięty</option>
+                  <option value="parking">Miejsce parkingowe</option>
+                  <option value="canopy">Wiata</option>
+                  <option value="workshop">Boks warsztatowy</option>
+                </select>
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                <div>
+                  <label className="vehiq-overline mb-2 block">Powierzchnia (m²)</label>
+                  <input
+                    type="number" min="0" step="0.5"
+                    value={form.rental.area_m2}
+                    onChange={(e) => setForm({ ...form, rental: { ...form.rental, area_m2: e.target.value } })}
+                    className="vehiq-input"
+                    data-testid="rental-area"
+                  />
+                </div>
+                <div>
+                  <label className="vehiq-overline mb-2 block">Wysokość (m)</label>
+                  <input
+                    type="number" min="0" step="0.1"
+                    value={form.rental.height_m}
+                    onChange={(e) => setForm({ ...form, rental: { ...form.rental, height_m: e.target.value } })}
+                    className="vehiq-input"
+                    data-testid="rental-height"
+                  />
+                </div>
+                <div>
+                  <label className="vehiq-overline mb-2 block">Kaucja (PLN)</label>
+                  <input
+                    type="number" min="0" step="1"
+                    value={form.rental.deposit}
+                    onChange={(e) => setForm({ ...form, rental: { ...form.rental, deposit: e.target.value } })}
+                    className="vehiq-input"
+                    data-testid="rental-deposit-garage"
+                  />
+                </div>
+              </div>
+
+              <div className="flex flex-wrap gap-4">
+                {[
+                  { key: "monitoring", label: "Monitoring" },
+                  { key: "access_24h", label: "Dostęp 24h" },
+                  { key: "electricity", label: "Prąd" },
+                  { key: "heating",    label: "Ogrzewanie" },
+                ].map((opt) => (
+                  <label key={opt.key} className="inline-flex items-center gap-2 text-sm cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={!!form.rental[opt.key]}
+                      onChange={(e) => setForm({ ...form, rental: { ...form.rental, [opt.key]: e.target.checked } })}
+                      className="accent-vehiq-gold"
+                      data-testid={`rental-garage-${opt.key.replace(/_/g, "-")}`}
+                    />
+                    <span>{opt.label}</span>
+                  </label>
+                ))}
+              </div>
+            </>
           )}
 
           <div>

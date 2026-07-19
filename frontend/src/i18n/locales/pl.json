@@ -97,7 +97,7 @@
     "mile": "Mile (mi)"
   },
   "nav": {
-    "garage": "Garaż",
+    "garage": "Mój garaż",
     "service": "Serwis",
     "marketplace": "Giełda",
     "rentals": "Wynajem",
@@ -110,7 +110,13 @@
     "notifications": "Powiadomienia",
     "search": "Szukaj",
     "swaps": "Zamiana",
-    "openToOffers": "Chętnie odkupię"
+    "openToOffers": "Chętnie odkupię",
+    "groups": {
+      "garage": "Garaż",
+      "marketplace": "Marketplace",
+      "community": "Społeczność",
+      "account": "Konto"
+    }
   },
   "auth": {
     "loginTitle": "Twój wirtualny garaż w internecie",

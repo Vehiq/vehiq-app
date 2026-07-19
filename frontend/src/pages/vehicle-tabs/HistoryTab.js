@@ -1,41 +1,59 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Plus, X } from "lucide-react";
+import {
+  Plus,
+  X,
+  Wrench,
+  Cog,
+  ShieldCheck,
+  Disc,
+  Circle,
+  ClipboardList,
+  Battery,
+  Fuel,
+  MapPin,
+  Package,
+  Wallet,
+  BookOpen,
+  Copy,
+  Check,
+} from "lucide-react";
 import api from "@/lib/api";
 import { toast } from "sonner";
 
 /**
- * HistoryTab (Iter 49) — replaces the separate Service + Mileage tabs.
+ * HistoryTab (Iter 52a) — flat chronological list of service events.
  *
- * Renders a vertical chronological timeline of all events for a vehicle,
- * pulled from GET /api/vehicles/{id}/timeline. Icons are picked per
- * event.type; filters (all/service/fuel/mileage/project) reload the list.
+ * Bug 24 changes:
+ *   - Removed source filters (single list only)
+ *   - Fixed timeline layout (flex row with `shrink-0` icon + `min-w-0` content
+ *     so long descriptions never overlap the icon column)
+ *   - Newest event on top (backend also sorts DESC, but we sort on the
+ *     client as a defensive fallback)
+ *
+ * Bug 25 changes:
+ *   - "Cyfrowa książka serwisowa" (share history) button moved here from the
+ *     vehicle header. Right-aligned next to "Dodaj wpis".
  */
 
+// Lucide-based type icons (Bug 24b — no more emoji glyph overlaps).
 const EVENT_TYPES = {
-  // service subtypes
-  oil_change:    { icon: "🔧", pl: "Wymiana oleju",       en: "Oil change" },
-  timing_belt:   { icon: "⚙️", pl: "Rozrząd",              en: "Timing belt" },
-  brake_pads:    { icon: "🛑", pl: "Hamulce — klocki",     en: "Brake pads" },
-  brake_discs:   { icon: "🛑", pl: "Hamulce — tarcze",     en: "Brake discs" },
-  tires:         { icon: "🔘", pl: "Opony",                en: "Tires" },
-  inspection:    { icon: "📋", pl: "Przegląd",             en: "Inspection" },
-  insurance:     { icon: "🛡️", pl: "Ubezpieczenie",       en: "Insurance" },
-  battery:       { icon: "🔋", pl: "Akumulator",           en: "Battery" },
-  suspension:    { icon: "🔩", pl: "Zawieszenie",          en: "Suspension" },
-  other:         { icon: "🔧", pl: "Serwis",               en: "Service" },
-  fuel:          { icon: "⛽", pl: "Tankowanie",           en: "Fuel" },
-  mileage:       { icon: "📍", pl: "Przebieg",             en: "Mileage" },
-  planned:       { icon: "📐", pl: "Modyfikacja",          en: "Modification" },
-  parts_ordered: { icon: "📦", pl: "Części",               en: "Parts" },
-  budget:        { icon: "💰", pl: "Budżet",               en: "Budget" },
+  oil_change:    { icon: Wrench,        pl: "Wymiana oleju",    en: "Oil change" },
+  timing_belt:   { icon: Cog,           pl: "Rozrząd",           en: "Timing belt" },
+  brake_pads:    { icon: Disc,          pl: "Hamulce — klocki",  en: "Brake pads" },
+  brake_discs:   { icon: Disc,          pl: "Hamulce — tarcze",  en: "Brake discs" },
+  tires:         { icon: Circle,        pl: "Opony",             en: "Tires" },
+  inspection:    { icon: ClipboardList, pl: "Przegląd",          en: "Inspection" },
+  insurance:     { icon: ShieldCheck,   pl: "Ubezpieczenie",     en: "Insurance" },
+  battery:       { icon: Battery,       pl: "Akumulator",        en: "Battery" },
+  suspension:    { icon: Cog,           pl: "Zawieszenie",       en: "Suspension" },
+  other:         { icon: Wrench,        pl: "Serwis",            en: "Service" },
+  fuel:          { icon: Fuel,          pl: "Tankowanie",        en: "Fuel" },
+  mileage:       { icon: MapPin,        pl: "Przebieg",          en: "Mileage" },
+  planned:       { icon: Package,       pl: "Modyfikacja",       en: "Modification" },
+  parts_ordered: { icon: Package,       pl: "Części",            en: "Parts" },
+  budget:        { icon: Wallet,        pl: "Budżet",            en: "Budget" },
 };
-
-const FILTERS = [
-  { key: "",         pl: "Wszystkie",  en: "All" },
-  { key: "service",  pl: "Serwis",     en: "Service" },
-  { key: "project",  pl: "Projekt",    en: "Project" },
-];
 
 function fmtDate(d, lang) {
   if (!d) return "—";
@@ -52,65 +70,78 @@ function fmtCost(c) {
   return `${n.toLocaleString("pl-PL")} PLN`;
 }
 
-export default function HistoryTab({ vehicle }) {
+export default function HistoryTab({ vehicle, isOwner = true }) {
   const { t, i18n } = useTranslation();
   const lang = i18n.language?.startsWith("en") ? "en" : "pl";
   const [events, setEvents] = useState(null);
-  const [filter, setFilter] = useState("");
   const [showForm, setShowForm] = useState(false);
+  const [showShare, setShowShare] = useState(false);
 
   const load = () => {
-    const params = filter ? `?source=${filter}` : "";
-    api.get(`/vehicles/${vehicle.id}/timeline${params}`)
-      .then((r) => setEvents(r.data.events || []))
+    api.get(`/vehicles/${vehicle.id}/timeline`)
+      .then((r) => {
+        // Bug 24c — defensive DESC sort on the client (backend also sorts).
+        const list = (r.data.events || []).slice().sort((a, b) => {
+          const da = (a.date || "");
+          const db = (b.date || "");
+          return db.localeCompare(da);
+        });
+        setEvents(list);
+      })
       .catch(() => { toast.error(t("common.error")); setEvents([]); });
   };
 
-  useEffect(() => { load(); /* eslint-disable-next-line */ }, [vehicle.id, filter]);
+  useEffect(() => { load(); /* eslint-disable-next-line */ }, [vehicle.id]);
 
   const labelFor = (type) => {
     const et = EVENT_TYPES[type] || EVENT_TYPES.other;
     return et[lang] || et.pl;
   };
-  const iconFor = (type) => (EVENT_TYPES[type] || EVENT_TYPES.other).icon;
+  const IconFor = (type) => (EVENT_TYPES[type] || EVENT_TYPES.other).icon;
 
   return (
     <div className="space-y-6" data-testid="history-tab">
-      {/* Bug 17 (Iter 50): add-entry button — opens inline form to create
-          a new service_entries row that instantly shows up on the timeline. */}
+      {/* Header row — Bug 25: "Cyfrowa książka serwisowa" lives here, not in the vehicle header. */}
       <div className="flex items-center justify-between gap-3 flex-wrap">
-        <div className="flex flex-wrap gap-2" data-testid="history-filters">
-          {FILTERS.map((f) => (
+        <h2 className="text-lg font-semibold text-vehiq-text inline-flex items-center gap-2">
+          <ClipboardList size={16} className="text-vehiq-gold" />
+          {lang === "pl" ? "Historia serwisowa" : "Service history"}
+        </h2>
+        {isOwner && (
+          <div className="flex items-center gap-2">
             <button
-              key={f.key || "all"}
               type="button"
-              onClick={() => setFilter(f.key)}
-              className={`px-3 py-1.5 text-xs rounded-full border transition-colors ${
-                filter === f.key
-                  ? "border-vehiq-gold bg-vehiq-gold/15 text-vehiq-gold"
-                  : "border-vehiq-border text-vehiq-muted hover:text-vehiq-text hover:border-vehiq-muted"
-              }`}
-              data-testid={`history-filter-${f.key || "all"}`}
+              onClick={() => setShowShare(true)}
+              className="vehiq-btn-secondary inline-flex items-center gap-1.5 px-3 py-1.5 text-xs"
+              data-testid="history-share-btn"
+              title={lang === "pl" ? "Cyfrowa książka serwisowa" : "Digital service book"}
             >
-              {f[lang]}
+              <BookOpen size={12} /> {lang === "pl" ? "Udostępnij historię" : "Share history"}
             </button>
-          ))}
-        </div>
-        <button
-          type="button"
-          onClick={() => setShowForm((s) => !s)}
-          className="vehiq-btn-primary inline-flex items-center gap-1.5 px-3 py-1.5 text-xs shrink-0"
-          data-testid="history-add-entry-btn"
-        >
-          {showForm ? <><X size={12} /> {lang === "pl" ? "Anuluj" : "Cancel"}</> : <><Plus size={12} /> {lang === "pl" ? "Dodaj wpis" : "Add entry"}</>}
-        </button>
+            <button
+              type="button"
+              onClick={() => setShowForm((s) => !s)}
+              className="vehiq-btn-primary inline-flex items-center gap-1.5 px-3 py-1.5 text-xs"
+              data-testid="history-add-entry-btn"
+            >
+              {showForm ? <><X size={12} /> {lang === "pl" ? "Anuluj" : "Cancel"}</> : <><Plus size={12} /> {lang === "pl" ? "Dodaj wpis" : "Add entry"}</>}
+            </button>
+          </div>
+        )}
       </div>
 
-      {showForm && (
+      {isOwner && showForm && (
         <AddEntryForm
           vehicleId={vehicle.id}
           lang={lang}
           onDone={() => { setShowForm(false); load(); }}
+        />
+      )}
+
+      {isOwner && showShare && (
+        <ServiceBookShareModal
+          vehicle={vehicle}
+          onClose={() => setShowShare(false)}
         />
       )}
 
@@ -121,72 +152,55 @@ export default function HistoryTab({ vehicle }) {
           {lang === "pl" ? "Brak wpisów serwisowych — dodaj pierwszy serwis." : "No service entries yet — add the first one."}
         </div>
       ) : (
-        <ol className="relative" data-testid="history-timeline">
-          {/* Vertical line running the length of the timeline. Positioned
-              at 88px from the left so the meta column has room. */}
-          <span className="absolute left-[88px] top-0 bottom-0 w-px bg-vehiq-border sm:block hidden" aria-hidden />
-          {events.map((ev) => (
-            <li
-              key={ev.id}
-              className="relative flex gap-4 pb-6 sm:pl-0"
-              data-testid={`history-event-${ev.source}`}
-            >
-              {/* Meta column (date + mileage) — hidden on very small viewports */}
-              <div className="hidden sm:flex flex-col items-end w-[72px] shrink-0 pt-1 text-right">
-                <div className="text-xs font-medium text-vehiq-text">{fmtDate(ev.date, lang)}</div>
-                {ev.mileage != null && (
-                  <div className="text-[10px] text-vehiq-muted mt-0.5">
-                    {Number(ev.mileage).toLocaleString("pl-PL")} km
-                  </div>
-                )}
-              </div>
-
-              {/* Dot on the line */}
-              <div className="relative shrink-0 sm:w-8">
-                <span
-                  className="absolute sm:left-1/2 sm:-translate-x-1/2 top-1 h-8 w-8 rounded-full bg-vehiq-card border border-vehiq-border flex items-center justify-center text-base leading-none z-10"
-                  title={labelFor(ev.type)}
+        <ol className="space-y-3" data-testid="history-timeline">
+          {events.map((ev) => {
+            const Icon = IconFor(ev.type);
+            return (
+              <li
+                key={ev.id}
+                className="flex items-start gap-3 p-3 rounded-lg border border-vehiq-border bg-vehiq-card"
+                data-testid={`history-event-${ev.source}`}
+              >
+                {/* Icon column — fixed 40px, never shrinks (Bug 24b fix) */}
+                <div
+                  className="shrink-0 w-10 h-10 rounded-full bg-vehiq-bg border border-vehiq-border flex items-center justify-center"
+                  aria-label={labelFor(ev.type)}
                 >
-                  {iconFor(ev.type)}
-                </span>
-              </div>
+                  <Icon size={18} className="text-vehiq-gold" />
+                </div>
 
-              {/* Content */}
-              <div className="flex-1 min-w-0 sm:pl-3 pt-1">
-                <div className="flex items-baseline gap-2 flex-wrap">
-                  <h4 className="text-sm font-medium text-vehiq-text">{labelFor(ev.type)}</h4>
-                  <span className="text-[10px] uppercase tracking-widest text-vehiq-muted">
-                    {ev.source}
-                  </span>
-                </div>
-                {/* Mobile-only date line */}
-                <div className="sm:hidden text-[10px] text-vehiq-muted mt-0.5">
-                  {fmtDate(ev.date, lang)}
-                  {ev.mileage != null && ` · ${Number(ev.mileage).toLocaleString("pl-PL")} km`}
-                </div>
-                {ev.description && (
-                  <p className="text-xs text-vehiq-muted mt-1 leading-relaxed break-words">
-                    {ev.description}
-                  </p>
-                )}
-                <div className="flex items-center gap-2 mt-2 flex-wrap">
-                  {fmtCost(ev.cost) && (
-                    <span className="text-xs text-vehiq-gold" data-testid="history-event-cost">
-                      {fmtCost(ev.cost)}
+                {/* Content column — min-w-0 so long text wraps instead of overflowing */}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-baseline justify-between gap-2 flex-wrap">
+                    <h4 className="text-sm font-medium text-vehiq-text truncate">
+                      {labelFor(ev.type)}
+                    </h4>
+                    <span className="text-[10px] text-vehiq-muted shrink-0">
+                      {fmtDate(ev.date, lang)}
+                      {ev.mileage != null && ` · ${Number(ev.mileage).toLocaleString("pl-PL")} km`}
                     </span>
+                  </div>
+                  {ev.description && (
+                    <p className="text-xs text-vehiq-muted mt-1 leading-relaxed break-words">
+                      {ev.description}
+                    </p>
                   )}
-                  {ev.status && (
-                    <span className="text-[10px] uppercase tracking-widest px-2 py-0.5 rounded bg-vehiq-nav text-vehiq-muted">
-                      {ev.status}
-                    </span>
-                  )}
-                  {ev.workshop && (
-                    <span className="text-[10px] text-vehiq-muted">· {ev.workshop}</span>
+                  {(fmtCost(ev.cost) || ev.workshop) && (
+                    <div className="flex items-center gap-2 mt-2 flex-wrap">
+                      {fmtCost(ev.cost) && (
+                        <span className="text-xs text-vehiq-gold" data-testid="history-event-cost">
+                          {fmtCost(ev.cost)}
+                        </span>
+                      )}
+                      {ev.workshop && (
+                        <span className="text-[10px] text-vehiq-muted truncate">· {ev.workshop}</span>
+                      )}
+                    </div>
                   )}
                 </div>
-              </div>
-            </li>
-          ))}
+              </li>
+            );
+          })}
         </ol>
       )}
     </div>
@@ -244,5 +258,132 @@ function AddEntryForm({ vehicleId, lang, onDone }) {
         {busy ? "…" : lang === "pl" ? "Zapisz wpis" : "Save entry"}
       </button>
     </form>
+  );
+}
+
+// ---------- Cyfrowa książka serwisowa share modal (moved from vehicle header) ----------
+function ServiceBookShareModal({ vehicle, onClose }) {
+  const [status, setStatus] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const inited = useRef(false);
+
+  useEffect(() => {
+    if (inited.current) return;
+    inited.current = true;
+    setLoading(true);
+    api.get(`/vehicles/${vehicle.id}/timeline/share`)
+      .then(({ data }) => setStatus(data))
+      .catch(() => toast.error("Błąd pobierania statusu"))
+      .finally(() => setLoading(false));
+  }, [vehicle.id]);
+
+  const generate = async () => {
+    setLoading(true);
+    try {
+      const { data } = await api.post(`/vehicles/${vehicle.id}/timeline/share`);
+      setStatus(data);
+      toast.success("Link wygenerowany");
+    } catch { toast.error("Błąd generowania"); }
+    finally { setLoading(false); }
+  };
+
+  const toggle = async (enabled) => {
+    setLoading(true);
+    try {
+      const { data } = await api.patch(`/vehicles/${vehicle.id}/timeline/share`, { enabled });
+      setStatus(data);
+      toast.success(enabled ? "Link aktywny" : "Link dezaktywowany");
+    } catch { toast.error("Błąd zmiany statusu"); }
+    finally { setLoading(false); }
+  };
+
+  const copy = async () => {
+    const url = status?.share_url || (status?.share_token ? `${window.location.origin}/historia/${status.share_token}` : "");
+    if (!url) return;
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+      toast.success("Skopiowano");
+    } catch { toast.error("Nie udało się skopiować"); }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" data-testid="service-book-modal" onClick={onClose}>
+      <div onClick={(e) => e.stopPropagation()} className="vehiq-card max-w-md w-full p-6 space-y-4">
+        <div className="flex items-center gap-3">
+          <div className="h-10 w-10 rounded-full bg-vehiq-gold-dim text-vehiq-gold flex items-center justify-center">
+            <BookOpen size={18} />
+          </div>
+          <h2 className="vehiq-display text-2xl text-vehiq-text">Cyfrowa książka serwisowa</h2>
+        </div>
+        <p className="text-sm text-vehiq-muted leading-relaxed">
+          Udostępnij historię swojego auta przy sprzedaży. Kupujący zobaczy pełną historię serwisową <strong className="text-vehiq-text">bez Twoich danych finansowych</strong>.
+        </p>
+
+        {loading && !status ? (
+          <div className="text-sm text-vehiq-muted py-4 text-center">…</div>
+        ) : !status?.share_token ? (
+          <button
+            onClick={generate}
+            disabled={loading}
+            className="vehiq-btn-primary w-full py-2.5"
+            data-testid="service-book-generate"
+          >
+            Wygeneruj link do udostępnienia
+          </button>
+        ) : (
+          <>
+            <div className={`flex items-stretch gap-0 rounded-lg overflow-hidden border ${status.share_enabled ? "border-vehiq-gold/50" : "border-vehiq-border"}`}>
+              <input
+                type="text"
+                readOnly
+                value={status.share_url || `${window.location.origin}/historia/${status.share_token}`}
+                className="flex-1 bg-vehiq-bg px-3 py-2 text-xs text-vehiq-text font-mono truncate"
+                data-testid="service-book-url"
+                onFocus={(e) => e.target.select()}
+              />
+              <button
+                onClick={copy}
+                className="px-3 bg-vehiq-gold-dim text-vehiq-gold text-xs uppercase tracking-wider hover:bg-vehiq-gold hover:text-vehiq-bg transition-colors"
+                data-testid="service-book-copy"
+              >
+                {copied ? <Check size={14}/> : <Copy size={14}/>}
+              </button>
+            </div>
+            <div className="flex items-center justify-between text-xs">
+              <label className="inline-flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={!!status.share_enabled}
+                  onChange={(e) => toggle(e.target.checked)}
+                  disabled={loading}
+                  className="accent-vehiq-gold"
+                  data-testid="service-book-toggle"
+                />
+                <span className={status.share_enabled ? "text-vehiq-gold" : "text-vehiq-muted"}>
+                  {status.share_enabled ? "Link aktywny" : "Link dezaktywowany"}
+                </span>
+              </label>
+              {status.share_enabled && (
+                <a
+                  href={status.share_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-vehiq-muted hover:text-vehiq-gold underline"
+                  data-testid="service-book-preview"
+                >
+                  Podgląd →
+                </a>
+              )}
+            </div>
+          </>
+        )}
+        <div className="pt-2 flex justify-end">
+          <button onClick={onClose} className="vehiq-btn-secondary" data-testid="service-book-close">Zamknij</button>
+        </div>
+      </div>
+    </div>
   );
 }
