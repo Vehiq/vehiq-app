@@ -1956,3 +1956,61 @@ frontend 100% E2E. Zero action items.
   service jako podkomponenty.
 - Sidebar testids z `key.split('.').pop()` — dodać explicit `slug` per group.
 
+
+---
+
+## Iter 52b — Bug 28/29 + Refactor CreateListing + BulkPhotoUploader (DONE 2026-07-19)
+
+### 🔴 P0 fixes
+- **Bug 28 — ScrollToTop dla AI Mechanika** (`AITab.js`):
+  - Dodano `skipNextAutoScroll` ref — pierwsze załadowanie historii (bez
+    interakcji użytkownika) NIE wywołuje `scrollIntoView`.
+  - Kolejne `useEffect` dla `messages/busy` używa
+    `block: "nearest"` — jeśli chat już jest w polu widzenia, strona nie
+    skacze. `VehicleProfile.tabsRef.scrollIntoView` z 52a nadal ustawia
+    tab bar u góry po kliknięciu.
+- **Bug 29 — Uproszczony blur do białego prostokąta**
+  (`PlateBlurDialog.js` przepisany):
+  - Jeden draggable+resizable prostokąt (biały fill + niebieska ramka).
+  - Tylko 2 przyciski: `blur-confirm` (Prześlij zdjęcie →) i `blur-skip`
+    (Pomiń i prześlij bez zasłaniania).
+  - Usunięto: `blur-apply`, `blur-undo`, `blur-clear`, `blur-cancel`,
+    logikę multi-shape, filtr blur (teraz solidne białe wypełnienie).
+  - Confirm → wypala biały prostokąt na canvas → JPEG 0.92 → File z
+    sufiksem `-covered`. Skip → oryginalny File bez zmian.
+
+### 🟠 P1 features
+- **Refactor `CreateListing.js`** — 1048 → 812 linii:
+  - Wydzielono `ListingFormRentalCar.js`
+    (`/components/listing/ListingFormRentalCar.js`) — pola pickup,
+    delivery+radius, deposit, min/max dni, wymagania kierowcy.
+  - Wydzielono `ListingFormRentalGarage.js` — pola adres, typ (4 opcje),
+    m²/wysokość/kaucja, monitoring/24h/prąd/ogrzewanie.
+  - Zachowana IDENTYCZNA funkcjonalność i wszystkie testidy.
+- **`BulkPhotoUploader`** (nowy komponent
+  `/components/BulkPhotoUploader.js`):
+  - Drag-and-drop area + click-to-pick z multiple files.
+  - Checkbox gallery zdjęć z profilu pojazdu (garage reuse).
+  - Miniatury z X do usunięcia.
+  - Max 10 zdjęć + client-side kompresja przez `imageCompress.js`.
+  - Integracja z `PlateBlurDialog` per-file queue.
+  - Zastąpił ad-hoc uploader w `CreateListing`. Stare testidy usunięte:
+    `listing-upload-input`, `listing-garage-photos`,
+    `listing-garage-photo-N`, `listing-photo-remove-N`.
+  - Nowe testidy: `listing-photos-{dropzone,input,grid,garage,
+    garage-photo-N,remove-N,error}`.
+
+### Testy
+`/app/test_reports/iteration_29.json` — frontend 100%, 4/4 pozycji PASS.
+Backend nietknięty (żadne endpointy nie zmienione).
+
+### Cleanup
+- Usunięto nieużywane `useTranslation` imports z `PlateBlurDialog.js`
+  i `BulkPhotoUploader.js` (hardcoded PL text — całe UI ma tylko PL).
+- Rate-limit HTTP 429 zaobserwowany przez testing agent przy szybkiej
+  nawigacji — to expected behavior (`slowapi` z Iter 48), nie bug.
+
+### Refactoring backlog
+- `CreateListing.js` nadal ~812 linii — service + swap + parts forms
+  mogą być wydzielone w Iter 53.
+

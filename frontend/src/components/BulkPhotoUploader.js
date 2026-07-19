@@ -1,5 +1,4 @@
 import { useCallback, useRef, useState } from "react";
-import { useTranslation } from "react-i18next";
 import { Upload, X, ImagePlus } from "lucide-react";
 import { toast } from "sonner";
 import { compressImage, fileToDataURL } from "@/lib/imageCompress";
@@ -34,7 +33,6 @@ export default function BulkPhotoUploader({
   disabled = false,
   testIdPrefix = "bulk-photos",
 }) {
-  const { t } = useTranslation();
   const inputRef = useRef(null);
   const [dragOver, setDragOver] = useState(false);
   const [blurQueue, setBlurQueue] = useState([]); // File[] awaiting plate-cover review

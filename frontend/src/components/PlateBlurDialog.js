@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState, useCallback } from "react";
-import { useTranslation } from "react-i18next";
 import { X, Move, Loader2, Upload } from "lucide-react";
 
 /**
@@ -28,7 +27,6 @@ function makeDefaultRect(natW, natH) {
 function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
 
 export default function PlateBlurDialog({ file, onCancel, onConfirm }) {
-  const { t } = useTranslation();
   const canvasRef = useRef(null);
   const previewRef = useRef(null);
   const imgRef = useRef(null);
@@ -54,10 +52,10 @@ export default function PlateBlurDialog({ file, onCancel, onConfirm }) {
       setError(null);
       setRect(makeDefaultRect(img.naturalWidth, img.naturalHeight));
     };
-    img.onerror = () => { if (!cancelled) setError(t("blur.loadError") || "Load error"); };
+    img.onerror = () => { if (!cancelled) setError("Nie udało się wczytać zdjęcia"); };
     img.src = url;
     return () => { cancelled = true; URL.revokeObjectURL(url); };
-  }, [file, t]);
+  }, [file]);
 
   // Redraw
   const redraw = useCallback(() => {
