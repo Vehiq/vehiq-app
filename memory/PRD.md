@@ -1837,3 +1837,59 @@ nikt ich nie importował.
 - 🟡 **Push notifications** (P1) — service worker + FCM.
 - 🟢 **Admin slow-queries endpoint** (P2) — profilowanie Mongo.
 - 🟢 **Facebook OAuth** (P2) — czeka na klucze usera.
+
+---
+
+## Iter 51 — Emails + Timeline Share + History bez paliwa + Prywatność + Bug 21/23 (DONE 2026-07-19)
+
+### 🔴 P0 fixes
+- **Bug 21 (miniatury zamian)** — `SwapCard` i karty "Moje ogłoszenia"
+  renderują placeholder `<Car>` gdy `cover_photo` jest null (poprzednio
+  `LazyImage` zwracał null przy `!src` → puste karty).
+- **Historia bez paliwa** — endpoint `/api/vehicles/{id}/timeline` już
+  nie agreguje `fuel_logs` ani `mileage_logs`. Paliwo tylko przez
+  `FuelTab`. `HistoryTab` filtry: Wszystkie / Serwis / Projekt.
+- **Prywatność publicznego profilu** — wcześniej już zwalidowano że
+  `GET /public/by-slug/{slug}` nie ujawnia `purchase_price`,
+  `current_value`, `project_budget`, `sale_price`, oraz strippuje
+  `cost/workshop/notes` z `service_entries` dla non-owner.
+
+### 🟠 P1 features
+- **Timeline Share (Cyfrowa książka serwisowa)**:
+  - `POST /api/vehicles/{id}/timeline/share` — generuje / re-używa token,
+    ustawia `share_enabled=true`.
+  - `GET /api/vehicles/{id}/timeline/share` — status (owner).
+  - `PATCH /api/vehicles/{id}/timeline/share` — toggle `enabled` bez
+    regeneracji tokena (buyer's link keeps working after re-enable).
+  - `GET /api/vehicles/historia/{share_token}` — publiczny widok bez
+    danych finansowych; 404 gdy disabled/unknown.
+  - Frontend: route `/historia/:token` → `PublicVehicle` w trybie
+    `service-history` (badge "Cyfrowa książka serwisowa", brak
+    marketplace CTA / view+share counters / QR / short-link;
+    CTA "Sprawdź to auto na Sharago" gdy profil publiczny).
+  - Modal `ServiceBookButton` w `VehicleProfile` (testid
+    `vehicle-service-book-btn` + generate/copy/toggle).
+- **Bug 23 — Edycja ogłoszenia**: dodana trasa
+  `/marketplace/:id/edit` re-używa `CreateListing` w trybie edycji
+  (`useParams().id` → GET listing → prefill form → PUT na submit).
+- **"Zamiana" rename**: `pl.json` `nav.swaps='Zamiana'`, `en.json`
+  `nav.swaps='Swap'`, SwapPage H1 zmieniony z "Giełda zamian" na
+  "Zamiana".
+- **Refresh e-maili**: `email_service.py` — nowe teksty (welcome,
+  password_reset, service_reminder, new_message, forum_reply) + 2
+  nowe szablony (`tpl_swap_match`, `tpl_account_deleted`). Wszystkie
+  używają dark navy body (`#0D1626`) + logo w headerze + stopka z
+  linkami `Wypisz się z powiadomień` + `Polityka prywatności`.
+
+### Testy
+`/app/test_reports/iteration_27.json` — 100% backend + frontend PASS.
+Testy zgodne z `/app/backend/tests/test_iter51.py`.
+
+### Znane preview-only quirks
+- `APP_URL` w supervisor injection = stary preview URL, więc `share_url`
+  zwracany przez backend w preview ma nieaktualny hostname. Frontend
+  pokazuje jednak `window.location.origin` fallback w input polu, więc
+  user kopiuje właściwy URL. W prod (Render) `.env`-owe `APP_URL=
+  https://sharago.pl` jest respektowane bo supervisor config nie
+  wymusza wartości.
+
