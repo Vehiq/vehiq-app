@@ -1893,3 +1893,66 @@ Testy zgodne z `/app/backend/tests/test_iter51.py`.
   https://sharago.pl` jest respektowane bo supervisor config nie
   wymusza wartości.
 
+
+---
+
+## Iter 52a — UI Reorganization + Bug 24/25/26 + Change 20/25/27 (DONE 2026-07-19)
+
+### 🔴 P0 fixes
+- **Bug 24 — Historia serwisowa** (`HistoryTab.js` przepisany):
+  - 24a: usunięto filtr chipy (`FILTERS` gone) — tylko chronologiczna lista wpisów.
+  - 24b: layout flex row z `shrink-0 w-10 h-10` ikoną + `min-w-0` treścią —
+    długie opisy zawijają się, nie nakładają. Lucide icons zamiast emoji.
+  - 24c: sort DESC (backend + defensive client-side fallback).
+  - Dodano `history-share-btn` (Udostępnij historię) i `history-add-entry-btn` w headerze.
+- **Bug 25 — Reorganizacja zakładek pojazdu** (`VehicleProfile.js`):
+  - Header pojazdu = tylko breadcrumb + tytuł (year/fuel + make/model).
+  - **Wszystkie przyciski akcji** przeniesione do zakładki Przegląd via
+    `<VehicleActionsRow>` przekazywany jako `actions` prop do `<OverviewTab>`.
+  - Przyciski w Overview: `vehicle-sell-btn`, `vehicle-open-to-offers-btn`,
+    ShareMenu, `vehicle-print-qr-btn`, `vehicle-edit-btn`, `vehicle-delete-btn`.
+  - "Cyfrowa książka serwisowa" wyłącznie w `HistoryTab` (`history-share-btn`
+    → `ServiceBookShareModal`). Usunięto `ServiceBookButton` z headera.
+
+### 🟠 P1 features
+- **Bug 26 — Blur tablic: draggable prefab** (`PlateBlurDialog.js` przepisany):
+  - Startowy prostokąt na dole-środku zdjęcia (~50% szer., proporcja 5:1).
+  - 4 rogi = handles (białe kółka z niebieską obwódką). Cursor auto-switch:
+    `move` / `nwse-resize` / `nesw-resize`.
+  - Przyciski: `blur-apply` (Zastosuj blur — commit + reset), `blur-undo`
+    (Cofnij — usuń ostatni commit), `blur-clear` (Wyczyść wszystko),
+    `blur-confirm` (Wyślij → File przekazany do onConfirm).
+  - Wielokrotne blurowanie — commit kolejnych prostokątów zachowuje poprzednie.
+  - Touch + mouse przez Pointer Events. `touch-action: none` blokuje pan.
+- **Change 25 — Sidebar 4 grupy**:
+  - `<Sidebar>` renderuje 4 sekcje: 🚗 Garaż · 🛒 Marketplace · 💬 Społeczność · 👤 Konto.
+  - Testidy: `sidebar-group-{garage|marketplace|community|account}`.
+  - Usunięto z menu: "Chętnie odkupię" (filtr w Marketplace), "Szukaj" (topbar).
+  - i18n: `nav.groups.*` w PL/EN.
+  - Mobile bottom nav 4-item (`bottom-nav`) — bez zmian, już zgodny.
+- **Change 27 — Formularz wynajmu**:
+  - **Rental car** — nowe pola: `deposit`, `min_days`, `max_days`, `delivery`
+    (checkbox), `delivery_radius_km`, `min_driver_age`, `min_license_years`.
+  - **Rental garage** — nowe pola: `garage_type` (closed/parking/canopy/workshop),
+    `area_m2`, `height_m`, `deposit`, `monitoring`, `access_24h`, `electricity`,
+    `heating`.
+  - Backend `RentalDetails` w `marketplace.py` rozszerzony (wszystkie
+    Optional, category-aware serialization po stronie frontendu).
+
+### 🟢 P2 verifications
+- **Change 20 — AddVehicle bez zdjęć**: sekcja `vehicle-photo-upload` owinięta
+  `{isEdit && ...}` w `VehicleForm.js`. ADD nie pokazuje zdjęć, EDIT tak
+  (Bug 18 flow zachowany).
+- **Change 16 — ScrollToTop przy zmianie zakładki**: `tabsRef` + on-tab-switch
+  `scrollIntoView({behavior:'smooth', block:'start'})` gwarantuje że AI
+  Mechanik/inne "długie" zakładki nie ładują się w środku strony.
+
+### Testy
+`/app/test_reports/iteration_28.json` — backend 4/4 pytest (test_iter52a.py),
+frontend 100% E2E. Zero action items.
+
+### Refactoring backlog (do rozważenia)
+- `CreateListing.js` ~1050 linii — wydzielić rental-car / rental-garage /
+  service jako podkomponenty.
+- Sidebar testids z `key.split('.').pop()` — dodać explicit `slug` per group.
+

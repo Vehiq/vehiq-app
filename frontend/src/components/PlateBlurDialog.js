@@ -240,7 +240,6 @@ export default function PlateBlurDialog({ file, onCancel, onConfirm }) {
       // Do NOT bake the current movable rect — user must click "Zastosuj blur"
       // explicitly. But we must ensure the canvas we send doesn't have the
       // overlay handles painted on it.
-      const canvas = canvasRef.current;
       const img = imgRef.current;
       const outCanvas = document.createElement("canvas");
       outCanvas.width = img.naturalWidth;
@@ -256,9 +255,6 @@ export default function PlateBlurDialog({ file, onCancel, onConfirm }) {
       const baseName = (file?.name || "photo").replace(/\.[^.]+$/, "");
       const out = new File([blob], `${baseName}-edited.jpg`, { type: "image/jpeg" });
       onConfirm(out);
-      // Reference canvas so linters don't flag the ref as unused (also keeps
-      // the on-screen preview state ready if the caller reopens the dialog).
-      canvas.getContext("2d");
     } catch (e) {
       setError(String(e));
     } finally { setBusy(false); }
