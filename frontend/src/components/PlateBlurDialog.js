@@ -1,32 +1,23 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useTranslation } from "react-i18next";
-import { X, Move, Undo2, Trash2, Loader2, Upload, CheckCircle2 } from "lucide-react";
+import { X, Move, Loader2, Upload } from "lucide-react";
 
 /**
- * Manual license-plate blur dialog (Bug 26 — Iter 52a redesign).
+ * Manual license-plate cover dialog (Bug 29 — Iter 52b redesign).
  *
- * NEW MECHANIC (drag + resize a prefab rectangle):
- *   1. When the image loads, a rectangle appears at the bottom-center of the
- *      photo (where the front/rear plate usually sits). Default plate proportion
- *      (~5:1 aspect) sized to 50% of the image width.
- *   2. The user drags the rectangle onto the plate with a finger/mouse.
- *   3. Four corner handles let the user resize.
- *   4. "Zastosuj blur" commits the rectangle: the underlying pixels are blurred
- *      permanently on the canvas and a fresh prefab rect appears for the next
- *      area. Multiple blur passes are supported (front + rear plates, faces).
- *   5. "Cofnij" removes the last committed blur (via full redraw from the
- *      original image + remaining committed rects).
- *   6. "Wyślij" pipes the composed canvas back to the parent as a File.
+ * MINIMAL MECHANIC:
+ *   1. Prefab WHITE rectangle at bottom-center of the photo (plate proportions).
+ *   2. User drags the rectangle onto the plate; 4 corner handles resize.
+ *   3. "Prześlij zdjęcie" → bakes the white rect into the image, exports as
+ *      JPEG, calls onConfirm(file).
+ *   4. "Pomiń i prześlij bez zasłaniania" → sends original file untouched.
  *
- * Pointer Events give mouse + touch out of the box. `touch-action: none` on
- * the canvas prevents the browser from panning while the user drags.
+ * That's it. No blur, no undo, no multi-shape — deliberate simplification.
  */
 
-const HANDLE_SIZE_PX = 16; // display-space; scaled to canvas natural units inside hit-test
-const CORNERS = ["nw", "ne", "sw", "se"];
+const HANDLE_SIZE_PX = 16;
 
 function makeDefaultRect(natW, natH) {
-  // Plate proportion ~5:1. Width = 50% of image width, bottom-center placement.
   const w = Math.round(natW * 0.5);
   const h = Math.max(28, Math.round(w * 0.22));
   const x = Math.round((natW - w) / 2);
@@ -41,18 +32,16 @@ export default function PlateBlurDialog({ file, onCancel, onConfirm }) {
   const canvasRef = useRef(null);
   const previewRef = useRef(null);
   const imgRef = useRef(null);
-  // interaction state — refs, not React state, so pointer-move stays 60fps
-  const dragStateRef = useRef(null); // {mode:'move'|'nw'|'ne'|'sw'|'se', offsetX, offsetY, startRect}
+  const dragStateRef = useRef(null);
   const scaleRef = useRef(1);
 
   const [imgLoaded, setImgLoaded] = useState(false);
-  const [committedRects, setCommittedRects] = useState([]); // baked blurs
-  const [movable, setMovable] = useState(null); // {x,y,w,h}
+  const [rect, setRect] = useState(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
   const [hoverCursor, setHoverCursor] = useState("default");
 
-  // ---------- Load image ----------
+  // Load image
   useEffect(() => {
     if (!file) return;
     let cancelled = false;
@@ -63,14 +52,14 @@ export default function PlateBlurDialog({ file, onCancel, onConfirm }) {
       imgRef.current = img;
       setImgLoaded(true);
       setError(null);
-      setMovable(makeDefaultRect(img.naturalWidth, img.naturalHeight));
+      setRect(makeDefaultRect(img.naturalWidth, img.naturalHeight));
     };
     img.onerror = () => { if (!cancelled) setError(t("blur.loadError") || "Load error"); };
     img.src = url;
     return () => { cancelled = true; URL.revokeObjectURL(url); };
   }, [file, t]);
 
-  // ---------- Redraw ----------
+  // Redraw
   const redraw = useCallback(() => {
     if (!imgLoaded) return;
     const canvas = canvasRef.current;
@@ -79,56 +68,30 @@ export default function PlateBlurDialog({ file, onCancel, onConfirm }) {
     canvas.width = img.naturalWidth;
     canvas.height = img.naturalHeight;
     const ctx = canvas.getContext("2d");
-    // 1. Original image
     ctx.drawImage(img, 0, 0);
-    // 2. Committed blurs (permanent)
-    committedRects.forEach((r) => paintBlur(ctx, img, r));
-    // 3. Movable rectangle outline + semi-transparent fill on top
-    if (movable) paintMovableOverlay(ctx, movable);
-
-    // Fit canvas display width to container (for scaling handle hit-tests)
+    if (rect) paintRect(ctx, rect);
     const wrap = previewRef.current;
     if (wrap) {
       const containerW = wrap.clientWidth;
       scaleRef.current = Math.min(1, containerW / img.naturalWidth);
     }
-  }, [imgLoaded, committedRects, movable]);
+  }, [imgLoaded, rect]);
 
   useEffect(() => { redraw(); }, [redraw]);
 
-  // ---------- Painters ----------
-  const paintBlur = (ctx, img, r) => {
-    if (r.w < 4 || r.h < 4) return;
-    ctx.save();
-    ctx.filter = "blur(14px)";
-    const pad = 6;
-    ctx.beginPath();
-    ctx.rect(r.x, r.y, r.w, r.h);
-    ctx.clip();
-    ctx.drawImage(
-      img,
-      Math.max(0, r.x - pad), Math.max(0, r.y - pad),
-      r.w + pad * 2, r.h + pad * 2,
-      Math.max(0, r.x - pad), Math.max(0, r.y - pad),
-      r.w + pad * 2, r.h + pad * 2,
-    );
-    ctx.restore();
-  };
-
-  const paintMovableOverlay = (ctx, r) => {
+  const paintRect = (ctx, r) => {
     const s = scaleRef.current || 1;
     ctx.save();
-    // Semi-transparent blue fill
-    ctx.fillStyle = "rgba(43, 127, 232, 0.28)";
+    // White fill (this is the "cover" that will be baked in on submit)
+    ctx.fillStyle = "#FFFFFF";
     ctx.fillRect(r.x, r.y, r.w, r.h);
-    // Solid outline
+    // Blue outline
     ctx.strokeStyle = "#2B7FE8";
     ctx.lineWidth = Math.max(2, 3 / s);
     ctx.strokeRect(r.x, r.y, r.w, r.h);
-    // Corner handles (white circle with blue border)
+    // Corner handles
     const handleR = Math.max(6, HANDLE_SIZE_PX / 2 / s);
-    const cornerPts = getCornerPoints(r);
-    Object.values(cornerPts).forEach(([cx, cy]) => {
+    getCornerPoints(r).forEach(([cx, cy]) => {
       ctx.beginPath();
       ctx.arc(cx, cy, handleR, 0, Math.PI * 2);
       ctx.fillStyle = "#ffffff";
@@ -141,73 +104,80 @@ export default function PlateBlurDialog({ file, onCancel, onConfirm }) {
   };
 
   function getCornerPoints(r) {
-    return {
-      nw: [r.x, r.y],
-      ne: [r.x + r.w, r.y],
-      sw: [r.x, r.y + r.h],
-      se: [r.x + r.w, r.y + r.h],
-    };
+    return [
+      [r.x, r.y],
+      [r.x + r.w, r.y],
+      [r.x, r.y + r.h],
+      [r.x + r.w, r.y + r.h],
+    ];
   }
 
-  // ---------- Pointer helpers ----------
   const getNaturalPos = (e) => {
     const canvas = canvasRef.current;
-    const rect = canvas.getBoundingClientRect();
-    if (!rect.width || !rect.height) return { x: 0, y: 0 };
-    const clientX = e.clientX ?? (e.touches && e.touches[0]?.clientX) ?? 0;
-    const clientY = e.clientY ?? (e.touches && e.touches[0]?.clientY) ?? 0;
+    const b = canvas.getBoundingClientRect();
+    if (!b.width || !b.height) return { x: 0, y: 0 };
+    const clientX = e.clientX ?? 0;
+    const clientY = e.clientY ?? 0;
     return {
-      x: ((clientX - rect.left) / rect.width) * canvas.width,
-      y: ((clientY - rect.top) / rect.height) * canvas.height,
+      x: ((clientX - b.left) / b.width) * canvas.width,
+      y: ((clientY - b.top) / b.height) * canvas.height,
     };
   };
 
   const hitTest = (r, p) => {
-    // Return 'move' / corner name / null
     const s = scaleRef.current || 1;
     const handleHit = Math.max(HANDLE_SIZE_PX, HANDLE_SIZE_PX / s);
-    for (const [name, [cx, cy]] of Object.entries(getCornerPoints(r))) {
-      if (Math.abs(p.x - cx) <= handleHit && Math.abs(p.y - cy) <= handleHit) {
-        return name;
-      }
+    const corners = [
+      ["nw", r.x, r.y], ["ne", r.x + r.w, r.y],
+      ["sw", r.x, r.y + r.h], ["se", r.x + r.w, r.y + r.h],
+    ];
+    for (const [name, cx, cy] of corners) {
+      if (Math.abs(p.x - cx) <= handleHit && Math.abs(p.y - cy) <= handleHit) return name;
     }
     if (p.x >= r.x && p.x <= r.x + r.w && p.y >= r.y && p.y <= r.y + r.h) return "move";
     return null;
   };
 
+  const cursorFor = (mode) =>
+    mode === "move" ? "move"
+    : mode === "nw" || mode === "se" ? "nwse-resize"
+    : mode === "ne" || mode === "sw" ? "nesw-resize"
+    : "default";
+
   const onPointerDown = (e) => {
-    if (!imgLoaded || !movable) return;
+    if (!imgLoaded || !rect) return;
     e.preventDefault();
     e.stopPropagation();
     try { canvasRef.current.setPointerCapture?.(e.pointerId); } catch (_) { /* ignore */ }
     const p = getNaturalPos(e);
-    const mode = hitTest(movable, p);
+    const mode = hitTest(rect, p);
     if (!mode) return;
-    dragStateRef.current = {
-      mode,
-      offsetX: p.x - movable.x,
-      offsetY: p.y - movable.y,
-      startRect: { ...movable },
-    };
+    dragStateRef.current = { mode, offsetX: p.x - rect.x, offsetY: p.y - rect.y, start: { ...rect } };
   };
 
   const onPointerMove = (e) => {
+    if (!rect) return;
     const state = dragStateRef.current;
-    if (!state) return;
+    if (!state) {
+      // hover cursor
+      const p = getNaturalPos(e);
+      setHoverCursor(cursorFor(hitTest(rect, p)));
+      return;
+    }
     e.preventDefault();
-    e.stopPropagation();
     const p = getNaturalPos(e);
     const canvas = canvasRef.current;
     if (!canvas) return;
     const W = canvas.width, H = canvas.height;
-    const s = state.startRect;
-    let next = { ...movable };
+    const s = state.start;
+    let next = { ...rect };
     if (state.mode === "move") {
-      const nx = clamp(p.x - state.offsetX, 0, W - s.w);
-      const ny = clamp(p.y - state.offsetY, 0, H - s.h);
-      next = { ...s, x: nx, y: ny };
+      next = {
+        ...s,
+        x: clamp(p.x - state.offsetX, 0, W - s.w),
+        y: clamp(p.y - state.offsetY, 0, H - s.h),
+      };
     } else {
-      // Resize from anchored opposite corner. Enforce min 24×12 px.
       const MIN_W = 24, MIN_H = 12;
       let ax = s.x, ay = s.y, bx = s.x + s.w, by = s.y + s.h;
       if (state.mode === "nw") { ax = clamp(p.x, 0, bx - MIN_W); ay = clamp(p.y, 0, by - MIN_H); }
@@ -216,65 +186,36 @@ export default function PlateBlurDialog({ file, onCancel, onConfirm }) {
       if (state.mode === "se") { bx = clamp(p.x, ax + MIN_W, W); by = clamp(p.y, ay + MIN_H, H); }
       next = { x: ax, y: ay, w: bx - ax, h: by - ay };
     }
-    setMovable(next);
+    setRect(next);
   };
 
   const onPointerUp = () => { dragStateRef.current = null; };
 
-  // ---------- Actions ----------
-  const applyBlur = () => {
-    if (!movable) return;
-    const r = { ...movable };
-    setCommittedRects((prev) => [...prev, r]);
-    // Reset the movable rectangle to default position for the next area.
-    const img = imgRef.current;
-    if (img) setMovable(makeDefaultRect(img.naturalWidth, img.naturalHeight));
-  };
-
-  const undo = () => setCommittedRects((prev) => prev.slice(0, -1));
-  const clearAll = () => setCommittedRects([]);
-
-  const upload = async () => {
+  const submitCovered = async () => {
+    if (!rect) return;
     setBusy(true);
     try {
-      // Do NOT bake the current movable rect — user must click "Zastosuj blur"
-      // explicitly. But we must ensure the canvas we send doesn't have the
-      // overlay handles painted on it.
       const img = imgRef.current;
       const outCanvas = document.createElement("canvas");
       outCanvas.width = img.naturalWidth;
       outCanvas.height = img.naturalHeight;
       const octx = outCanvas.getContext("2d");
       octx.drawImage(img, 0, 0);
-      committedRects.forEach((r) => paintBlur(octx, img, r));
-
-      const blob = await new Promise((resolve) =>
-        outCanvas.toBlob((b) => resolve(b), "image/jpeg", 0.92)
-      );
+      // Just a solid white rectangle — no blur, no gradient.
+      octx.fillStyle = "#FFFFFF";
+      octx.fillRect(rect.x, rect.y, rect.w, rect.h);
+      const blob = await new Promise((resolve) => outCanvas.toBlob(resolve, "image/jpeg", 0.92));
       if (!blob) throw new Error("toBlob failed");
       const baseName = (file?.name || "photo").replace(/\.[^.]+$/, "");
-      const out = new File([blob], `${baseName}-edited.jpg`, { type: "image/jpeg" });
-      onConfirm(out);
+      onConfirm(new File([blob], `${baseName}-covered.jpg`, { type: "image/jpeg" }));
     } catch (e) {
       setError(String(e));
     } finally { setBusy(false); }
   };
 
-  if (!file) return null;
+  const submitOriginal = () => onConfirm(file);
 
-  // Cursor per hit region — computed for pointer-over previews on desktop.
-  const cursorFor = (mode) => {
-    if (mode === "move") return "move";
-    if (mode === "nw" || mode === "se") return "nwse-resize";
-    if (mode === "ne" || mode === "sw") return "nesw-resize";
-    return "default";
-  };
-  const onPointerMoveHover = (e) => {
-    if (dragStateRef.current) return;
-    if (!movable) return;
-    const p = getNaturalPos(e);
-    setHoverCursor(cursorFor(hitTest(movable, p)));
-  };
+  if (!file) return null;
 
   return (
     <div className="fixed inset-0 z-[100] bg-black/80 flex items-center justify-center p-2 sm:p-4 overflow-y-auto" data-testid="blur-dialog">
@@ -282,7 +223,7 @@ export default function PlateBlurDialog({ file, onCancel, onConfirm }) {
         <div className="flex items-center justify-between px-4 py-3 border-b border-vehiq-border">
           <div className="flex items-center gap-2 text-vehiq-text">
             <Move size={16} className="text-vehiq-gold" />
-            <h3 className="font-medium">{t("blur.title") || "Zamaż tablicę"}</h3>
+            <h3 className="font-medium">Zamaż tablicę</h3>
           </div>
           <button onClick={onCancel} className="text-vehiq-muted hover:text-vehiq-text" data-testid="blur-close">
             <X size={18} />
@@ -291,7 +232,7 @@ export default function PlateBlurDialog({ file, onCancel, onConfirm }) {
 
         <div className="p-4 space-y-3">
           <p className="text-xs text-vehiq-muted">
-            Przeciągnij niebieski prostokąt na tablicę rejestracyjną. Rogi pozwalają zmienić rozmiar. Kliknij <strong className="text-vehiq-text">Zastosuj blur</strong> gdy jest gotowe. Możesz zamazać kilka miejsc.
+            Przeciągnij biały prostokąt na tablicę rejestracyjną. Rogi pozwalają zmienić rozmiar. Kliknij <strong className="text-vehiq-text">Prześlij zdjęcie</strong> gdy jest gotowe.
           </p>
 
           <div ref={previewRef} className="bg-black/40 rounded overflow-hidden relative">
@@ -304,7 +245,7 @@ export default function PlateBlurDialog({ file, onCancel, onConfirm }) {
               <canvas
                 ref={canvasRef}
                 onPointerDown={onPointerDown}
-                onPointerMove={(e) => { onPointerMoveHover(e); onPointerMove(e); }}
+                onPointerMove={onPointerMove}
                 onPointerUp={onPointerUp}
                 onPointerCancel={onPointerUp}
                 onPointerLeave={onPointerUp}
@@ -317,7 +258,6 @@ export default function PlateBlurDialog({ file, onCancel, onConfirm }) {
                   userSelect: "none",
                   WebkitTouchCallout: "none",
                   overscrollBehavior: "contain",
-                  pointerEvents: "auto",
                   display: "block",
                 }}
                 data-testid="blur-canvas"
@@ -325,62 +265,28 @@ export default function PlateBlurDialog({ file, onCancel, onConfirm }) {
             )}
           </div>
 
-          {error && <div className="text-xs text-red-400">{error}</div>}
+          {error && <div className="text-xs text-red-400" data-testid="blur-error">{error}</div>}
 
-          <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={applyBlur}
-                disabled={!movable || busy}
-                className="inline-flex items-center gap-1.5 px-3 py-2 rounded border border-vehiq-gold/50 bg-vehiq-gold-dim text-vehiq-gold hover:bg-vehiq-gold hover:text-vehiq-bg disabled:opacity-40"
-                data-testid="blur-apply"
-              >
-                <CheckCircle2 size={14} /> Zastosuj blur
-              </button>
-              <button
-                type="button"
-                onClick={undo}
-                disabled={committedRects.length === 0 || busy}
-                className="inline-flex items-center gap-1.5 px-3 py-2 rounded border border-vehiq-border text-vehiq-text hover:bg-vehiq-bg disabled:opacity-40"
-                data-testid="blur-undo"
-              >
-                <Undo2 size={14} /> Cofnij
-              </button>
-              <button
-                type="button"
-                onClick={clearAll}
-                disabled={committedRects.length === 0 || busy}
-                className="inline-flex items-center gap-1.5 px-3 py-2 rounded border border-vehiq-border text-vehiq-muted hover:bg-vehiq-bg disabled:opacity-40"
-                data-testid="blur-clear"
-              >
-                <Trash2 size={14} /> Wyczyść
-              </button>
-              <span className="text-xs text-vehiq-muted hidden sm:inline">
-                {committedRects.length} {committedRects.length === 1 ? "zamazanie" : "zamazania"}
-              </span>
-            </div>
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={onCancel}
-                disabled={busy}
-                className="px-4 py-2 text-sm text-vehiq-muted hover:text-vehiq-text"
-                data-testid="blur-cancel"
-              >
-                Anuluj
-              </button>
-              <button
-                type="button"
-                onClick={upload}
-                disabled={busy || !imgLoaded}
-                className="inline-flex items-center gap-1.5 vehiq-btn-primary px-4 py-2 text-sm disabled:opacity-50"
-                data-testid="blur-confirm"
-              >
-                {busy ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}
-                Wyślij
-              </button>
-            </div>
+          <div className="flex flex-col items-center gap-2 pt-1">
+            <button
+              type="button"
+              onClick={submitCovered}
+              disabled={busy || !imgLoaded}
+              className="w-full sm:w-auto inline-flex items-center gap-1.5 vehiq-btn-primary px-6 py-2.5 text-sm disabled:opacity-50"
+              data-testid="blur-confirm"
+            >
+              {busy ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}
+              Prześlij zdjęcie →
+            </button>
+            <button
+              type="button"
+              onClick={submitOriginal}
+              disabled={busy}
+              className="text-xs text-vehiq-muted hover:text-vehiq-text underline"
+              data-testid="blur-skip"
+            >
+              Pomiń i prześlij bez zasłaniania
+            </button>
           </div>
         </div>
       </div>

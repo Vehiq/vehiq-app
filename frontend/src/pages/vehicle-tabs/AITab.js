@@ -11,12 +11,28 @@ export default function AITab({ vehicle }) {
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
   const endRef = useRef(null);
+  // Bug 28 (Iter 52b): skip the auto-scroll on the very first render after
+  // history loads — otherwise switching to the AI tab yanks the whole page
+  // to the bottom of the chat. Only scroll on user-initiated sends after
+  // the first paint.
+  const skipNextAutoScroll = useRef(true);
 
   useEffect(() => {
-    api.get(`/ai/chat/${vehicle.id}`).then(r => setMessages(r.data.messages || []));
+    api.get(`/ai/chat/${vehicle.id}`).then(r => {
+      skipNextAutoScroll.current = true; // freshly loaded history — don't jump.
+      setMessages(r.data.messages || []);
+    });
   }, [vehicle.id]);
 
-  useEffect(() => { endRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages, busy]);
+  useEffect(() => {
+    if (skipNextAutoScroll.current) {
+      skipNextAutoScroll.current = false;
+      return;
+    }
+    // Use `block: "nearest"` so if the chat is already in view we don't
+    // scroll the page around it either.
+    endRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }, [messages, busy]);
 
   const send = async (e) => {
     e.preventDefault();

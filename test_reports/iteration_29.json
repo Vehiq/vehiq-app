@@ -1,0 +1,30 @@
+{
+  "summary": "Iter52b frontend-only smoke — Bug 28 (AITab no auto-scroll to bottom), Bug 29 (PlateBlurDialog simplified), CreateListing refactor with BulkPhotoUploader + ListingFormRentalCar/Garage subcomponents. All 4 items PASS.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_results": {
+    "bug28_ai_scroll": "PASS — scrollY after clicking tab-ai remained at 0 (was 0 before, 0 after). ai-input and ai-send present.",
+    "bug29_plate_blur": "PASS — blur-dialog, blur-canvas, blur-confirm, blur-skip, blur-close all present. Forbidden testids (blur-apply/undo/clear/cancel) all absent. Skip flow adds original file to grid. Confirm flow bakes white rect and produces '-covered' file (grid populated).",
+    "createlisting_refactor": "PASS — /marketplace/new (type=car) creates listing (200, id returned). /marketplace/new?category=rental_car renders all 7 rental_car testids. /marketplace/new?category=rental_garage renders all 9 garage testids; select has 4 options ['closed','parking','canopy','workshop']. Submitting rental_car with deposit=500 persisted server-side: GET returned rental.deposit=500, category=rental_car, type=rental.",
+    "bulk_photo_uploader": "PASS — listing-photos-dropzone + listing-photos-input present. Old testids (listing-upload-input, listing-garage-photos) removed. Adding photo opens blur-dialog. Skip → grid + remove-0 works. Uploading 11 files caps grid at 10 items (toast expected, cap confirmed via remove-N count = 10). Old listing-photo-remove-N NOT present."
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "PlateBlurDialog.js uses hardcoded PL text 'Zamaż tablicę' instead of t() (inconsistent with rest of file that imports useTranslation).",
+    "BulkPhotoUploader.js: `useTranslation` imported but `t` unused after refactor (dead import).",
+    "CreateListing.js (~812 lines) still large but on-track; further splits (service form, swap form) would help maintainability."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (not tested — backend unchanged)", "frontend": "100%"},
+  "test_credentials": "smoke-test-vehiq@example.com / SmokePass123! (verified working)",
+  "seed_data_creation": "Created 2 marketplace listings on test account: TEST Iter52b Car (car) + TEST Rental Car Iter52b (rental_car, deposit=500). Left in DB — consider cleanup if needed.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Backend was not tested per instructions. During testing, backend rate-limits (HTTP 429) triggered when navigating rapidly between pages — retry after a 15-20s cool-off. Rate-limit is expected behaviour, not a bug. Test user account already had rental listing quota available.",
+  "rca of the issue": "N/A — no issues found."
+}

@@ -2,9 +2,11 @@ import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams, useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import api, { apiErrorMessage } from "@/lib/api";
-import { compressImage, fileToDataURL } from "@/lib/imageCompress";
 import { toast } from "sonner";
-import { ArrowLeft, Upload, X, Plus } from "lucide-react";
+import { ArrowLeft, Plus } from "lucide-react";
+import BulkPhotoUploader from "@/components/BulkPhotoUploader";
+import ListingFormRentalCar from "@/components/listing/ListingFormRentalCar";
+import ListingFormRentalGarage from "@/components/listing/ListingFormRentalGarage";
 import {
   LISTING_TYPES, VEHICLE_CONDITIONS, STEERING_OPTIONS, SWAP_CONDITIONS,
   PARTS_CATEGORIES, POPULAR_MODELS,
@@ -161,38 +163,6 @@ export default function CreateListing() {
         setForm((prev) => ({ ...prev, photos: full }));
       }
     } catch { /* keep seed cover — user can also upload more */ }
-  };
-
-  const toggleGaragePhoto = (url) => {
-    setForm((prev) => {
-      const has = (prev.photos || []).includes(url);
-      return {
-        ...prev,
-        photos: has
-          ? (prev.photos || []).filter((p) => p !== url)
-          : [...(prev.photos || []), url],
-      };
-    });
-  };
-
-  const handleFiles = async (e) => {
-    const files = Array.from(e.target.files || []);
-    e.target.value = "";
-    // Iter 44: client-side compress raw phone photos (2–8MB) down to ~300 KB
-    // JPEG @ 1600px so the base64 payload fits under the backend inline guard.
-    const newPhotos = [];
-    for (const f of files) {
-      if (f.size > 15 * 1024 * 1024) { toast.error(`File ${f.name} > 15MB`); continue; }
-      try {
-        const compressed = await compressImage(f);
-        newPhotos.push(await fileToDataURL(compressed));
-      } catch {
-        toast.error(`Nie udało się przetworzyć ${f.name}`);
-      }
-    }
-    if (newPhotos.length) {
-      setForm((prev) => ({ ...prev, photos: [...(prev.photos || []), ...newPhotos] }));
-    }
   };
 
   const submit = async (e) => {
@@ -618,51 +588,17 @@ export default function CreateListing() {
 
         <div>
           <label className="vehiq-overline mb-2 block">{t("vehicle.photos")}</label>
-
-          {/* Bug 22 (Iter 50): checkbox gallery of garage photos from the
-              selected vehicle. Users tick which ones to include in the
-              listing — no need to re-upload photos already on the profile. */}
-          {garagePhotos.length > 0 && (
-            <div className="mb-4 p-3 rounded border border-vehiq-border/50 bg-vehiq-bg/40" data-testid="listing-garage-photos">
-              <div className="text-[11px] uppercase tracking-widest text-vehiq-muted mb-2">
-                Z profilu pojazdu — zaznacz które użyć
-              </div>
-              <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
-                {garagePhotos.map((url, i) => {
-                  const checked = (form.photos || []).includes(url);
-                  return (
-                    <button
-                      type="button"
-                      key={i}
-                      onClick={() => toggleGaragePhoto(url)}
-                      className={`relative rounded overflow-hidden border transition-colors ${checked ? "border-vehiq-gold" : "border-vehiq-border"}`}
-                      data-testid={`listing-garage-photo-${i}`}
-                    >
-                      <img src={url} alt="" className={`w-full h-20 object-cover ${checked ? "" : "opacity-50"}`} />
-                      <span className={`absolute top-1 right-1 h-5 w-5 rounded-sm border text-[11px] flex items-center justify-center ${checked ? "bg-vehiq-gold border-vehiq-gold text-vehiq-bg" : "bg-vehiq-bg/70 border-vehiq-border text-transparent"}`}>
-                        ✓
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          <label className="vehiq-btn-secondary cursor-pointer inline-flex items-center gap-2">
-            <Upload size={14}/> {t("vehicle.uploadPhotos")}
-            <input type="file" multiple accept="image/*" onChange={handleFiles} className="hidden" data-testid="listing-upload-input" />
-          </label>
-          {form.photos.length > 0 && (
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-3">
-              {form.photos.map((p, i) => (
-                <div key={i} className="relative rounded overflow-hidden border border-vehiq-border">
-                  <img src={p} alt="" className="w-full h-24 object-cover" />
-                  <button type="button" onClick={() => setForm({...form, photos: form.photos.filter((_, j) => j !== i)})} className="absolute top-1 right-1 bg-vehiq-bg/80 p-1 rounded" data-testid={`listing-photo-remove-${i}`}><X size={12}/></button>
-                </div>
-              ))}
-            </div>
-          )}
+          {/* Iter 52b: BulkPhotoUploader replaces the ad-hoc uploader.
+              Provides drag-and-drop, multi-file, checkbox reuse of garage
+              photos, and 10-photo cap. Photo processing (plate-cover +
+              compression) happens inside the component. */}
+          <BulkPhotoUploader
+            photos={form.photos}
+            onPhotosChange={(next) => setForm((prev) => ({ ...prev, photos: next }))}
+            existingVehiclePhotos={garagePhotos}
+            maxPhotos={10}
+            testIdPrefix="listing-photos"
+          />
         </div>
       </div>
 
@@ -714,182 +650,11 @@ export default function CreateListing() {
           </div>
 
           {form.category === "rental_car" && (
-            <>
-              <div>
-                <label className="vehiq-overline mb-2 block">Miejsce odbioru</label>
-                <input
-                  value={form.rental.pickup_location}
-                  onChange={(e) => setForm({ ...form, rental: { ...form.rental, pickup_location: e.target.value } })}
-                  placeholder="np. Warszawa, Mokotów"
-                  className="vehiq-input"
-                  data-testid="rental-pickup"
-                />
-              </div>
-
-              {/* Change 27 (Iter 52a): dowóz + promień */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <label className="inline-flex items-center gap-2 text-sm cursor-pointer col-span-1">
-                  <input
-                    type="checkbox"
-                    checked={!!form.rental.delivery}
-                    onChange={(e) => setForm({ ...form, rental: { ...form.rental, delivery: e.target.checked } })}
-                    className="accent-vehiq-gold"
-                    data-testid="rental-delivery"
-                  />
-                  <span>Możliwość dowozu</span>
-                </label>
-                {form.rental.delivery && (
-                  <div className="col-span-2">
-                    <label className="vehiq-overline mb-2 block">Promień dowozu (km)</label>
-                    <input
-                      type="number" min="0" step="1"
-                      value={form.rental.delivery_radius_km}
-                      onChange={(e) => setForm({ ...form, rental: { ...form.rental, delivery_radius_km: e.target.value } })}
-                      className="vehiq-input"
-                      data-testid="rental-delivery-radius"
-                    />
-                  </div>
-                )}
-              </div>
-
-              {/* Change 27 (Iter 52a): kaucja + min/max okres + wymagania kierowcy */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div>
-                  <label className="vehiq-overline mb-2 block">Kaucja (PLN)</label>
-                  <input
-                    type="number" min="0" step="1"
-                    value={form.rental.deposit}
-                    onChange={(e) => setForm({ ...form, rental: { ...form.rental, deposit: e.target.value } })}
-                    className="vehiq-input"
-                    data-testid="rental-deposit"
-                  />
-                </div>
-                <div>
-                  <label className="vehiq-overline mb-2 block">Min. dni</label>
-                  <input
-                    type="number" min="1" step="1"
-                    value={form.rental.min_days}
-                    onChange={(e) => setForm({ ...form, rental: { ...form.rental, min_days: e.target.value } })}
-                    className="vehiq-input"
-                    data-testid="rental-min-days"
-                  />
-                </div>
-                <div>
-                  <label className="vehiq-overline mb-2 block">Max. dni</label>
-                  <input
-                    type="number" min="1" step="1"
-                    value={form.rental.max_days}
-                    onChange={(e) => setForm({ ...form, rental: { ...form.rental, max_days: e.target.value } })}
-                    className="vehiq-input"
-                    data-testid="rental-max-days"
-                  />
-                </div>
-                <div>
-                  <label className="vehiq-overline mb-2 block">Min. wiek kierowcy</label>
-                  <input
-                    type="number" min="18" step="1"
-                    value={form.rental.min_driver_age}
-                    onChange={(e) => setForm({ ...form, rental: { ...form.rental, min_driver_age: e.target.value } })}
-                    className="vehiq-input"
-                    data-testid="rental-min-age"
-                  />
-                </div>
-                <div>
-                  <label className="vehiq-overline mb-2 block">Min. staż prawa jazdy (lat)</label>
-                  <input
-                    type="number" min="0" step="1"
-                    value={form.rental.min_license_years}
-                    onChange={(e) => setForm({ ...form, rental: { ...form.rental, min_license_years: e.target.value } })}
-                    className="vehiq-input"
-                    data-testid="rental-min-license"
-                  />
-                </div>
-              </div>
-            </>
+            <ListingFormRentalCar form={form} setForm={setForm} />
           )}
 
           {form.category === "rental_garage" && (
-            <>
-              <div>
-                <label className="vehiq-overline mb-2 block">Adres garażu</label>
-                <input
-                  value={form.rental.garage_address}
-                  onChange={(e) => setForm({ ...form, rental: { ...form.rental, garage_address: e.target.value } })}
-                  placeholder="np. ul. Kwiatowa 12, Warszawa"
-                  className="vehiq-input"
-                  data-testid="rental-address"
-                />
-              </div>
-
-              {/* Change 27 (Iter 52a): typ + dane techniczne garażu */}
-              <div>
-                <label className="vehiq-overline mb-2 block">Typ</label>
-                <select
-                  value={form.rental.garage_type}
-                  onChange={(e) => setForm({ ...form, rental: { ...form.rental, garage_type: e.target.value } })}
-                  className="vehiq-input"
-                  data-testid="rental-garage-type"
-                >
-                  <option value="closed">Garaż zamknięty</option>
-                  <option value="parking">Miejsce parkingowe</option>
-                  <option value="canopy">Wiata</option>
-                  <option value="workshop">Boks warsztatowy</option>
-                </select>
-              </div>
-
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                <div>
-                  <label className="vehiq-overline mb-2 block">Powierzchnia (m²)</label>
-                  <input
-                    type="number" min="0" step="0.5"
-                    value={form.rental.area_m2}
-                    onChange={(e) => setForm({ ...form, rental: { ...form.rental, area_m2: e.target.value } })}
-                    className="vehiq-input"
-                    data-testid="rental-area"
-                  />
-                </div>
-                <div>
-                  <label className="vehiq-overline mb-2 block">Wysokość (m)</label>
-                  <input
-                    type="number" min="0" step="0.1"
-                    value={form.rental.height_m}
-                    onChange={(e) => setForm({ ...form, rental: { ...form.rental, height_m: e.target.value } })}
-                    className="vehiq-input"
-                    data-testid="rental-height"
-                  />
-                </div>
-                <div>
-                  <label className="vehiq-overline mb-2 block">Kaucja (PLN)</label>
-                  <input
-                    type="number" min="0" step="1"
-                    value={form.rental.deposit}
-                    onChange={(e) => setForm({ ...form, rental: { ...form.rental, deposit: e.target.value } })}
-                    className="vehiq-input"
-                    data-testid="rental-deposit-garage"
-                  />
-                </div>
-              </div>
-
-              <div className="flex flex-wrap gap-4">
-                {[
-                  { key: "monitoring", label: "Monitoring" },
-                  { key: "access_24h", label: "Dostęp 24h" },
-                  { key: "electricity", label: "Prąd" },
-                  { key: "heating",    label: "Ogrzewanie" },
-                ].map((opt) => (
-                  <label key={opt.key} className="inline-flex items-center gap-2 text-sm cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={!!form.rental[opt.key]}
-                      onChange={(e) => setForm({ ...form, rental: { ...form.rental, [opt.key]: e.target.checked } })}
-                      className="accent-vehiq-gold"
-                      data-testid={`rental-garage-${opt.key.replace(/_/g, "-")}`}
-                    />
-                    <span>{opt.label}</span>
-                  </label>
-                ))}
-              </div>
-            </>
+            <ListingFormRentalGarage form={form} setForm={setForm} />
           )}
 
           <div>
