@@ -913,6 +913,9 @@ async def get_public_vehicle(slug: str, user=Depends(get_optional_user)):
 class VisibilityIn(BaseModel):
     public: Optional[bool] = None
     public_show_service: Optional[bool] = None
+    # Bug 31 (Iter 54): unified `visibility` flag replaces `public + searchable`.
+    # Backward-compatible — when set, mirrored to `public` for legacy readers.
+    visibility: Optional[str] = None  # "private" | "public"
 
 
 @router.post("/{vehicle_id}/visibility")
@@ -922,7 +925,23 @@ async def set_visibility(vehicle_id: str, payload: VisibilityIn, user=Depends(ge
     v = await db.vehicles.find_one({"id": vehicle_id, "user_id": user["id"]})
     if not v:
         raise HTTPException(status_code=404, detail="Vehicle not found")
-    update = {k: bool(v) for k, v in payload.model_dump(exclude_none=True).items()}
+    dumped = payload.model_dump(exclude_none=True)
+    # Iter 54: derive the canonical `public` boolean from either `public` or
+    # the unified `visibility` string. Store both for the legacy reader path.
+    update: dict = {}
+    if "visibility" in dumped:
+        vis = dumped["visibility"]
+        if vis not in ("public", "private"):
+            raise HTTPException(status_code=400, detail="visibility must be 'public' or 'private'")
+        update["visibility"] = vis
+        update["public"] = (vis == "public")
+        update["searchable"] = (vis == "public")
+    if "public" in dumped:
+        update["public"] = bool(dumped["public"])
+        update["visibility"] = "public" if dumped["public"] else "private"
+        update["searchable"] = bool(dumped["public"])
+    if "public_show_service" in dumped:
+        update["public_show_service"] = bool(dumped["public_show_service"])
     # Ensure slug exists when going public
     if update.get("public") and not v.get("slug"):
         base_slug = _slugify(f"{v.get('make','')}-{v.get('model','')}-{v.get('year') or ''}")
@@ -930,7 +949,13 @@ async def set_visibility(vehicle_id: str, payload: VisibilityIn, user=Depends(ge
     update["updated_at"] = datetime.now(timezone.utc).isoformat()
     await db.vehicles.update_one({"id": vehicle_id}, {"$set": update})
     fresh = await db.vehicles.find_one({"id": vehicle_id}, {"_id": 0})
-    return {"ok": True, "slug": fresh.get("slug"), "public": bool(fresh.get("public")), "public_show_service": bool(fresh.get("public_show_service"))}
+    return {
+        "ok": True,
+        "slug": fresh.get("slug"),
+        "public": bool(fresh.get("public")),
+        "visibility": fresh.get("visibility") or ("public" if fresh.get("public") else "private"),
+        "public_show_service": bool(fresh.get("public_show_service")),
+    }
 
 
 class ShareIn(BaseModel):

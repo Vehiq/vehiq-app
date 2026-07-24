@@ -186,11 +186,18 @@ async def public_user_profile(slug_or_id: str, viewer=Depends(get_optional_user)
 
     card = await _build_card(db, p, is_owner)
 
-    # Public vehicles
+    # Public vehicles — Bug 31 (Iter 54): unified `visibility: "public"`.
+    # Legacy `searchable + privacy.profile_visible` still accepted so old
+    # docs surface until we run the migration script.
     veh_filter = {"user_id": p["id"]}
     if not is_owner:
-        veh_filter["searchable"] = {"$ne": False}
-        veh_filter["$or"] = [{"privacy.profile_visible": {"$ne": False}}, {"privacy": {"$exists": False}}]
+        veh_filter["$or"] = [
+            {"visibility": "public"},
+            {"$and": [
+                {"searchable": {"$ne": False}},
+                {"$or": [{"privacy.profile_visible": {"$ne": False}}, {"privacy": {"$exists": False}}]},
+            ]},
+        ]
     raw_vehicles = await db.vehicles.find(veh_filter, {"_id": 0}).sort("created_at", -1).to_list(120)
     vehicles_public = []
     for v in raw_vehicles:

@@ -2124,3 +2124,42 @@ regresja.
   brak jeszcze dedykowanej strony renderującej.
 - CreateListing.js nadal ~812 linii.
 
+
+---
+
+## Iter 54a — Search + Visibility Unification (DONE 2026-07-24)
+
+### 🔴 P0 wykonane
+- **Bug 30 — Wyszukiwarka rozszerzona**:
+  - `GET /api/search?q=&category=` teraz zwraca dodatkowo `workshops`
+    (activated business_accounts, match po `name/city/specializations`)
+    oraz `parts` (listings z `type=part`, match po `title/description/
+    part_make/part_model/part_oem`).
+  - Frontend `Search.js` — 2 nowe kategorie w chip barze: **Części**
+    (`Package` icon) i **Warsztaty** (`Building2` icon). Nowe kompleks
+    `<PartResult>` + `<WorkshopResult>` z linkiem do `/warsztaty/{slug}`.
+- **Bug 31 — Ujednolicona widoczność pojazdu**:
+  - Backend `POST /api/vehicles/{id}/visibility` przyjmuje nowe pole
+    `visibility: "public"|"private"` — automatycznie mirroruje na legacy
+    `public` + `searchable` bool. Backward-compatible.
+  - `routers/search.py` i `routers/users.py` akceptują TERAZ zarówno
+    `visibility: "public"` jak i legacy `searchable + privacy.
+    profile_visible` — brak migracji w bazie wymaganej.
+  - Uwaga: publiczny profil `/profile/{user_id}` (`users.py`) już
+    filtruje pojazdy poprawnie — pokazuje tylko public, chowa email/
+    telefon/koszty/ogłoszenia zgodnie ze spec.
+
+### 🟠 W planie Iter 54 — do zrobienia w kolejnej iteracji
+- Admin B2B Panel UI (endpointy z Iter 53 gotowe)
+- Publiczny profil warsztatu `/warsztaty/{slug}` + lista `/warsztaty`
+- QR Scan → B2B aktywacja + workshop_vehicle_access
+- Panel warsztatu `/business/dashboard`
+- Marketplace Części (`type=part` + `ListingFormPart`)
+- Usługi B2C (`type=service` + `ListingFormService`)
+- Alerty części (`part_alerts` collection)
+
+### Testy
+Backend curl-verified: search zwraca workshops+parts, visibility accept
+`{visibility:"public"}` i mirroruje na `public/searchable`. Frontend
+`Search.js` renderuje nowe sekcje.
+

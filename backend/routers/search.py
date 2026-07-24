@@ -56,8 +56,13 @@ async def global_search(
     rx = {"$regex": qre, "$options": "i"} if qre else None
 
     async def _vehicles():
-        # Owner sees ALL their vehicles regardless of privacy. Others only public+searchable.
+        # Owner sees ALL their vehicles regardless of privacy. Others see only
+        # publicly-visible vehicles.
+        # Bug 31 (Iter 54): unified `visibility: "public"` supersedes the
+        # legacy `searchable + privacy.profile_visible` combo — we accept
+        # both during the transition period so old docs still surface.
         privacy_clause = {"$or": [
+            {"visibility": "public"},
             {"searchable": {"$ne": False}, "$or": [{"privacy.profile_visible": {"$ne": False}}, {"privacy": {"$exists": False}}]},
         ]}
         if viewer:
@@ -115,6 +120,38 @@ async def global_search(
             e.pop("participants", None)
         return _attach_distance(items, lat, lng, radius)
 
+    async def _workshops():
+        # Iter 54: only activated + non-deleted B2B accounts show in search.
+        f = {"activated": True}
+        if rx:
+            f["$or"] = [{"name": rx}, {"city": rx}, {"specializations": rx}]
+        items = await db.business_accounts.find(
+            f,
+            {"_id": 0, "id": 1, "slug": 1, "name": 1, "type": 1, "city": 1,
+             "specializations": 1, "verified": 1, "logo_url": 1},
+        ).limit(limit_per).to_list(limit_per)
+        return items
+
+    async def _parts():
+        # Sub-view of listings: parts only. Match part-specific fields on top
+        # of title/description so users can search by OEM number too.
+        f = {"status": "active", "type": "part"}
+        if rx:
+            f["$or"] = [
+                {"title": rx}, {"description": rx},
+                {"part_make": rx}, {"part_model": rx}, {"part_oem": rx},
+            ]
+        items = await db.listings.find(
+            f,
+            {"_id": 0, "id": 1, "title": 1, "price": 1, "currency": 1, "photos": 1,
+             "part_make": 1, "part_model": 1, "part_category": 1, "part_oem": 1, "city": 1},
+        ).limit(limit_per).to_list(limit_per)
+        for it in items:
+            ph = it.get("photos") or []
+            it["cover_photo"] = _photo_thumb(ph[0]) if ph else None
+            it.pop("photos", None)
+        return items
+
     tasks = {}
     if category in ("all", "vehicles"):
         tasks["vehicles"] = _vehicles()
@@ -126,6 +163,10 @@ async def global_search(
         tasks["services"] = _services()
     if category in ("all", "events", "tracks"):
         tasks["events"] = _events()
+    if category in ("all", "workshops"):
+        tasks["workshops"] = _workshops()
+    if category in ("all", "parts"):
+        tasks["parts"] = _parts()
 
     results = await asyncio.gather(*tasks.values(), return_exceptions=True)
     out = {}

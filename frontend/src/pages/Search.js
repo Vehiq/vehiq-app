@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import api from "@/lib/api";
-import { Search as SearchIcon, MapPin, Car, Users, Store, Wrench, Calendar, Loader2, Crosshair, Map as MapIcon, List as ListIcon } from "lucide-react";
+import { Search as SearchIcon, MapPin, Car, Users, Store, Wrench, Calendar, Loader2, Crosshair, Map as MapIcon, List as ListIcon, Package, Building2 } from "lucide-react";
 import GarageCard from "@/components/GarageCard";
 import MapView from "@/components/MapView";
 
@@ -11,7 +11,9 @@ const CATS = [
   { id: "vehicles", icon: Car },
   { id: "users", icon: Users },
   { id: "listings", icon: Store },
+  { id: "parts", icon: Package },
   { id: "services", icon: Wrench },
+  { id: "workshops", icon: Building2 },
   { id: "events", icon: Calendar },
 ];
 
@@ -163,6 +165,20 @@ export default function Search() {
               </div>
             </Section>
           )}
+          {(cat === "all" || cat === "parts") && data.parts?.length > 0 && (
+            <Section title={t("search.cats.parts", "Części")} viewMore={cat === "all" ? () => { setCat("parts"); run({ cat: "parts" }); } : null}>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4" data-testid="search-parts">
+                {data.parts.slice(0, cat === "all" ? 4 : 40).map(l => <PartResult key={l.id} l={l} />)}
+              </div>
+            </Section>
+          )}
+          {(cat === "all" || cat === "workshops") && data.workshops?.length > 0 && (
+            <Section title={t("search.cats.workshops", "Warsztaty")} viewMore={cat === "all" ? () => { setCat("workshops"); run({ cat: "workshops" }); } : null}>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" data-testid="search-workshops">
+                {data.workshops.slice(0, cat === "all" ? 3 : 30).map(w => <WorkshopResult key={w.id} w={w} />)}
+              </div>
+            </Section>
+          )}
           {(cat === "all" || cat === "events") && data.events?.length > 0 && (
             <Section title={t("search.cats.events")} viewMore={cat === "all" ? () => { setCat("events"); run({ cat: "events" }); } : null}>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" data-testid="search-events">
@@ -230,6 +246,38 @@ function ServiceResult({ s }) {
       </div>
       <div className="text-[11px] text-vehiq-muted uppercase tracking-wider">{s.category}</div>
       <div className="text-xs text-vehiq-muted inline-flex items-center gap-1"><MapPin size={11}/>{s.location?.city}{typeof s.distance_km === "number" ? ` · ${s.distance_km} km` : ""}</div>
+    </Link>
+  );
+}
+
+function PartResult({ l }) {
+  return (
+    <Link to={`/marketplace/${l.id}`} className="vehiq-card p-3 hover:border-vehiq-gold transition-colors" data-testid={`search-part-${l.id}`}>
+      <div className="aspect-[16/10] rounded bg-vehiq-bg overflow-hidden mb-2">
+        {l.cover_photo ? <img src={l.cover_photo} alt="" className="w-full h-full object-cover"/> : <div className="w-full h-full flex items-center justify-center text-vehiq-muted"><Package size={24}/></div>}
+      </div>
+      <div className="text-sm text-vehiq-text font-medium line-clamp-2">{l.title}</div>
+      <div className="text-[11px] text-vehiq-muted">{[l.part_make, l.part_model].filter(Boolean).join(" · ")}</div>
+      <div className="text-vehiq-gold text-sm font-semibold mt-1">{l.price ? `${l.price.toLocaleString("pl-PL")} ${l.currency || "PLN"}` : ""}</div>
+    </Link>
+  );
+}
+
+function WorkshopResult({ w }) {
+  return (
+    <Link to={`/warsztaty/${w.slug}`} className="vehiq-card p-4 hover:border-vehiq-gold transition-colors space-y-1" data-testid={`search-workshop-${w.id}`}>
+      <div className="flex items-center justify-between gap-2">
+        <div className="text-sm text-vehiq-text font-medium truncate inline-flex items-center gap-1.5">
+          <Building2 size={12} className="text-vehiq-gold" />
+          {w.name}
+        </div>
+        {w.verified && <span className="text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-vehiq-gold-dim text-vehiq-gold">✓ Weryfikowany</span>}
+      </div>
+      <div className="text-[11px] text-vehiq-muted uppercase tracking-wider">{w.type}</div>
+      <div className="text-xs text-vehiq-muted inline-flex items-center gap-1"><MapPin size={11}/>{w.city}</div>
+      {(w.specializations || []).length > 0 && (
+        <div className="text-[10px] text-vehiq-muted truncate">{w.specializations.slice(0, 3).join(" · ")}</div>
+      )}
     </Link>
   );
 }
