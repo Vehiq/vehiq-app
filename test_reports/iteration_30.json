@@ -1,0 +1,36 @@
+{
+  "summary": "Iter 53 backend + frontend testing. 14/16 pytest tests passed (2 skipped: photo-limit upload path unreachable because R2 storage returns 503 before the 402 limit-check). All Iter 53 backend features verified: /api/waitlist/premium (dedupe case-insensitive), /api/business/register (+type validation, slug -1 suffix, activation idempotence, public GET), /api/payments/checkout (Stripe cs_test_ session created, tx doc inserted, unknown lookup_key→400, B2B without business_id→400), /api/payments/status/{sid} returns status/payment_status/plan_slug, admin /businesses (+status=pending filter), PATCH activate/verify, /admin/waitlist. Frontend: /dla-warsztatow renders with h1 'historię serwisową online' + warsztat-register-cta→/register/business?type=workshop; /dla-dealerow renders with dealer-register-cta→/register/business?type=dealer; /register/business form works end-to-end — all 5 type tiles + 7 fields present, submission produces business-register-done + business-register-view. PhotoLimitModal source verified: correct data-testids (photo-limit-modal/email/submit/skip/submitted/back), dark navy #0D1626 bg, calls /waitlist/premium, and contains NO 'Premium', 'plan', 'cena', 'PLN' strings.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/vehicles/{id}/photos", "issue": "Photo-limit 402 branch unreachable in preview because R2 storage check (503 'Storage not configured') runs BEFORE the len(existing) >= 5 guard. Suggest moving PHOTO_LIMIT_PER_VEHICLE check to before storage init so the paywall works even without R2 configured — and so it can be tested / exercised by frontend flow."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "/dla-warsztatow, /dla-dealerow", "issues": ["Requirement mentions '4 kroki' section — code renders 4 numbered tiles inside a section titled 'Jak to działa' (no literal '4 kroki' text). Cosmetic, not blocking."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_iter53.py", "/app/test_reports/pytest/iter53.xml"],
+  "action_items": [
+    "Reorder /api/vehicles/{id}/photos guards: run photo-count limit check BEFORE the R2 storage init so the 402 photo_limit_reached path is exercised even when storage is not configured (needed so PhotoLimitModal can be triggered end-to-end in preview).",
+    "Optional: add a literal '4 kroki' heading on marketing pages if that copy is required verbatim."
+  ],
+  "critical_code_review_comments": [
+    "payments.py uses `stripe.error.InvalidRequestError` for a fallback on managed_payments — good, but `automatic_tax + billing_address_collection=required` may fail for PL customers if tax registration is missing. Ensure catalog Prices are in PLN and tax settings match.",
+    "business.py slug-uniqueness loop is O(n) in the pathological case; acceptable for launch scale but consider adding a unique index on business_accounts.slug for correctness under race conditions.",
+    "waitlist.py stores lowercased email — good for dedupe. Consider adding a unique index on premium_waitlist.email.",
+    "vehicles.py photo upload: 503 storage check must come after the cheap limit check (see backend minor issue).",
+    "PhotoLimitModal: click on the dim backdrop calls onClose — good UX; content stopPropagation is present. No Polish 'Premium'/'plan'/'cena'/'PLN' strings — meets spec."
+  ],
+  "updated_files": ["/app/backend/tests/test_iter53.py"],
+  "success_rate": {"backend": "100% (14/14 executable, 2 skipped due to environment)", "frontend": "100% of tested flows"},
+  "test_credentials": "smoke-test-vehiq@example.com/SmokePass123!, kontakt@sharago.com/VehiqAdmin2026!",
+  "seed_data_creation": "Test data created: several premium_waitlist entries with qa-wl-*@test.pl emails and business_accounts with TEST QA/TEST DupSlug/TEST Admin* prefixes. Cleanup not automated — safe to leave in preview DB.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Backend has NO issues for Iter 53 endpoints. Only caveat: PhotoLimit 402 branch cannot be exercised from the UI in preview until vehicles.py reorders its guards (storage-503 currently fires first). Test file /app/backend/tests/test_iter53.py is the canonical regression suite for waitlist/business/payments/admin.",
+  "rca of the issue": "Photo limit 402 not reachable via upload endpoint in preview — Root cause: /api/vehicles/{id}/photos calls r2_storage.get_storage() (returns None → 503) BEFORE checking len(existing) against PHOTO_LIMIT_PER_VEHICLE. Fix: move the len(existing) >= 5 check above the storage init block. Reproduction: POST tiny PNG to /api/vehicles/f9d17048-.../photos with a valid user token → 503 instead of 402 (or 200)."
+}

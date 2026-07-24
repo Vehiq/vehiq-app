@@ -1107,6 +1107,26 @@ async def upload_photos(
         raise HTTPException(status_code=503, detail="Storage not configured. Admin must set R2 credentials in /gv91-admin → API Keys.")
 
     existing = v.get("photos") or []
+    # Iter 53: hard-cap ALWAYS active — 5 photos per vehicle for free plan.
+    # LIMITS_ENABLED gate only kicks in for other future limits.
+    PHOTO_LIMIT_PER_VEHICLE = int(os.environ.get("PHOTO_LIMIT_PER_VEHICLE", "5"))
+    if len(existing) >= PHOTO_LIMIT_PER_VEHICLE:
+        raise HTTPException(status_code=402, detail={
+            "code": "photo_limit_reached",
+            "current": len(existing),
+            "limit": PHOTO_LIMIT_PER_VEHICLE,
+            "message": "Osiągnąłeś limit zdjęć",
+        })
+    if len(existing) + len(files) > PHOTO_LIMIT_PER_VEHICLE:
+        allowed = max(0, PHOTO_LIMIT_PER_VEHICLE - len(existing))
+        raise HTTPException(status_code=402, detail={
+            "code": "photo_limit_reached",
+            "current": len(existing),
+            "limit": PHOTO_LIMIT_PER_VEHICLE,
+            "would_upload": len(files),
+            "allowed": allowed,
+            "message": f"Możesz dodać jeszcze {allowed} zdjęć",
+        })
     if len(existing) + len(files) > r2_storage.MAX_PHOTOS_PER_VEHICLE:
         raise HTTPException(status_code=400, detail=f"Max {r2_storage.MAX_PHOTOS_PER_VEHICLE} photos per vehicle")
 

@@ -44,6 +44,9 @@ slowapi>=0.1.9
 # --- HTML sanitization (Iter 50, Phase C) ---
 bleach>=6.0.0
 
+# --- Payments (Iter 53) ---
+stripe>=8.0.0
+
 # --- Environment ---
 python-dotenv>=1.0.0
 

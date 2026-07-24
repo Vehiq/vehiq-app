@@ -42,6 +42,10 @@ import LegalPage from "@/pages/LegalPage";
 import PublicVehicle from "@/pages/PublicVehicle";
 import VehicleShort from "@/pages/VehicleShort";
 import QuickFuelPage from "@/pages/QuickFuelPage";
+// Iter 53: B2B + Stripe entry points
+import DlaWarsztatow from "@/pages/DlaWarsztatow";
+import DlaDealerow from "@/pages/DlaDealerow";
+import BusinessRegister from "@/pages/BusinessRegister";
 import Blog from "@/pages/Blog";
 import BlogPost from "@/pages/BlogPost";
 import NotFound from "@/pages/NotFound";
@@ -153,6 +157,10 @@ function App() {
           <Route path="/" element={<PublicHomeRedirect />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
+          {/* Iter 53: B2B marketing + registration */}
+          <Route path="/dla-warsztatow" element={<DlaWarsztatow />} />
+          <Route path="/dla-dealerow" element={<DlaDealerow />} />
+          <Route path="/register/business" element={<BusinessRegister />} />
           <Route path="/auth/callback" element={<AuthCallback />} />
           <Route path="/password-reset" element={<PasswordResetRequest />} />
           <Route path="/password-reset/confirm" element={<PasswordResetConfirm />} />

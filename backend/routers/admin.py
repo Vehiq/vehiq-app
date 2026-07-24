@@ -908,3 +908,64 @@ async def migrate_base64_photos_to_r2(admin=Depends(get_admin), limit: int = 200
         "duration_seconds": round((datetime.now(timezone.utc) - started).total_seconds(), 2),
     }
 
+
+
+
+# ---------------- Businesses (Iter 53) ----------------
+
+@router.get("/businesses")
+async def list_businesses(status: Optional[str] = None, admin=Depends(get_admin)):
+    """List B2B accounts with optional status filter (pending | active | pro | all)."""
+    db = get_db()
+    q = {}
+    if status == "pending":
+        q = {"plan_status": "pending"}
+    elif status == "active":
+        q = {"plan_status": "active"}
+    elif status == "pro":
+        q = {"plan": {"$in": ["workshop", "dealer"]}}
+    items = await db.business_accounts.find(q, {"_id": 0}).sort("created_at", -1).to_list(500)
+    return {"items": items, "total": len(items)}
+
+
+@router.patch("/businesses/{business_id}/activate")
+async def admin_activate_business(business_id: str, admin=Depends(get_admin)):
+    """Admin override — force activation regardless of trigger."""
+    db = get_db()
+    b = await db.business_accounts.find_one({"id": business_id}, {"_id": 0, "id": 1})
+    if not b:
+        raise HTTPException(status_code=404, detail="Nie znaleziono firmy")
+    await db.business_accounts.update_one(
+        {"id": business_id},
+        {"$set": {
+            "activated": True,
+            "activated_at": datetime.now(timezone.utc).isoformat(),
+            "activation_trigger": "admin_override",
+            "plan_status": "active",
+            "updated_at": datetime.now(timezone.utc).isoformat(),
+        }},
+    )
+    return {"ok": True}
+
+
+@router.patch("/businesses/{business_id}/verify")
+async def admin_verify_business(business_id: str, verified: bool = True, admin=Depends(get_admin)):
+    """Toggle the verified badge on a business account."""
+    db = get_db()
+    res = await db.business_accounts.update_one(
+        {"id": business_id},
+        {"$set": {"verified": bool(verified), "updated_at": datetime.now(timezone.utc).isoformat()}},
+    )
+    if res.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Nie znaleziono firmy")
+    return {"ok": True, "verified": bool(verified)}
+
+
+# ---------------- Premium waitlist (Iter 53) ----------------
+
+@router.get("/waitlist")
+async def list_waitlist(admin=Depends(get_admin)):
+    """Full waitlist for CSV export when Premium launches."""
+    db = get_db()
+    items = await db.premium_waitlist.find({}, {"_id": 0}).sort("created_at", -1).to_list(5000)
+    return {"items": items, "total": len(items)}
