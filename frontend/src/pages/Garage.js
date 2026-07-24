@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { Plus, Car as CarIcon, Calendar, Bell, Activity, Store, ChevronRight, Lock, Wrench } from "lucide-react";
 import api from "@/lib/api";
 import { cachedGet } from "@/lib/apiCache";
+import { resolveCover } from "@/lib/photos";
 import { useAuth } from "@/contexts/AuthContext";
 import { SkeletonGarageGrid } from "@/components/Skeleton";
 import EmptyState from "@/components/EmptyState";
@@ -151,7 +152,7 @@ function VehicleCard({ v, t, eager = false, lang = "pl" }) {
     <Link to={`/garage/${v.id}`} className="group vehiq-card overflow-hidden hover:border-vehiq-gold transition-all duration-200 hover:-translate-y-1" data-testid={`vehicle-card-${v.id}`}>
       <div className="aspect-[4/3] bg-vehiq-bg relative overflow-hidden">
         {v.cover_photo ? (
-          <LazyImage src={v.cover_photo} alt={`${v.make} ${v.model}`} className="absolute inset-0" eager={eager} />
+          <LazyImage src={resolveCover(v.cover_photo)} alt={`${v.make} ${v.model}`} className="absolute inset-0" eager={eager} />
         ) : (
           <div className="w-full h-full flex items-center justify-center text-vehiq-gold/40">
             <CarIcon size={64} />

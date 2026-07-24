@@ -150,6 +150,39 @@ def _safe_cover_url(photos: list, idx: int = 0) -> Optional[str]:
     return None
 
 
+def _has_base64_photo(photos: list) -> bool:
+    """True if list contains any legacy base64 dataURL string."""
+    if not photos:
+        return False
+    for p in photos:
+        if isinstance(p, str) and p.startswith("data:"):
+            return True
+        if isinstance(p, dict):
+            for k in ("thumb_url", "url"):
+                v = p.get(k)
+                if isinstance(v, str) and v.startswith("data:"):
+                    return True
+    return False
+
+
+def _cover_or_stream_url(photos: list, idx: int, kind: str, entity_id: str) -> Optional[str]:
+    """Iter 55 (Bug 35): return a URL cover if present, otherwise a
+    server-streamed fallback URL so legacy base64 photos still render as
+    thumbnails without leaking the 3MB blob into list payloads.
+
+    kind: "vehicles" | "marketplace/listings" (matches the streaming endpoint prefix)
+
+    Returns a *relative* path when falling back (starts with `/api/...`) so
+    the frontend can prepend `REACT_APP_BACKEND_URL` and stays domain-agnostic.
+    """
+    url = _safe_cover_url(photos, idx)
+    if url:
+        return url
+    if _has_base64_photo(photos):
+        return f"/api/{kind}/{entity_id}/cover"
+    return None
+
+
 def _slugify(s: str) -> str:
     s = (s or "").lower()
     s = re.sub(r"[^a-z0-9]+", "-", s).strip("-")
@@ -285,8 +318,10 @@ async def list_vehicles(response: Response, user=Depends(get_current_user)):
         for v in items:
             photos = v.get("photos") or []
             idx = v.get("cover_photo_index") or 0
-            # Iter 43: strict URL-only cover — never leak 3MB base64 payloads.
-            v["cover_photo"] = _safe_cover_url(photos, idx)
+            # Iter 55 (Bug 35): URL-only cover, but fall back to a streamed
+            # `/api/vehicles/{id}/cover` endpoint for legacy base64 photos so
+            # thumbs still render without leaking 3MB blobs into list payloads.
+            v["cover_photo"] = _cover_or_stream_url(photos, idx, "vehicles", v["id"])
             # Drop the heavy raw array now that we've extracted the cover —
             # saves 90%+ payload on photo-heavy garages.
             v.pop("photos", None)
@@ -1223,3 +1258,71 @@ async def set_main_photo(vehicle_id: str, photo_id: str, user=Depends(get_curren
         {"$set": {"cover_photo_index": idx, "updated_at": datetime.now(timezone.utc).isoformat()}},
     )
     return {"ok": True, "cover_photo_index": idx}
+
+
+
+# ---------------- Iter 55 (Bug 35): streamed cover endpoint ----------------
+
+def _base64_to_response(dataurl: str) -> Response:
+    """Decode a `data:image/xxx;base64,....` URL and stream it as a binary
+    Response with a long cache TTL. Used to keep list-payloads lean while still
+    letting the browser render legacy inline photos as <img src=...>.
+    """
+    import base64
+    try:
+        header, _, payload = dataurl.partition(",")
+        mime = "image/jpeg"
+        if header.startswith("data:"):
+            mime = header[5:].split(";", 1)[0] or "image/jpeg"
+        raw = base64.b64decode(payload)
+    except Exception:
+        raise HTTPException(status_code=404, detail="Invalid photo data")
+    return Response(
+        content=raw,
+        media_type=mime,
+        headers={"Cache-Control": "public, max-age=86400, immutable"},
+    )
+
+
+def _pick_photo_dataurl(photos: list, idx: int = 0) -> Optional[str]:
+    if not photos:
+        return None
+    order = list(range(len(photos)))
+    if 0 <= idx < len(photos):
+        order.remove(idx)
+        order.insert(0, idx)
+    for i in order:
+        p = photos[i]
+        if isinstance(p, str) and p.startswith("data:"):
+            return p
+        if isinstance(p, dict):
+            for k in ("thumb_url", "url"):
+                v = p.get(k)
+                if isinstance(v, str) and v.startswith("data:"):
+                    return v
+    return None
+
+
+@router.get("/{vehicle_id}/cover")
+async def vehicle_cover_stream(vehicle_id: str):
+    """Public streamed cover image for a vehicle (fallback for legacy base64).
+
+    Returns 302 redirect if a real R2/https URL exists; otherwise streams the
+    inline base64 photo as a binary response.
+    """
+    db = get_db()
+    v = await db.vehicles.find_one(
+        {"id": vehicle_id},
+        {"_id": 0, "photos": 1, "cover_photo_index": 1, "privacy": 1, "searchable": 1},
+    )
+    if not v:
+        raise HTTPException(status_code=404, detail="Not found")
+    photos = v.get("photos") or []
+    idx = v.get("cover_photo_index") or 0
+    url = _safe_cover_url(photos, idx)
+    if url:
+        return Response(status_code=302, headers={"Location": url, "Cache-Control": "public, max-age=86400"})
+    data = _pick_photo_dataurl(photos, idx)
+    if not data:
+        raise HTTPException(status_code=404, detail="No cover")
+    return _base64_to_response(data)

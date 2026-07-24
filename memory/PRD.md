@@ -2191,3 +2191,46 @@ Backend: pytest 17/17 PASS. Frontend: pełny happy-path Playwright — search wa
 
 ### DB
 Nowa kolekcja `workshop_vehicle_access` (`id`, `business_id`, `vehicle_id`, `owner_user_id`, `status`, `active`, `last_scanned_at`). Nowa `part_alerts` (`user_id`, `part_category`, `make`, `model`, `year_from/to`, `max_price`, `keywords`, `notified_count`).
+
+## Iter 55 — Bugi B2B + Onboarding + Miniatury (DONE 2026-07-24)
+
+### Zakres (6 zadań P0/P1/P2)
+- Bug 32 — profil warsztatu 404 (P0)
+- Bug 33 — linki do warsztatów (P1)
+- Bug 34 — ujednolicenie konta z B2B (P1)
+- Bug 35 — miniatury nie wyświetlały się (P0, persistentny)
+- Onboarding B2B 3-krokowy (P1)
+- Historia publiczna warsztatu (P2)
+
+### Backend
+- **`_slugify`** przepisany z transliteracją PL→ASCII (ą→a, ł→l, ó→o…) — slugi jak `naprawa-lozek-slask`. `_unique_slug` helper.
+- **`GET /business/{slug}/history`** — usunięto wymóg `activated=True` (świeżo zarejestrowane warsztaty mają publiczny profil od razu).
+- **`GET /business/{slug}/stats`** — zwraca `vehicles_served`, `service_entries`, `top_makes`, `on_sharago_since`.
+- **`PATCH /business/{id}/profile`** — właściciel może edytować logo_url, description, opening_hours, specializations, phone, website, address. 403 dla non-ownerów.
+- **`GET /business/access/list`** — pełny obiekt firmy (logo_url, opening_hours, specializations) + wyliczone pole `profile_complete: bool`.
+- **`GET /auth/me`** — zwraca teraz `business_id` i `business_role` (dla sidebara i profilu).
+- **Bug 35 — miniatury (kluczowa poprawka)**:
+  - Nowy helper `_cover_or_stream_url(photos, idx, kind, entity_id)` w `vehicles.py`: zwraca URL http gdy jest, w przeciwnym razie relatywną ścieżkę `/api/{kind}/{id}/cover` gdy w bazie są legacy base64 zdjęcia.
+  - Nowy endpoint `GET /api/vehicles/{id}/cover` — streamuje pierwsze zdjęcie jako `image/jpeg` (cache 24h) lub 302 do R2. Deszyfruje base64 → bytes.
+  - Nowy endpoint `GET /api/marketplace/listings/{id}/cover` — analogicznie.
+  - Wszystkie list-endpointy (`/vehicles`, `/marketplace/listings`, `/swaps/deck`, `/swaps/my-listings`, `/swaps/matches`) używają `_cover_or_stream_url` zamiast `_safe_cover_url`.
+
+### Frontend
+- **`resolveCover(url)`** w `lib/photos.js` — prepend `REACT_APP_BACKEND_URL` gdy url zaczyna się od `/` (relatywna ścieżka streamowego coveru).
+- Wszędzie gdzie renderowany był `cover_photo`: `Marketplace.js`, `Rentals.js`, `SwapPage.js`, `Garage.js`, `OpenToOffersPage.js`, `Search.js`, `PublicProfile.js`, `UserSearch.js`, `BusinessDashboard.js` → używają `resolveCover(cover_photo)`.
+- **Landing.js** — nav zawiera `landing-nav-workshops` (→ /warsztaty) i `landing-nav-for-workshops` (→ /dla-warsztatow).
+- **Footer.js** — 3 nowe linki (footer-workshops, footer-for-workshops, footer-for-dealers).
+- **LoginPage.js** — pod formularzem "Prowadzisz warsztat? Zarejestruj firmę →".
+- **DlaWarsztatow.js** — CTA smart: zalogowany + business_id → panel; zalogowany bez business_id → /register/business; anonim → /register?next=….
+- **Sidebar.js** — nowa grupa `Firma` z linkiem `Panel warsztatu` gdy `user.business_id`.
+- **Profile.js** + nowy `BusinessSection.js` — sekcja B2B na profilu: rejestracja lub link do panelu + profil publiczny.
+- **BusinessDashboard.js** — auto-redirect do onboardingu gdy `profile_complete=false` + są scanned vehicles; baner "Uzupełnij profil" gdy tylko brak profilu.
+- **BusinessOnboarding.js** (nowa strona `/business/onboarding`) — 3-krokowy kreator (logo+opis, godziny otwarcia, marki+specjalizacje).
+- **WorkshopProfile.js** — sekcja `workshop-stats` z 3 kartami (obsłużone auta, wpisy, na Sharago od).
+
+### DB
+Bez zmian w kolekcjach — używane: `business_accounts` (dodatkowe pola: logo_url, description, opening_hours, specializations), `workshop_vehicle_access`, `service_entries`.
+
+### Testy
+Backend curl E2E — wszystkie zielone (slugify PL, business register, GET/{slug}, GET/{slug}/stats, /auth/me business_id, PATCH profile, access/list.profile_complete). Frontend screenshoty — Landing z nowymi nav linkami OK, `/warsztaty` list OK, `/warsztaty/:slug` renderuje header + statCards OK, LoginPage z b2b link OK. Testing agent v3 był niedostępny (agent not found error).
+

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import api from "@/lib/api";
+import { resolveCover } from "@/lib/photos";
 import { toast } from "sonner";
 import { Wrench, CheckCircle2, Clock, Ban, Plus, X } from "lucide-react";
 import { Helmet } from "react-helmet-async";
@@ -23,6 +24,7 @@ const SERVICE_TYPES = [
 ];
 
 export default function BusinessDashboard() {
+  const navigate = useNavigate();
   const [data, setData] = useState({ items: [], business: null });
   const [loading, setLoading] = useState(true);
   const [addFor, setAddFor] = useState(null);
@@ -32,15 +34,20 @@ export default function BusinessDashboard() {
     try {
       const { data } = await api.get("/business/access/list");
       setData(data);
+      // Iter 55 — force onboarding when profile is incomplete AND there are
+      // already scanned vehicles (i.e. onboarding was not done yet).
+      if (data.business && data.business.profile_complete === false && (data.items || []).length > 0) {
+        navigate("/business/onboarding?next=/business/dashboard");
+        return;
+      }
     } catch (e) {
-      // 403 = no business_account → the empty-state UI already handles it.
       if (e?.response?.status !== 403) {
         toast.error(e?.response?.data?.detail || "Błąd ładowania panelu");
       }
       setData({ items: [], business: null });
     } finally { setLoading(false); }
   };
-  useEffect(() => { reload(); }, []);
+  useEffect(() => { reload(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (loading) return <div className="min-h-screen flex items-center justify-center text-vehiq-muted" data-testid="business-dashboard-loading">Ładowanie…</div>;
 
@@ -83,6 +90,18 @@ export default function BusinessDashboard() {
           </Link>
         </header>
 
+        {biz.profile_complete === false && (
+          <div className="vehiq-card p-4 border border-vehiq-gold/40 bg-vehiq-gold-dim/30 flex items-center justify-between gap-4" data-testid="business-onboarding-banner">
+            <div>
+              <div className="text-sm text-vehiq-text font-medium">Uzupełnij profil warsztatu</div>
+              <div className="text-xs text-vehiq-muted">Klienci widzą tylko warsztaty z kompletnym profilem — logo, godziny i specjalizacje.</div>
+            </div>
+            <Link to="/business/onboarding" className="vehiq-btn-primary text-xs px-3 py-1.5 whitespace-nowrap" data-testid="business-onboarding-cta">
+              Uzupełnij →
+            </Link>
+          </div>
+        )}
+
         <section className="vehiq-card p-6">
           <div className="flex items-center justify-between mb-4">
             <h2 className="vehiq-display text-2xl">Pojazdy klientów</h2>
@@ -106,7 +125,7 @@ export default function BusinessDashboard() {
                   <li key={it.id} className="py-4 flex items-center gap-4" data-testid={`business-vehicle-row-${it.id}`}>
                     <div className="h-14 w-20 rounded overflow-hidden bg-vehiq-bg shrink-0">
                       {v.cover_photo ? (
-                        <img src={v.cover_photo} alt="" className="h-full w-full object-cover" />
+                        <img src={resolveCover(v.cover_photo)} alt="" className="h-full w-full object-cover" />
                       ) : (
                         <div className="h-full w-full flex items-center justify-center text-vehiq-muted"><Wrench size={16} /></div>
                       )}

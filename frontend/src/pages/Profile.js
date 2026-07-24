@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { Camera, Eye, ExternalLink, Ruler } from "lucide-react";
 import ReferralSection from "@/components/ReferralSection";
 import MyDataSection from "@/components/MyDataSection";
+import BusinessSection from "@/components/BusinessSection";
 
 const DEFAULT_PRIVACY = {
   profile_public: true,
@@ -185,6 +186,9 @@ export default function Profile() {
 
       {/* Iter 48: GDPR — export data + delete account */}
       <MyDataSection />
+
+      {/* Iter 55 — Business section (register or manage linked B2B account) */}
+      <BusinessSection />
 
       {/* Privacy tab */}
       <div className="vehiq-card p-6 space-y-4" data-testid="profile-privacy">

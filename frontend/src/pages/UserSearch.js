@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import api from "@/lib/api";
+import { resolveCover } from "@/lib/photos";
 import { Search, X, Car } from "lucide-react";
 import EmptyState from "@/components/EmptyState";
 
@@ -77,7 +78,7 @@ export default function UserSearch() {
           {results.map(v => (
             <Link key={v.id} to={`/vehicles/${v.slug || v.id}`} className="vehiq-card p-4 hover:border-vehiq-gold transition-colors" data-testid={`us-result-${v.id}`}>
               <div className="aspect-[16/10] rounded-md overflow-hidden bg-vehiq-bg mb-3">
-                {v.cover_photo ? <img src={v.cover_photo} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-vehiq-muted"><Car size={28}/></div>}
+                {v.cover_photo ? <img src={resolveCover(v.cover_photo)} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-vehiq-muted"><Car size={28}/></div>}
               </div>
               <div className="vehiq-display text-xl text-vehiq-text">{v.make} {v.model}</div>
               <div className="text-xs text-vehiq-muted uppercase tracking-widest mt-1">

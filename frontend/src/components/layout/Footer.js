@@ -13,6 +13,9 @@ export default function Footer() {
           <div className="vehiq-display text-xl tracking-wide text-vehiq-text">Sharago</div>
         </div>
         <nav className="flex flex-wrap gap-x-5 gap-y-2 text-sm md:mx-auto">
+          <Link to={`/warsztaty`} className="text-vehiq-muted hover:text-vehiq-gold" data-testid="footer-workshops">{lang === "en" ? "Find workshop" : "Znajdź warsztat"}</Link>
+          <Link to={`/dla-warsztatow`} className="text-vehiq-muted hover:text-vehiq-gold" data-testid="footer-for-workshops">{lang === "en" ? "For workshops" : "Dla warsztatów"}</Link>
+          <Link to={`/dla-dealerow`} className="text-vehiq-muted hover:text-vehiq-gold" data-testid="footer-for-dealers">{lang === "en" ? "For dealers" : "Dla dealerów"}</Link>
           <Link to={`/legal/privacy-policy`} className="text-vehiq-muted hover:text-vehiq-gold" data-testid="footer-privacy">{t("footer.privacy")}</Link>
           <Link to={`/legal/terms-of-service`} className="text-vehiq-muted hover:text-vehiq-gold" data-testid="footer-terms">{t("footer.terms")}</Link>
           <Link to={`/legal/cookie-policy`} className="text-vehiq-muted hover:text-vehiq-gold" data-testid="footer-cookies">{t("footer.cookies")}</Link>

@@ -303,14 +303,18 @@ async def list_listings(
             sellers[u["id"]] = u
     # Iter 43: strip base64 from listing photos — return URL-only cover_photo
     # (thumb_url / https://... only), never the 3MB inline data URL.
+    # Iter 55 (Bug 35): fall back to streamed cover URL for legacy base64.
     try:
-        from routers.vehicles import _safe_cover_url
+        from routers.vehicles import _safe_cover_url, _cover_or_stream_url
     except Exception:
         _safe_cover_url = None
+        _cover_or_stream_url = None
     for i in items:
         i["seller"] = sellers.get(i["user_id"])
         photos = i.get("photos") or []
-        if _safe_cover_url:
+        if _cover_or_stream_url:
+            i["cover_photo"] = _cover_or_stream_url(photos, 0, "marketplace/listings", i["id"])
+        elif _safe_cover_url:
             i["cover_photo"] = _safe_cover_url(photos, 0)
         else:
             # Fallback inline strict check
@@ -698,3 +702,29 @@ async def _notify_part_alerts(listing: dict):
             )
         except Exception:
             continue
+
+
+# ---------------- Iter 55 (Bug 35): streamed cover endpoint ----------------
+from fastapi import Response as _Response
+
+
+@router.get("/listings/{listing_id}/cover")
+async def listing_cover_stream(listing_id: str):
+    """Public streamed cover image for a listing (fallback for legacy base64)."""
+    db = get_db()
+    l = await db.listings.find_one({"id": listing_id}, {"_id": 0, "photos": 1})
+    if not l:
+        raise HTTPException(status_code=404, detail="Not found")
+    photos = l.get("photos") or []
+    try:
+        from routers.vehicles import _safe_cover_url, _pick_photo_dataurl, _base64_to_response
+    except Exception:
+        raise HTTPException(status_code=500, detail="Cover helper unavailable")
+    url = _safe_cover_url(photos, 0)
+    if url:
+        return _Response(status_code=302, headers={"Location": url, "Cache-Control": "public, max-age=86400"})
+    data = _pick_photo_dataurl(photos, 0)
+    if not data:
+        raise HTTPException(status_code=404, detail="No cover")
+    return _base64_to_response(data)
+

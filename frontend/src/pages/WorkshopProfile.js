@@ -16,6 +16,7 @@ export default function WorkshopProfile() {
   const { slug } = useParams();
   const [biz, setBiz] = useState(null);
   const [history, setHistory] = useState([]);
+  const [stats, setStats] = useState(null);
   const [err, setErr] = useState(null);
 
   useEffect(() => {
@@ -25,10 +26,9 @@ export default function WorkshopProfile() {
         const { data } = await api.get(`/business/${slug}`);
         if (!alive) return;
         setBiz(data);
-        try {
-          const h = await api.get(`/business/${slug}/history`);
-          if (alive) setHistory(h.data.items || []);
-        } catch { /* history is optional */ }
+        // Parallel fetch of history + stats (both optional, never block main render).
+        api.get(`/business/${slug}/history`).then(h => alive && setHistory(h.data.items || [])).catch(() => {});
+        api.get(`/business/${slug}/stats`).then(s => alive && setStats(s.data)).catch(() => {});
       } catch (e) {
         if (alive) setErr(e?.response?.data?.detail || "Nie znaleziono firmy");
       }
@@ -116,6 +116,18 @@ export default function WorkshopProfile() {
           </div>
         </header>
 
+        {stats && (
+          <section className="grid grid-cols-3 gap-3" data-testid="workshop-stats">
+            <StatCard label="Obsłużonych aut" value={stats.vehicles_served || 0} testid="workshop-stat-vehicles" />
+            <StatCard label="Wpisów serwisowych" value={stats.service_entries || 0} testid="workshop-stat-entries" />
+            <StatCard
+              label="Na Sharago od"
+              value={stats.on_sharago_since ? new Date(stats.on_sharago_since).toLocaleDateString("pl-PL", { month: "short", year: "numeric" }) : "—"}
+              testid="workshop-stat-since"
+            />
+          </section>
+        )}
+
         <section className="vehiq-card p-6" data-testid="workshop-history">
           <div className="flex items-center justify-between mb-4">
             <h2 className="vehiq-display text-2xl">Historia serwisowa</h2>
@@ -144,6 +156,15 @@ export default function WorkshopProfile() {
           )}
         </section>
       </div>
+    </div>
+  );
+}
+
+function StatCard({ label, value, testid }) {
+  return (
+    <div className="vehiq-card p-4 text-center" data-testid={testid}>
+      <div className="text-2xl vehiq-display text-vehiq-gold">{value}</div>
+      <div className="text-[11px] uppercase tracking-widest text-vehiq-muted mt-1">{label}</div>
     </div>
   );
 }

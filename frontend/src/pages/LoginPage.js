@@ -106,6 +106,12 @@ export default function LoginPage() {
               {t("auth.noAccount")}{" "}
               <Link to="/register" className="text-vehiq-gold hover:text-vehiq-gold-hover" data-testid="login-register-link">{t("auth.register")}</Link>
             </div>
+            <div className="pt-2 border-t border-vehiq-border/50 mt-2">
+              Prowadzisz warsztat?{" "}
+              <Link to="/dla-warsztatow" className="text-[#2B7FE8] hover:underline" data-testid="login-b2b-link">
+                Zarejestruj firmę →
+              </Link>
+            </div>
           </div>
 
           <div className="flex items-center gap-3 my-6">

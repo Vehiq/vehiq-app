@@ -6,6 +6,7 @@ import api from "@/lib/api";
 import LazyImage from "@/components/LazyImage";
 import EmptyState from "@/components/EmptyState";
 import { SkeletonList } from "@/components/Skeleton";
+import { resolveCover } from "@/lib/photos";
 
 /**
  * Swap deck — swipe-style browse of vehicles other users have listed for
@@ -220,7 +221,7 @@ export default function SwapPage() {
               <div key={m.id} className="vehiq-card p-4 flex items-center gap-4" data-testid={`swap-match-${m.id}`}>
                 <div className="h-16 w-24 rounded overflow-hidden shrink-0 bg-vehiq-bg flex items-center justify-center">
                   {m.other_vehicle.cover_photo ? (
-                    <LazyImage src={m.other_vehicle.cover_photo} alt="" className="w-full h-full" />
+                    <LazyImage src={resolveCover(m.other_vehicle.cover_photo)} alt="" className="w-full h-full" />
                   ) : (
                     <Car size={22} className="text-vehiq-muted" />
                   )}
@@ -312,7 +313,7 @@ export default function SwapPage() {
                 <div key={l.id} className="vehiq-card p-4 flex items-center gap-3" data-testid={`swap-mine-${l.id}`}>
                   <div className="h-14 w-20 rounded overflow-hidden shrink-0 bg-vehiq-bg flex items-center justify-center">
                     {l.vehicle?.cover_photo ? (
-                      <LazyImage src={l.vehicle.cover_photo} alt="" className="w-full h-full" />
+                      <LazyImage src={resolveCover(l.vehicle.cover_photo)} alt="" className="w-full h-full" />
                     ) : (
                       <Car size={20} className="text-vehiq-muted" data-testid={`swap-mine-placeholder-${l.id}`} />
                     )}
@@ -344,7 +345,7 @@ function SwapCard({ card, onReact, busy }) {
     <div className="vehiq-card overflow-hidden" data-testid="swap-card">
       <div className="aspect-[4/3] bg-vehiq-bg flex items-center justify-center">
         {v.cover_photo ? (
-          <LazyImage src={v.cover_photo} alt={`${v.make || ""} ${v.model || ""}`.trim()} className="w-full h-full" eager />
+          <LazyImage src={resolveCover(v.cover_photo)} alt={`${v.make || ""} ${v.model || ""}`.trim()} className="w-full h-full" eager />
         ) : (
           <div className="w-full h-full flex items-center justify-center bg-vehiq-bg" data-testid="swap-card-placeholder">
             <Car size={48} className="text-vehiq-muted" />

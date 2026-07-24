@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import api from "@/lib/api";
+import { resolveCover } from "@/lib/photos";
 import { useAuth } from "@/contexts/AuthContext";
 import GarageCard from "@/components/GarageCard";
 import { Car, MessageCircle, Eye, ArrowLeft } from "lucide-react";
@@ -50,7 +51,7 @@ export default function PublicProfile() {
                 {vehicles.map(v => (
                   <Link key={v.id} to={`/vehicles/${v.slug || v.id}`} className="vehiq-card p-3 hover:border-vehiq-gold transition-colors" data-testid={`pub-veh-${v.id}`}>
                     <div className="aspect-[16/10] rounded bg-vehiq-bg overflow-hidden mb-2">
-                      {v.cover_photo ? <img src={v.cover_photo} alt="" className="w-full h-full object-cover"/> : <div className="w-full h-full flex items-center justify-center text-vehiq-muted"><Car size={28}/></div>}
+                      {v.cover_photo ? <img src={resolveCover(v.cover_photo)} alt="" className="w-full h-full object-cover"/> : <div className="w-full h-full flex items-center justify-center text-vehiq-muted"><Car size={28}/></div>}
                     </div>
                     <div className="text-sm vehiq-display text-vehiq-text">{v.make} {v.model}</div>
                     <div className="text-[11px] text-vehiq-muted uppercase tracking-wider">

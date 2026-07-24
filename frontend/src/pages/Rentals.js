@@ -7,7 +7,7 @@ import { Plus, Key, MapPin, Building2, User as UserIcon, Loader2, Car, List, Map
 import EmptyState from "@/components/EmptyState";
 import LazyImage from "@/components/LazyImage";
 import { SkeletonListingGrid } from "@/components/Skeleton";
-import { photoThumb } from "@/lib/photos";
+import { photoThumb, resolveCover } from "@/lib/photos";
 import { useAuth } from "@/contexts/AuthContext";
 import { fmtPrice, getUnits } from "@/lib/units";
 import RentalsMap from "@/components/RentalsMap";
@@ -318,7 +318,7 @@ function RentalCard({ listing, units, lang, eager, selected, onSelect }) {
       data-selected={selected ? "true" : "false"}
     >
       <LazyImage
-        src={photoThumb(listing.photos?.[0])}
+        src={resolveCover(listing.cover_photo) || photoThumb(listing.photos?.[0])}
         alt={listing.title}
         className="sm:w-40 lg:w-40 sm:shrink-0 aspect-[16/10] sm:aspect-auto bg-vehiq-bg overflow-hidden"
         eager={eager}

@@ -7,7 +7,7 @@ import { Plus, MessageCircle, Store, Search, X, AlertTriangle, Loader2 } from "l
 import EmptyState from "@/components/EmptyState";
 import LazyImage from "@/components/LazyImage";
 import { SkeletonListingGrid } from "@/components/Skeleton";
-import { photoThumb } from "@/lib/photos";
+import { photoThumb, resolveCover } from "@/lib/photos";
 import { useAuth } from "@/contexts/AuthContext";
 import { fmtPrice, getUnits } from "@/lib/units";
 
@@ -220,7 +220,7 @@ export default function Marketplace() {
                 </div>
                 {/* Image lazy-loaded with placeholder — never blocks first paint */}
                 <LazyImage
-                  src={photoThumb(l.photos?.[0])}
+                  src={resolveCover(l.cover_photo) || photoThumb(l.photos?.[0])}
                   alt={l.title}
                   className="aspect-[16/10] bg-vehiq-bg overflow-hidden order-1"
                   eager={idx < 4}

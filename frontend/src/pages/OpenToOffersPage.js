@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { HandCoins, Mail, Repeat } from "lucide-react";
 import { Link } from "react-router-dom";
 import api from "@/lib/api";
+import { resolveCover } from "@/lib/photos";
 import LazyImage from "@/components/LazyImage";
 import EmptyState from "@/components/EmptyState";
 import { SkeletonList } from "@/components/Skeleton";
@@ -62,7 +63,7 @@ export default function OpenToOffersPage() {
               data-testid={`open-to-offers-card-${v.id}`}
             >
               <div className="aspect-[16/10] bg-vehiq-bg relative">
-                <LazyImage src={v.cover_photo} alt="" className="w-full h-full" />
+                <LazyImage src={resolveCover(v.cover_photo)} alt="" className="w-full h-full" />
                 <span
                   className="absolute top-2 left-2 inline-flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-medium bg-vehiq-gold text-vehiq-bg"
                   data-testid="open-to-offers-badge"

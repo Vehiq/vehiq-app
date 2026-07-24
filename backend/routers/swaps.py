@@ -130,8 +130,8 @@ async def delete_swap_listing(listing_id: str, user=Depends(get_current_user)):
 @router.get("/my-listings")
 async def my_swap_listings(user=Depends(get_current_user)):
     db = get_db()
-    # Iter 46 (Bug 9): URL-only cover — prefers thumb_url, rejects base64.
-    from routers.vehicles import _safe_cover_url
+    # Iter 55 (Bug 35): URL-only cover with streamed fallback for legacy base64.
+    from routers.vehicles import _cover_or_stream_url
     items = await db.swap_listings.find(
         {"user_id": user["id"], "active": True},
         {"_id": 0},
@@ -145,7 +145,7 @@ async def my_swap_listings(user=Depends(get_current_user)):
             it["vehicle"] = {
                 "id": v.get("id"),
                 "label": f"{v.get('make') or ''} {v.get('model') or ''} {v.get('year') or ''}".strip(),
-                "cover_photo": _safe_cover_url(photos, idx),
+                "cover_photo": _cover_or_stream_url(photos, idx, "vehicles", v["id"]),
             }
     return items
 
@@ -159,11 +159,8 @@ async def get_deck(limit: int = 20, user=Depends(get_current_user)):
       - vehicles I've already reacted to (either interested or pass)
     """
     db = get_db()
-    # Iter 46 (Bug 9): URL-only cover extractor — prefers thumb_url and
-    # rejects legacy base64 payloads so the frontend always gets a real
-    # image src for the deck cards. Same treatment applied to owner.avatar
-    # to prevent base64 leakage through profile records.
-    from routers.vehicles import _safe_cover_url
+    # Iter 55 (Bug 35): URL-only cover with streamed fallback for legacy base64.
+    from routers.vehicles import _cover_or_stream_url
 
     def _clean_avatar(profile):
         if not profile:
@@ -191,7 +188,7 @@ async def get_deck(limit: int = 20, user=Depends(get_current_user)):
         owner = _clean_avatar(await db.profiles.find_one({"id": l["user_id"]}, {"_id": 0, "id": 1, "name": 1, "avatar": 1}))
         photos = v.get("photos") or []
         idx = v.get("cover_photo_index") or 0
-        cover = _safe_cover_url(photos, idx)
+        cover = _cover_or_stream_url(photos, idx, "vehicles", v["id"])
         result.append({
             "listing_id": l["id"],
             "vehicle": {
@@ -291,7 +288,7 @@ async def interact(payload: SwapInteractIn, user=Depends(get_current_user)):
 async def my_matches(user=Depends(get_current_user)):
     """List swap matches involving the current user."""
     db = get_db()
-    from routers.vehicles import _safe_cover_url
+    from routers.vehicles import _cover_or_stream_url
     cursor = db.swap_matches.find(
         {"$or": [{"user_a_id": user["id"]}, {"user_b_id": user["id"]}]},
         {"_id": 0},
@@ -314,8 +311,8 @@ async def my_matches(user=Depends(get_current_user)):
         if other_v:
             photos = other_v.get("photos") or []
             idx = other_v.get("cover_photo_index") or 0
-            # Iter 46 (Bug 9): URL-only cover.
-            other_cover = _safe_cover_url(photos, idx)
+            # Iter 55 (Bug 35): URL-only cover with streamed fallback.
+            other_cover = _cover_or_stream_url(photos, idx, "vehicles", other_vid)
         result.append({
             "id": m["id"],
             "matched_at": m["matched_at"],

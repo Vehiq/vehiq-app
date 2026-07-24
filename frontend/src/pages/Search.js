@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import api from "@/lib/api";
+import { resolveCover } from "@/lib/photos";
 import { Search as SearchIcon, MapPin, Car, Users, Store, Wrench, Calendar, Loader2, Crosshair, Map as MapIcon, List as ListIcon, Package, Building2 } from "lucide-react";
 import GarageCard from "@/components/GarageCard";
 import MapView from "@/components/MapView";
@@ -217,7 +218,7 @@ function VehicleResult({ v }) {
   return (
     <Link to={`/vehicles/${v.slug || v.id}`} className="vehiq-card p-3 hover:border-vehiq-gold transition-colors" data-testid={`search-veh-${v.id}`}>
       <div className="aspect-[16/10] rounded bg-vehiq-bg overflow-hidden mb-2">
-        {v.cover_photo ? <img src={v.cover_photo} alt="" className="w-full h-full object-cover"/> : <div className="w-full h-full flex items-center justify-center text-vehiq-muted"><Car size={24}/></div>}
+        {v.cover_photo ? <img src={resolveCover(v.cover_photo)} alt="" className="w-full h-full object-cover"/> : <div className="w-full h-full flex items-center justify-center text-vehiq-muted"><Car size={24}/></div>}
       </div>
       <div className="text-sm vehiq-display text-vehiq-text">{v.make} {v.model}</div>
       <div className="text-[11px] text-vehiq-muted">{v.year}{v.owner ? ` · ${v.owner.name}` : ""}</div>
@@ -229,7 +230,7 @@ function ListingResult({ l }) {
   return (
     <Link to={`/marketplace/${l.id}`} className="vehiq-card p-3 hover:border-vehiq-gold transition-colors" data-testid={`search-lst-${l.id}`}>
       <div className="aspect-[16/10] rounded bg-vehiq-bg overflow-hidden mb-2">
-        {l.cover_photo ? <img src={l.cover_photo} alt="" className="w-full h-full object-cover"/> : <div className="w-full h-full flex items-center justify-center text-vehiq-muted"><Store size={24}/></div>}
+        {l.cover_photo ? <img src={resolveCover(l.cover_photo)} alt="" className="w-full h-full object-cover"/> : <div className="w-full h-full flex items-center justify-center text-vehiq-muted"><Store size={24}/></div>}
       </div>
       <div className="text-sm text-vehiq-text font-medium line-clamp-2">{l.title}</div>
       <div className="text-vehiq-gold text-sm font-semibold mt-1">{l.price ? `${l.price.toLocaleString("pl-PL")} ${l.currency || "PLN"}` : ""}</div>
@@ -254,7 +255,7 @@ function PartResult({ l }) {
   return (
     <Link to={`/marketplace/${l.id}`} className="vehiq-card p-3 hover:border-vehiq-gold transition-colors" data-testid={`search-part-${l.id}`}>
       <div className="aspect-[16/10] rounded bg-vehiq-bg overflow-hidden mb-2">
-        {l.cover_photo ? <img src={l.cover_photo} alt="" className="w-full h-full object-cover"/> : <div className="w-full h-full flex items-center justify-center text-vehiq-muted"><Package size={24}/></div>}
+        {l.cover_photo ? <img src={resolveCover(l.cover_photo)} alt="" className="w-full h-full object-cover"/> : <div className="w-full h-full flex items-center justify-center text-vehiq-muted"><Package size={24}/></div>}
       </div>
       <div className="text-sm text-vehiq-text font-medium line-clamp-2">{l.title}</div>
       <div className="text-[11px] text-vehiq-muted">{[l.part_make, l.part_model].filter(Boolean).join(" · ")}</div>

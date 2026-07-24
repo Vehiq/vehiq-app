@@ -27,11 +27,31 @@ router = APIRouter()
 
 BUSINESS_TYPES = {"workshop", "dealer", "detailing", "towing", "other"}
 
+# Iter 55 (Bug 32): proper Polish-diacritic → ASCII transliteration so
+# slugs stay URL-safe. Previous version used `\w` in unicode mode which
+# preserved Polish characters, producing slugs like `naprawa-łóżek` that
+# broke deep links.
+_PL_MAP = str.maketrans({
+    "ą": "a", "ć": "c", "ę": "e", "ł": "l", "ń": "n",
+    "ó": "o", "ś": "s", "ź": "z", "ż": "z",
+    "Ą": "a", "Ć": "c", "Ę": "e", "Ł": "l", "Ń": "n",
+    "Ó": "o", "Ś": "s", "Ź": "z", "Ż": "z",
+})
+
 
 def _slugify(name: str) -> str:
-    s = re.sub(r"[^\w\s-]", "", name.lower(), flags=re.UNICODE)
-    s = re.sub(r"[\s_-]+", "-", s).strip("-")
+    s = (name or "").translate(_PL_MAP).lower()
+    s = re.sub(r"[^a-z0-9]+", "-", s).strip("-")
     return s[:60] or "biznes"
+
+
+async def _unique_slug(db, base: str) -> str:
+    slug = base
+    i = 1
+    while await db.business_accounts.find_one({"slug": slug}):
+        slug = f"{base}-{i}"
+        i += 1
+    return slug
 
 
 class BusinessRegisterIn(BaseModel):
@@ -60,13 +80,8 @@ async def register_business(payload: BusinessRegisterIn, user=Depends(get_option
     the first meaningful action (QR scan, first listing, first contact).
     """
     db = get_db()
-    slug = _slugify(payload.name)
-    # Ensure uniqueness
-    n = 0
-    base_slug = slug
-    while await db.business_accounts.find_one({"slug": slug}):
-        n += 1
-        slug = f"{base_slug}-{n}"
+    base_slug = _slugify(payload.name)
+    slug = await _unique_slug(db, base_slug)
 
     doc = {
         "id": str(uuid.uuid4()),
@@ -177,7 +192,9 @@ async def get_business_public_history(slug: str, limit: int = 30):
     NO client PII, NO cost, NO vehicle owner name.
     """
     db = get_db()
-    biz = await db.business_accounts.find_one({"slug": slug, "activated": True}, {"_id": 0, "id": 1})
+    # Iter 55 (Bug 32): drop the `activated: True` requirement so newly-
+    # registered workshops still resolve; empty history renders as "no entries".
+    biz = await db.business_accounts.find_one({"slug": slug}, {"_id": 0, "id": 1})
     if not biz:
         raise HTTPException(status_code=404, detail="Nie znaleziono firmy")
     limit = max(1, min(int(limit), 100))
@@ -210,6 +227,49 @@ async def get_business_public_history(slug: str, limit: int = 30):
     return {"items": out, "total": len(out)}
 
 
+@router.get("/business/{slug}/stats")
+async def get_business_stats(slug: str):
+    """Public stats for the workshop profile page (Iter 55, task 6)."""
+    db = get_db()
+    biz = await db.business_accounts.find_one(
+        {"slug": slug},
+        {"_id": 0, "id": 1, "activated_at": 1, "created_at": 1},
+    )
+    if not biz:
+        raise HTTPException(status_code=404, detail="Nie znaleziono firmy")
+    # Count distinct vehicle_ids and service_entries where business_id matches
+    pipeline = [
+        {"$match": {"business_id": biz["id"]}},
+        {"$group": {
+            "_id": None,
+            "vehicles_served": {"$addToSet": "$vehicle_id"},
+            "service_entries": {"$sum": 1},
+        }},
+    ]
+    agg = await db.service_entries.aggregate(pipeline).to_list(1)
+    vehicles_served = 0
+    service_entries = 0
+    top_makes: list = []
+    if agg:
+        vehicles_served = len(agg[0].get("vehicles_served", []) or [])
+        service_entries = agg[0].get("service_entries", 0)
+        # Look up makes of those vehicles for top_makes
+        vids = agg[0].get("vehicles_served", []) or []
+        if vids:
+            make_counts: dict = {}
+            async for v in db.vehicles.find({"id": {"$in": vids}}, {"_id": 0, "make": 1}):
+                m = (v.get("make") or "").strip()
+                if m:
+                    make_counts[m] = make_counts.get(m, 0) + 1
+            top_makes = [m for m, _ in sorted(make_counts.items(), key=lambda kv: -kv[1])[:3]]
+    return {
+        "vehicles_served": vehicles_served,
+        "service_entries": service_entries,
+        "top_makes": top_makes,
+        "on_sharago_since": biz.get("activated_at") or biz.get("created_at"),
+    }
+
+
 @router.post("/business/{business_id}/activate")
 async def activate_business(business_id: str, trigger: str = "qr_scan"):
     """Idempotent auto-activation trigger. Called by internal flows (QR scan
@@ -239,6 +299,51 @@ async def activate_business(business_id: str, trigger: str = "qr_scan"):
     html = _wrap_html(subj, body, lang="pl")
     fire_and_forget(send_email(doc["email"], subj, html))
     return {"ok": True, "already_activated": False}
+
+
+class BusinessProfileIn(BaseModel):
+    logo_url: Optional[str] = None
+    description: Optional[str] = None
+    opening_hours: Optional[dict] = None
+    specializations: Optional[List[str]] = None
+    phone: Optional[str] = None
+    website: Optional[str] = None
+    address: Optional[str] = None
+
+
+@router.patch("/business/{business_id}/profile")
+async def update_business_profile(
+    business_id: str, payload: BusinessProfileIn, user=Depends(get_current_user)
+):
+    """Update the profile of a business owned by the caller. Iter 55 (Bug 34 +
+    onboarding). Non-owner (staff or unrelated user) → 403.
+    """
+    db = get_db()
+    biz = await db.business_accounts.find_one({"id": business_id}, {"_id": 0})
+    if not biz:
+        raise HTTPException(status_code=404, detail="Nie znaleziono firmy")
+    if biz.get("owner_user_id") != user["id"] and user["id"] not in (biz.get("staff_user_ids") or []):
+        raise HTTPException(status_code=403, detail="Brak uprawnień")
+    upd: dict = {"updated_at": datetime.now(timezone.utc).isoformat()}
+    for k in ("logo_url", "phone", "website", "address"):
+        v = getattr(payload, k)
+        if v is not None:
+            upd[k] = sanitize_plain(v) if isinstance(v, str) else v
+    if payload.description is not None:
+        upd["description"] = sanitize_plain(payload.description)
+    if payload.opening_hours is not None:
+        upd["opening_hours"] = payload.opening_hours
+    if payload.specializations is not None:
+        upd["specializations"] = [sanitize_plain(s)[:40] for s in payload.specializations][:20]
+    await db.business_accounts.update_one({"id": business_id}, {"$set": upd})
+    return {"ok": True, **upd}
+
+
+def _is_profile_complete(biz: dict) -> bool:
+    return bool(
+        biz.get("logo_url") and biz.get("opening_hours") and (biz.get("specializations") or [])
+    )
+
 
 
 
@@ -377,7 +482,21 @@ async def business_access_list(user=Depends(get_current_user)):
             veh_meta[v["id"]] = v
     for it in items:
         it["vehicle"] = veh_meta.get(it["vehicle_id"])
-    return {"items": items, "business": {"id": biz["id"], "name": biz.get("name"), "slug": biz.get("slug"), "activated": biz.get("activated")}}
+    return {
+        "items": items,
+        "business": {
+            "id": biz["id"],
+            "name": biz.get("name"),
+            "slug": biz.get("slug"),
+            "type": biz.get("type"),
+            "activated": biz.get("activated"),
+            "logo_url": biz.get("logo_url"),
+            "description": biz.get("description"),
+            "opening_hours": biz.get("opening_hours"),
+            "specializations": biz.get("specializations") or [],
+            "profile_complete": _is_profile_complete(biz),
+        },
+    }
 
 
 @router.get("/business/access/vehicle/{vehicle_id}")

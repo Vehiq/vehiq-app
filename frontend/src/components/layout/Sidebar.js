@@ -3,7 +3,7 @@ import { NavLink, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import {
   Car, Store, MessagesSquare, Settings, LogOut, Mail, Wrench, Calendar,
-  Key, Repeat,
+  Key, Repeat, Building2,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import api from "@/lib/api";
@@ -99,6 +99,32 @@ export default function Sidebar({ onNavigate, mobile = false }) {
       </div>
 
       <nav className="flex-1 p-3 space-y-4 overflow-y-auto">
+        {/* Iter 55 — B2B group (only visible when user has a linked business). */}
+        {user?.business_id && (
+          <div data-testid="sidebar-group-business">
+            <div className="flex items-center gap-2 px-3 py-1.5 text-[10px] uppercase tracking-widest text-vehiq-muted">
+              <Building2 size={12} className="text-vehiq-gold" />
+              {t("nav.groups.business", "Firma")}
+            </div>
+            <div className="space-y-0.5">
+              <NavLink
+                to="/business/dashboard"
+                onClick={onNavigate}
+                data-testid="sidebar-business-dashboard"
+                className={({ isActive }) =>
+                  `flex items-center gap-3 px-4 py-2.5 rounded-md text-sm transition-colors ${
+                    isActive
+                      ? "bg-vehiq-gold-dim text-vehiq-gold"
+                      : "text-vehiq-muted hover:text-vehiq-text hover:bg-vehiq-card"
+                  }`
+                }
+              >
+                <Wrench size={16} />
+                <span className="font-medium flex-1">{t("nav.businessDashboard", "Panel warsztatu")}</span>
+              </NavLink>
+            </div>
+          </div>
+        )}
         {GROUPS.map((group) => {
           const GroupIcon = group.Icon;
           return (

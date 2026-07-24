@@ -97,6 +97,10 @@ def _public_user(u: dict) -> dict:
         "referral_count": int(u.get("referral_count") or 0),
         "is_founding_member": bool(u.get("is_founding_member", False)),
         "founding_member_number": u.get("founding_member_number"),
+        # Iter 55 — unified B2B account: surface business linkage so the UI
+        # can show the "Panel warsztatu" nav entry and profile settings pane.
+        "business_id": u.get("business_id"),
+        "business_role": u.get("business_role"),
     }
 
 

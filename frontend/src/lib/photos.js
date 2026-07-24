@@ -28,3 +28,21 @@ export function photoId(p, fallbackIndex) {
   if (p && typeof p === "object" && p.id) return p.id;
   return `idx-${fallbackIndex}`;
 }
+
+
+/**
+ * Iter 55 (Bug 35): resolve a cover_photo URL that may be either absolute
+ * (https://...) or a relative streamed fallback path (`/api/.../cover`).
+ * When relative, we prepend REACT_APP_BACKEND_URL so <img> loads via the
+ * correct preview host.
+ */
+export function resolveCover(url) {
+  if (!url) return null;
+  if (typeof url !== "string") return null;
+  if (url.startsWith("http://") || url.startsWith("https://") || url.startsWith("data:")) return url;
+  if (url.startsWith("/")) {
+    const base = (process.env.REACT_APP_BACKEND_URL || "").replace(/\/$/, "");
+    return `${base}${url}`;
+  }
+  return url;
+}

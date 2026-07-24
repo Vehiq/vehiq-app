@@ -49,6 +49,7 @@ import BusinessRegister from "@/pages/BusinessRegister";
 import WorkshopList from "@/pages/WorkshopList";
 import WorkshopProfile from "@/pages/WorkshopProfile";
 import BusinessDashboard from "@/pages/BusinessDashboard";
+import BusinessOnboarding from "@/pages/BusinessOnboarding";
 import Blog from "@/pages/Blog";
 import BlogPost from "@/pages/BlogPost";
 import NotFound from "@/pages/NotFound";
@@ -241,6 +242,7 @@ function App() {
             <Route path="/fuel/:shortId" element={<QuickFuelPage />} />
             {/* Iter 54b — B2B dashboard for workshops */}
             <Route path="/business/dashboard" element={<BusinessDashboard />} />
+            <Route path="/business/onboarding" element={<BusinessOnboarding />} />
           </Route>
 
           <Route path="*" element={<NotFound />} />

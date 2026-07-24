@@ -149,7 +149,13 @@ export default function Landing() {
           <div className="flex items-center gap-2">
             <img src="/logo.png" alt="Sharago" className="h-12 md:h-14 w-auto object-contain" />
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-4">
+            <Link to="/warsztaty" data-testid="landing-nav-workshops" className="text-vehiq-muted hover:text-vehiq-text hidden sm:inline">
+              {lang === "en" ? "Find workshop" : "Znajdź warsztat"}
+            </Link>
+            <Link to="/dla-warsztatow" data-testid="landing-nav-for-workshops" className="text-vehiq-muted hover:text-vehiq-text hidden sm:inline">
+              {lang === "en" ? "For workshops" : "Dla warsztatów"}
+            </Link>
             <button
               onClick={() => i18n.changeLanguage(lang === "pl" ? "en" : "pl")}
               className="text-vehiq-muted hover:text-vehiq-text text-xs uppercase tracking-widest"

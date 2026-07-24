@@ -1,13 +1,23 @@
 import { Link } from "react-router-dom";
 import { Wrench, QrCode, Users, Search, Check, ArrowRight } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
 
 /**
- * Marketing landing page for workshops (Iter 53).
+ * Marketing landing page for workshops (Iter 53 + 55).
  *
- * Public — no auth required. CTAs point to /register/business?type=workshop
- * where the actual account is provisioned.
+ * Public — no auth required. CTAs are unified with the main user account:
+ *   - Logged-in user with business_id → panel warsztatu
+ *   - Logged-in user without business → /register/business
+ *   - Anonymous → /register?next=/register/business (unified account first)
  */
 export default function DlaWarsztatow() {
+  const { user } = useAuth();
+  const ctaHref = user
+    ? (user.business_id ? "/business/dashboard" : "/register/business?type=workshop")
+    : "/register?next=/register/business%3Ftype%3Dworkshop";
+  const ctaLabel = user
+    ? (user.business_id ? "Otwórz panel warsztatu" : "Zarejestruj warsztat bezpłatnie")
+    : "Zarejestruj warsztat bezpłatnie";
   return (
     <div className="min-h-screen bg-vehiq-bg text-vehiq-text" data-testid="dla-warsztatow-page">
       {/* Hero */}
@@ -26,11 +36,11 @@ export default function DlaWarsztatow() {
           i lojalność.
         </p>
         <Link
-          to="/register/business?type=workshop"
+          to={ctaHref}
           className="inline-flex items-center gap-2 vehiq-btn-primary text-base px-6 py-3"
           data-testid="warsztat-register-cta"
         >
-          Zarejestruj warsztat bezpłatnie <ArrowRight size={16} />
+          {ctaLabel} <ArrowRight size={16} />
         </Link>
         <div className="text-xs text-vehiq-muted mt-3">Bez karty. Bez zobowiązań. Bez limitu czasu.</div>
       </section>
@@ -82,11 +92,11 @@ export default function DlaWarsztatow() {
           Rejestracja bez karty. Aktywacja automatyczna po pierwszym skanie QR.
         </p>
         <Link
-          to="/register/business?type=workshop"
+          to={ctaHref}
           className="inline-flex items-center gap-2 vehiq-btn-primary text-base px-6 py-3"
           data-testid="warsztat-register-cta-bottom"
         >
-          Zarejestruj warsztat bezpłatnie <ArrowRight size={16} />
+          {ctaLabel} <ArrowRight size={16} />
         </Link>
       </section>
     </div>
