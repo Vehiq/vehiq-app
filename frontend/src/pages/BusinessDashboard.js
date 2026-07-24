@@ -33,7 +33,11 @@ export default function BusinessDashboard() {
       const { data } = await api.get("/business/access/list");
       setData(data);
     } catch (e) {
-      toast.error(e?.response?.data?.detail || "Brak konta firmowego");
+      // 403 = no business_account → the empty-state UI already handles it.
+      if (e?.response?.status !== 403) {
+        toast.error(e?.response?.data?.detail || "Błąd ładowania panelu");
+      }
+      setData({ items: [], business: null });
     } finally { setLoading(false); }
   };
   useEffect(() => { reload(); }, []);

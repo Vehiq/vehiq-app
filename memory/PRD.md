@@ -2163,3 +2163,31 @@ Backend curl-verified: search zwraca workshops+parts, visibility accept
 `{visibility:"public"}` i mirroruje na `public/searchable`. Frontend
 `Search.js` renderuje nowe sekcje.
 
+
+
+## Iter 54b — Admin B2B UI + Workshop Profiles + QR Access + Parts/Services Marketplace (DONE 2026-07-24)
+
+### Kontekst
+Kontynuacja Iter 54a. Zamknięcie wszystkich 4 punktów z brief'u B2B.
+
+### Backend
+- **`/api/business/list`** — publiczna lista firm z filtrami `q`, `city`, `type`, `specialization`; paginacja i projekcja bez PII.
+- **`/api/business/{slug}`** — publiczny profil; ukrywa email/nip/owner_user_id gdy `is_owner=false`.
+- **`/api/business/{slug}/history`** — anonimowy feed serwisowy (make/model/year + typ + data; bez kosztu i danych klienta).
+- **QR-scan hook w `public_share.get_public_vehicle_short`** — jeśli caller ma `business_account`, auto-aktywuje firmę (idempotent) i tworzy/odświeża `workshop_vehicle_access` (status `pending`); response zawiera `workshop_action`.
+- **`/api/business/access/list`**, **`/api/business/access/vehicle/{vid}`**, **`/api/business/access/{id}/respond`** (approve|deny|revoke), **`/api/business/service-entry`** (wpis serwisowy tylko dla approved+active).
+- **Marketplace parts** — nowe pole `part: PartDetails` w `ListingIn` (part_condition, part_make/model, year_from/to, part_oem, shipping, price_type). Service dostał `service_category` + `price_type`.
+- **`part_alerts`** — kolekcja + CRUD (`POST/GET/DELETE /api/marketplace/part-alerts`) + async matcher `_notify_part_alerts` wywoływany fire-and-forget przy tworzeniu listingu `type=parts` (email przez Brevo).
+
+### Frontend
+- **`/warsztaty`** (`WorkshopList.js`) — filtry search/city/type + grid kart z `verified` badge.
+- **`/warsztaty/:slug`** (`WorkshopProfile.js`) — header, opis, specjalizacje, publiczna historia serwisowa.
+- **`/business/dashboard`** (`BusinessDashboard.js`) — panel dla warsztatu: lista pojazdów z accessem + modal dodawania wpisu serwisowego. Empty-state z CTA `/register/business` gdy brak konta firmowego.
+- **Admin panel** — nowe zakładki `Firmy` (`/gv91-admin/businesses`) i `Waitlist Premium` (`/gv91-admin/waitlist`). Firmy: filtr all/pending/active/pro, akcje Aktywuj + Zweryfikuj. Waitlist: eksport CSV.
+- **Marketplace** — nowe subformy `ListingFormPart.js` (part condition/make/model/year/OEM/shipping/price_type) i `ListingFormService.js` (8 kategorii). Zintegrowane w `CreateListing.js`.
+
+### Testowanie
+Backend: pytest 17/17 PASS. Frontend: pełny happy-path Playwright — search warsztatów, profil, admin B2B tab, marketplace parts+services form, QR-scan → approve → service-entry E2E.
+
+### DB
+Nowa kolekcja `workshop_vehicle_access` (`id`, `business_id`, `vehicle_id`, `owner_user_id`, `status`, `active`, `last_scanned_at`). Nowa `part_alerts` (`user_id`, `part_category`, `make`, `model`, `year_from/to`, `max_price`, `keywords`, `notified_count`).
