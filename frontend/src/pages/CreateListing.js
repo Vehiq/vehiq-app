@@ -3,10 +3,12 @@ import { useNavigate, useSearchParams, useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import api, { apiErrorMessage } from "@/lib/api";
 import { toast } from "sonner";
-import { ArrowLeft, Plus } from "lucide-react";
+import { ArrowLeft, Plus, X } from "lucide-react";
 import BulkPhotoUploader from "@/components/BulkPhotoUploader";
 import ListingFormRentalCar from "@/components/listing/ListingFormRentalCar";
 import ListingFormRentalGarage from "@/components/listing/ListingFormRentalGarage";
+import ListingFormPart from "@/components/listing/ListingFormPart";
+import ListingFormService from "@/components/listing/ListingFormService";
 import {
   LISTING_TYPES, VEHICLE_CONDITIONS, STEERING_OPTIONS, SWAP_CONDITIONS,
   PARTS_CATEGORIES, POPULAR_MODELS,
@@ -43,6 +45,12 @@ export default function CreateListing() {
     service: {
       pricing_type: "hourly", price_from: "", coverage_area: "",
       contact_phone: "", contact_email: "",
+      service_category: "",
+    },
+    part: {
+      part_condition: "used", part_make: "", part_model: "",
+      part_year_from: "", part_year_to: "", part_oem: "",
+      shipping: false, price_type: "fixed",
     },
   });
   const [busy, setBusy] = useState(false);
@@ -74,6 +82,7 @@ export default function CreateListing() {
           desired_swaps: data.desired_swaps || [],
           rental: data.rental || f.rental,
           service: data.service || f.service,
+          part: data.part || f.part,
         }));
       })
       .catch(() => {
@@ -267,9 +276,29 @@ export default function CreateListing() {
           coverage_area: s(sv.coverage_area) || null,
           contact_phone: s(sv.contact_phone) || null,
           contact_email: s(sv.contact_email) || null,
+          service_category: sv.service_category || null,
+          price_type: sv.pricing_type || null,
         };
       } else {
         payload.service = null;
+      }
+      // Part-specific payload (Iter 54b)
+      if (form.type === "parts") {
+        const pr = form.part || {};
+        payload.part = {
+          part_category: form.parts_category || null,
+          part_subcategory: form.parts_subcategory || null,
+          part_condition: pr.part_condition || null,
+          part_make: s(pr.part_make) || null,
+          part_model: s(pr.part_model) || null,
+          part_year_from: pr.part_year_from || null,
+          part_year_to: pr.part_year_to || null,
+          part_oem: s(pr.part_oem) || null,
+          shipping: !!pr.shipping,
+          price_type: pr.price_type || "fixed",
+        };
+      } else {
+        payload.part = null;
       }
       // Title is required by backend — block empty submission early
       if (!payload.title.trim()) { toast.error(t("marketplace.titleRequired")); return; }
@@ -522,6 +551,8 @@ export default function CreateListing() {
                 </select>
               </div>
             )}
+            {/* Iter 54b — extended part fields */}
+            <ListingFormPart form={form} setForm={setForm} />
           </div>
         )}
 
@@ -708,6 +739,8 @@ export default function CreateListing() {
       {isServiceType && (
         <div className="vehiq-card p-6 space-y-4" data-testid="listing-service-fields">
           <div className="vehiq-overline">Szczegóły usługi</div>
+          {/* Iter 54b — category selector */}
+          <ListingFormService form={form} setForm={setForm} />
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="vehiq-overline mb-2 block">Rodzaj wyceny</label>

@@ -58,17 +58,44 @@ async def _find_vehicle_by_short_id(short_id: str):
 
 
 @router.get("/vehicles/short/{short_id}")
-async def get_public_vehicle_short(short_id: str):
-    """Public vehicle by 8-char short ID. Privacy-respecting (only public fields)."""
+async def get_public_vehicle_short(short_id: str, user=Depends(get_current_user_optional)):
+    """Public vehicle by 8-char short ID. Privacy-respecting (only public fields).
+
+    Iter 54b — if the authenticated caller owns a `business_account`, we:
+      1. Auto-activate their B2B account on first scan (idempotent).
+      2. Create/refresh a `workshop_vehicle_access` request row so the
+         vehicle owner can approve access to full service history.
+    """
     v = await _find_vehicle_by_short_id(short_id)
     if not v:
         raise HTTPException(status_code=404, detail="Vehicle not found")
     privacy = v.get("privacy") or {}
     if privacy.get("profile_visible") is False or v.get("searchable") is False:
         raise HTTPException(status_code=404, detail="Vehicle not found")
+
+    workshop_action = None
+    if user and v.get("user_id") != user.get("id"):
+        try:
+            from routers.business import (
+                _get_business_for_user, activate_business_on_scan, request_vehicle_access,
+            )
+            biz = await _get_business_for_user(user)
+            if biz:
+                db = get_db()
+                if not biz.get("activated"):
+                    biz = await activate_business_on_scan(db, biz)
+                    workshop_action = "activated_and_requested"
+                access = await request_vehicle_access(db, biz, v)
+                workshop_action = workshop_action or (
+                    "already_approved" if access.get("status") == "approved" else "access_requested"
+                )
+        except Exception:
+            # Never fail public vehicle lookup because of B2B side-effects.
+            workshop_action = None
+
     # Compose a safe, public-only view
     photos = v.get("photos") or []
-    return {
+    resp = {
         "id": v["id"],
         "short_id": v["id"][:8],
         "make": v.get("make"),
@@ -86,6 +113,9 @@ async def get_public_vehicle_short(short_id: str):
         "slug": v.get("slug"),
         "share_url": f"{APP_URL}/v/{v['id'][:8]}",
     }
+    if workshop_action:
+        resp["workshop_action"] = workshop_action
+    return resp
 
 
 def _generate_print_qr(vehicle_url: str, variant: str) -> bytes:

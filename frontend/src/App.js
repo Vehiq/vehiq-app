@@ -46,6 +46,9 @@ import QuickFuelPage from "@/pages/QuickFuelPage";
 import DlaWarsztatow from "@/pages/DlaWarsztatow";
 import DlaDealerow from "@/pages/DlaDealerow";
 import BusinessRegister from "@/pages/BusinessRegister";
+import WorkshopList from "@/pages/WorkshopList";
+import WorkshopProfile from "@/pages/WorkshopProfile";
+import BusinessDashboard from "@/pages/BusinessDashboard";
 import Blog from "@/pages/Blog";
 import BlogPost from "@/pages/BlogPost";
 import NotFound from "@/pages/NotFound";
@@ -69,6 +72,8 @@ import AdminAnalytics from "@/pages/admin/AdminAnalytics";
 import AdminBlog from "@/pages/admin/AdminBlog";
 import AdminFoundingMembers from "@/pages/admin/AdminFoundingMembers";
 import AdminReferrals from "@/pages/admin/AdminReferrals";
+import AdminBusinesses from "@/pages/admin/AdminBusinesses";
+import AdminWaitlist from "@/pages/admin/AdminWaitlist";
 
 import api from "@/lib/api";
 import { useTranslation } from "react-i18next";
@@ -161,6 +166,9 @@ function App() {
           <Route path="/dla-warsztatow" element={<DlaWarsztatow />} />
           <Route path="/dla-dealerow" element={<DlaDealerow />} />
           <Route path="/register/business" element={<BusinessRegister />} />
+          {/* Iter 54b — public workshop directory */}
+          <Route path="/warsztaty" element={<WorkshopList />} />
+          <Route path="/warsztaty/:slug" element={<WorkshopProfile />} />
           <Route path="/auth/callback" element={<AuthCallback />} />
           <Route path="/password-reset" element={<PasswordResetRequest />} />
           <Route path="/password-reset/confirm" element={<PasswordResetConfirm />} />
@@ -199,6 +207,8 @@ function App() {
             <Route path="blog" element={<AdminBlog />} />
             <Route path="founding" element={<AdminFoundingMembers />} />
             <Route path="referrals" element={<AdminReferrals />} />
+            <Route path="businesses" element={<AdminBusinesses />} />
+            <Route path="waitlist" element={<AdminWaitlist />} />
           </Route>
 
           {/* Authenticated app */}
@@ -229,6 +239,8 @@ function App() {
             <Route path="/events/new" element={<AddEvent />} />
             <Route path="/events/:slug" element={<EventDetail />} />
             <Route path="/fuel/:shortId" element={<QuickFuelPage />} />
+            {/* Iter 54b — B2B dashboard for workshops */}
+            <Route path="/business/dashboard" element={<BusinessDashboard />} />
           </Route>
 
           <Route path="*" element={<NotFound />} />

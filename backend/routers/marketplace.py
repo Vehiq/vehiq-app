@@ -4,6 +4,7 @@ from pydantic import BaseModel, field_validator, model_validator
 from typing import Optional, List
 from datetime import datetime, timezone
 import uuid
+import asyncio
 
 from db_helper import get_db
 from auth_utils import get_current_user, get_optional_user
@@ -86,8 +87,33 @@ class ServiceDetails(BaseModel):
     coverage_area: Optional[str] = None  # miasto lub "cała Polska"
     contact_phone: Optional[str] = None
     contact_email: Optional[str] = None
+    # Iter 54b — extended
+    service_category: Optional[str] = None  # mechanic | body | detailing | tires | electric | tuning | other
+    price_type: Optional[str] = None        # hourly | fixed | quote
 
-    @field_validator("pricing_type", "coverage_area", "contact_phone", "contact_email", mode="before")
+    @field_validator("pricing_type", "coverage_area", "contact_phone", "contact_email",
+                      "service_category", "price_type", mode="before")
+    @classmethod
+    def _empty_str(cls, v):
+        return _empty_to_none(v)
+
+
+class PartDetails(BaseModel):
+    """Iter 54b — part-listing fields (type='parts')."""
+    part_category: Optional[str] = None      # engine | transmission | ...
+    part_subcategory: Optional[str] = None
+    part_condition: Optional[str] = None     # new | used | refurbished
+    part_make: Optional[str] = None
+    part_model: Optional[str] = None
+    part_year_from: Optional[int] = None
+    part_year_to: Optional[int] = None
+    part_oem: Optional[str] = None
+    shipping: Optional[bool] = None
+    price_type: Optional[str] = None         # fixed | negotiable
+
+    @field_validator("part_category", "part_subcategory", "part_condition",
+                      "part_make", "part_model", "part_oem", "price_type",
+                      mode="before")
     @classmethod
     def _empty_str(cls, v):
         return _empty_to_none(v)
@@ -126,6 +152,8 @@ class ListingIn(BaseModel):
     rental: Optional[RentalDetails] = None
     # Service-only nested object (category == 'service')
     service: Optional[ServiceDetails] = None
+    # Iter 54b — parts-only nested object (type == 'parts')
+    part: Optional[PartDetails] = None
 
     @field_validator(
         "type", "category", "title", "description", "location", "vehicle_id",
@@ -431,6 +459,13 @@ async def create_listing(payload: ListingIn, user=Depends(get_current_user)):
     await db.listings.insert_one(doc)
     doc.pop("_id", None)
     await log_activity(user["id"], "listing.create", "listing", doc["id"], doc.get("title"))
+
+    # Iter 54b — fire part alerts asynchronously on part-listings
+    if payload.type == "parts":
+        try:
+            asyncio.create_task(_notify_part_alerts(doc))
+        except Exception:
+            pass
     return doc
 
 
@@ -551,3 +586,115 @@ async def send_message(payload: MessageIn, user=Depends(get_current_user)):
         subject, html = tpl_new_message(user.get("name") or "Someone", listing.get("title") or "—", preview, payload.listing_id, user["id"], receiver.get("language", "pl"))
         fire_and_forget(send_notification(receiver["id"], "new_message", receiver["email"], subject, html))
     return doc
+
+
+
+# ---------------- Iter 54b: Part alerts ----------------
+
+class PartAlertIn(BaseModel):
+    part_category: Optional[str] = None
+    part_subcategory: Optional[str] = None
+    make: Optional[str] = None
+    model: Optional[str] = None
+    year_from: Optional[int] = None
+    year_to: Optional[int] = None
+    max_price: Optional[float] = None
+    keywords: Optional[str] = None
+
+    @field_validator("part_category", "part_subcategory", "make", "model", "keywords",
+                      mode="before")
+    @classmethod
+    def _empty_str(cls, v):
+        return _empty_to_none(v)
+
+
+@router.post("/part-alerts")
+async def create_part_alert(payload: PartAlertIn, user=Depends(get_current_user)):
+    """Subscribe the user to alerts for matching parts."""
+    db = get_db()
+    doc = payload.model_dump()
+    doc.update({
+        "id": str(uuid.uuid4()),
+        "user_id": user["id"],
+        "active": True,
+        "notified_count": 0,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    })
+    await db.part_alerts.insert_one(doc)
+    doc.pop("_id", None)
+    return doc
+
+
+@router.get("/part-alerts")
+async def list_part_alerts(user=Depends(get_current_user)):
+    db = get_db()
+    items = await db.part_alerts.find({"user_id": user["id"]}, {"_id": 0}).sort("created_at", -1).to_list(100)
+    return {"items": items}
+
+
+@router.delete("/part-alerts/{alert_id}")
+async def delete_part_alert(alert_id: str, user=Depends(get_current_user)):
+    db = get_db()
+    r = await db.part_alerts.delete_one({"id": alert_id, "user_id": user["id"]})
+    if r.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Alert not found")
+    return {"ok": True}
+
+
+async def _notify_part_alerts(listing: dict):
+    """Best-effort matcher: send an email to every user whose alert matches
+    this new part listing. Called via asyncio.create_task in create_listing.
+    """
+    db = get_db()
+    p = listing.get("part") or {}
+    lmake = (listing.get("make") or p.get("part_make") or "").lower()
+    lmodel = (listing.get("model") or p.get("part_model") or "").lower()
+    lcat = listing.get("parts_category") or p.get("part_category")
+    lsub = listing.get("parts_subcategory") or p.get("part_subcategory")
+    lyear = listing.get("year")
+    lprice = float(listing.get("price") or 0)
+    ltitle = (listing.get("title") or "").lower()
+    ldesc = (listing.get("description") or "").lower()
+
+    async for alert in db.part_alerts.find({"active": True}, {"_id": 0}):
+        try:
+            if alert["user_id"] == listing.get("user_id"):
+                continue
+            if alert.get("part_category") and alert["part_category"] != lcat:
+                continue
+            if alert.get("part_subcategory") and alert["part_subcategory"] != lsub:
+                continue
+            if alert.get("make") and alert["make"].lower() != lmake:
+                continue
+            if alert.get("model") and alert["model"].lower() not in lmodel and lmodel not in alert["model"].lower():
+                continue
+            if alert.get("year_from") and lyear and lyear < alert["year_from"]:
+                continue
+            if alert.get("year_to") and lyear and lyear > alert["year_to"]:
+                continue
+            if alert.get("max_price") and lprice > alert["max_price"]:
+                continue
+            if alert.get("keywords"):
+                kw = alert["keywords"].lower()
+                if kw not in ltitle and kw not in ldesc:
+                    continue
+            user_doc = await db.profiles.find_one(
+                {"id": alert["user_id"]},
+                {"_id": 0, "email": 1, "name": 1, "language": 1},
+            )
+            if not user_doc or not user_doc.get("email"):
+                continue
+            from email_service import _wrap_html, _H2, _P, _btn, APP_URL
+            subj = f"Nowa część pasująca do Twojego alertu: {listing.get('title','')}"
+            body = f"""<h2 style="{_H2}">Znaleźliśmy pasującą część</h2>
+<p style="{_P}">{listing.get('title','')} — <strong style="color:#fff">{lprice:.0f} PLN</strong></p>
+<p style="{_P}">{(listing.get('description') or '')[:200]}</p>
+{_btn("Zobacz ogłoszenie →", f"{APP_URL}/marketplace/{listing['id']}")}"""
+            html = _wrap_html(subj, body, lang=user_doc.get("language", "pl"))
+            fire_and_forget(send_email(user_doc["email"], subj, html))
+            await db.part_alerts.update_one(
+                {"id": alert["id"]},
+                {"$inc": {"notified_count": 1}, "$set": {"last_notified_at": datetime.now(timezone.utc).isoformat()}},
+            )
+        except Exception:
+            continue
