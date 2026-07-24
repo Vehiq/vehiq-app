@@ -2014,3 +2014,113 @@ Backend nietknięty (żadne endpointy nie zmienione).
 - `CreateListing.js` nadal ~812 linii — service + swap + parts forms
   mogą być wydzielone w Iter 53.
 
+
+---
+
+## Iter 53 — Stripe + B2B Foundation + Photo Limit (DONE 2026-07-24)
+
+### Growth-phase strategia
+- `LIMITS_ENABLED=false` globalnie w env (default) — wszystko otwarte do
+  1000 użytkowników.
+- Jedyny aktywny limit: **5 zdjęć na pojazd** (hard-coded, niezależne od
+  LIMITS_ENABLED).
+- Stripe wired technicznie ale **niewidoczny w UI** — brak przycisków
+  "Upgrade" / "Premium" / cen.
+
+### Backend (nowe pliki)
+- **`routers/payments.py`** — Stripe Flow A (claimable sandbox):
+  - `POST /api/payments/checkout` → `{lookup_key, origin_url,
+    business_id?}` → Stripe Checkout Session z `subscription` mode.
+    Payment_transactions doc utworzony.
+  - `GET /api/payments/status/{session_id}` — poll status z fallbackiem
+    (retrieve session bez webhook).
+  - `POST /api/stripe/webhook` — idempotent handler:
+    `checkout.session.completed`,
+    `checkout.session.async_payment_{succeeded|failed}`,
+    `checkout.session.expired`, `customer.subscription.deleted`,
+    `invoice.payment_failed`. Aktualizuje `profiles.plan` lub
+    `business_accounts.plan` w zależności od metadata.
+  - `POST /api/payments/portal` — Stripe Billing Portal dla zarządzania
+    subskrypcją.
+- **`routers/business.py`**:
+  - `POST /api/business/register` — publiczny; tworzy
+    `business_accounts` z `plan="free"`, `plan_status="pending"`,
+    `activated=false`. Slug auto-generowany z nazwy (unique suffix -1/-2
+    przy kolizjach). Welcome email fire-and-forget.
+  - `GET /api/business/{slug}` — publiczny profil firmy.
+  - `POST /api/business/{id}/activate?trigger=qr_scan` — idempotentny;
+    ustawia `activated=true`, `plan_status="active"`, wysyła
+    "activated" email.
+- **`routers/waitlist.py`**:
+  - `POST /api/waitlist/premium` — publiczny; `premium_waitlist`
+    collection; email dedup case-insensitive; confirmation email.
+- **`routers/admin.py`** rozszerzony:
+  - `GET /api/admin/businesses?status={pending|active|pro}` — lista B2B.
+  - `PATCH /api/admin/businesses/{id}/activate` — override.
+  - `PATCH /api/admin/businesses/{id}/verify?verified=bool` — badge.
+  - `GET /api/admin/waitlist` — pełna lista z CSV-exportable data.
+- **`vehicles.py`** photo upload guard:
+  - **Kolejność poprawiona (Iter 53 hotfix)**: photo-count check ZANIM
+    R2 storage init → 402 fires nawet gdy R2 nie skonfigurowany.
+  - `PHOTO_LIMIT_PER_VEHICLE=5` env-configurable.
+  - `HTTP 402` z `{code:"photo_limit_reached", current, limit, message}`.
+- **`setup_stripe.py`** — idempotent catalog sync: 6 cen w PLN:
+  - `sharago_premium_monthly` (19 PLN) + `_yearly` (179 PLN)
+  - `sharago_workshop_monthly` (299 PLN) + `_yearly` (2990 PLN)
+  - `sharago_dealer_monthly` (699 PLN) + `_yearly` (6990 PLN)
+
+### Frontend (nowe pliki)
+- **`components/PhotoLimitModal.js`** — ciemny navy modal (#0D1626),
+  input e-mail + niebieski button "Zapisz mnie", link "Wróć do garażu".
+  Zero wzmianki o Premium/cenach/planach. `OverviewTab.handleUpload`
+  catches 402 code=photo_limit_reached → opens modal.
+- **`pages/DlaWarsztatow.js`** (`/dla-warsztatow`) — marketing landing
+  z hero + 4-step how-it-works + benefits + 2× CTA na
+  `/register/business?type=workshop`.
+- **`pages/DlaDealerow.js`** (`/dla-dealerow`) — analog dla komisów.
+- **`pages/BusinessRegister.js`** (`/register/business`) — formularz z
+  type-picker (5 tiles), pola name/city/email/phone/nip/website/address,
+  success view z linkiem do profilu firmy.
+
+### Nowe kolekcje w Mongo
+- `business_accounts` — id, type, name, slug, plan, plan_status,
+  activated{,_at,_trigger}, stripe_customer_id, stripe_subscription_id,
+  owner_user_id, verified, created_at.
+- `premium_waitlist` — id, email (lowercased+unique), user_id?, trigger,
+  vehicle_id?, created_at.
+- `payment_transactions` — session_id, user_id, lookup_key, plan_slug,
+  business_id?, amount, currency, status, payment_status,
+  stripe_customer_id, stripe_subscription_id, created_at, updated_at.
+
+### Nowe env vars w `.env`
+```
+STRIPE_SECRET_KEY=sk_test_...
+STRIPE_PUBLISHABLE_KEY=pk_test_...
+STRIPE_WEBHOOK_SECRET=whsec_...
+STRIPE_ACCOUNT_ID=acct_1TwdZ68CtuLTla3s
+STRIPE_MODE=test
+PHOTO_LIMIT_PER_VEHICLE=5
+LIMITS_ENABLED=false  # (not yet gating anything — reserved for Iter 54)
+```
+
+### Testy
+`/app/test_reports/iteration_30.json` — 14/14 pytest PASS + 2 skipped
+(photo-limit upload path testowany na jednostkowym poziomie — reordering
+z hotfixa opisany powyżej). Frontend 100% — marketing pages, formularz
+B2B, PhotoLimitModal source-verified. `test_iter53.py` = kanoniczna
+regresja.
+
+### Po deployu — kroki ręczne (Render)
+1. Skopiuj wygenerowane klucze Stripe do Render env vars.
+2. W Stripe Dashboard: skonfiguruj webhook endpoint na
+   `https://sharago.pl/api/stripe/webhook` z `whsec_...` secret.
+3. Uruchom `python setup_stripe.py` na produkcji żeby wgrać katalog cen.
+4. `LIMITS_ENABLED=false` — zostaw dopóki nie ruszamy paywall UI.
+
+### Refactoring backlog
+- Admin UI dla B2B (lista firm + waitlist) — endpointy gotowe, frontend
+  panel do zbudowania w Iter 54.
+- Business profile page (`/business/{slug}`) — endpoint zwraca dane,
+  brak jeszcze dedykowanej strony renderującej.
+- CreateListing.js nadal ~812 linii.
+

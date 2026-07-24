@@ -1102,13 +1102,11 @@ async def upload_photos(
         raise HTTPException(status_code=404, detail="Vehicle not found")
     if len(files) > 10:
         raise HTTPException(status_code=400, detail="Max 10 files per upload")
-    storage = await r2_storage.get_storage()
-    if not storage:
-        raise HTTPException(status_code=503, detail="Storage not configured. Admin must set R2 credentials in /gv91-admin → API Keys.")
 
+    # Iter 53: photo-count guard MUST run before storage init so the 402
+    # paywall fires even when R2 isn't configured yet (preview) and so we
+    # don't waste the round-trip on requests that would fail the cap anyway.
     existing = v.get("photos") or []
-    # Iter 53: hard-cap ALWAYS active — 5 photos per vehicle for free plan.
-    # LIMITS_ENABLED gate only kicks in for other future limits.
     PHOTO_LIMIT_PER_VEHICLE = int(os.environ.get("PHOTO_LIMIT_PER_VEHICLE", "5"))
     if len(existing) >= PHOTO_LIMIT_PER_VEHICLE:
         raise HTTPException(status_code=402, detail={
@@ -1129,6 +1127,10 @@ async def upload_photos(
         })
     if len(existing) + len(files) > r2_storage.MAX_PHOTOS_PER_VEHICLE:
         raise HTTPException(status_code=400, detail=f"Max {r2_storage.MAX_PHOTOS_PER_VEHICLE} photos per vehicle")
+
+    storage = await r2_storage.get_storage()
+    if not storage:
+        raise HTTPException(status_code=503, detail="Storage not configured. Admin must set R2 credentials in /gv91-admin → API Keys.")
 
     uploaded = []
     failures = []
