@@ -180,13 +180,13 @@ async def track_visit(payload: dict):
 # user-generated content. Cached at the edge for 10 minutes.
 SITEMAP_BASE_URL = os.environ.get("SITEMAP_BASE_URL", "https://sharago.pl").rstrip("/")
 SITEMAP_STATIC_ROUTES = [
-    ("/",            "daily",   "1.0"),
-    ("/wynajem",     "daily",   "0.9"),
-    ("/marketplace", "daily",   "0.9"),
-    ("/forum",       "daily",   "0.7"),
-    ("/blog",        "daily",   "0.8"),
-    ("/login",       "monthly", "0.3"),
-    ("/register",    "monthly", "0.4"),
+    ("/",               "daily",  "1.0"),
+    ("/blog",           "daily",  "0.9"),
+    ("/dla-warsztatow", "weekly", "0.8"),
+    ("/warsztaty",      "daily",  "0.8"),
+    ("/forum",          "daily",  "0.7"),
+    ("/marketplace",    "daily",  "0.8"),
+    ("/events",         "daily",  "0.7"),
 ]
 
 
@@ -203,7 +203,7 @@ def _w3c_date(value) -> str:
 
 @api_router.get("/sitemap.xml")
 async def sitemap_xml():
-    """Aggregate sitemap of static routes, published blog posts and public vehicles."""
+    """Sitemap: public pages + published blog posts (served at sharago.pl/sitemap.xml via Vercel rewrite)."""
     now_w3c = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     urls: List[str] = []
 
@@ -212,7 +212,6 @@ async def sitemap_xml():
         urls.append(
             f"  <url>\n"
             f"    <loc>{xml_escape(SITEMAP_BASE_URL + path)}</loc>\n"
-            f"    <lastmod>{now_w3c}</lastmod>\n"
             f"    <changefreq>{changefreq}</changefreq>\n"
             f"    <priority>{priority}</priority>\n"
             f"  </url>"
@@ -239,27 +238,6 @@ async def sitemap_xml():
                 )
         except Exception as e:
             logger.warning(f"sitemap: blog_posts query failed: {e}")
-
-        # ---- Public vehicles ----
-        try:
-            async for v in db.vehicles.find(
-                {"public": True, "slug": {"$exists": True, "$nin": [None, ""]}},
-                {"_id": 0, "slug": 1, "updated_at": 1, "created_at": 1},
-            ).sort("updated_at", -1).limit(5000):
-                slug = v.get("slug")
-                if not slug:
-                    continue
-                lastmod = _w3c_date(v.get("updated_at") or v.get("created_at"))
-                urls.append(
-                    f"  <url>\n"
-                    f"    <loc>{xml_escape(f'{SITEMAP_BASE_URL}/vehicles/{slug}')}</loc>\n"
-                    f"    <lastmod>{lastmod}</lastmod>\n"
-                    f"    <changefreq>weekly</changefreq>\n"
-                    f"    <priority>0.6</priority>\n"
-                    f"  </url>"
-                )
-        except Exception as e:
-            logger.warning(f"sitemap: vehicles query failed: {e}")
 
     body = (
         '<?xml version="1.0" encoding="UTF-8"?>\n'
@@ -339,6 +317,9 @@ elif _cors_env:
 else:
     cors_origins = DEFAULT_ALLOWED_ORIGINS
     cors_regex = os.environ.get("CORS_ORIGIN_REGEX") or DEFAULT_ALLOWED_ORIGIN_REGEX
+# Production frontends must always pass CORS, even if CORS_ORIGINS env omits them.
+if cors_origins != ["*"]:
+    cors_origins = list(dict.fromkeys(cors_origins + DEFAULT_ALLOWED_ORIGINS[:4]))
 
 logger.info(f"CORS origins: {cors_origins} regex={cors_regex}")
 app.add_middleware(

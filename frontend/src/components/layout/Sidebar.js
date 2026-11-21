@@ -3,7 +3,7 @@ import { NavLink, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import {
   Car, Store, MessagesSquare, Settings, LogOut, Mail, Wrench, Calendar,
-  Key, Repeat, Building2,
+  Key, Repeat, Building2, BookOpen,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import api from "@/lib/api";
@@ -46,6 +46,7 @@ const GROUPS = [
     items: [
       { to: "/forum",  key: "nav.forum",  Icon: MessagesSquare, testId: "sidebar-forum" },
       { to: "/events", key: "nav.events", Icon: Calendar,       testId: "sidebar-events" },
+      { to: "/blog",   key: "nav.blog",   Icon: BookOpen,       testId: "sidebar-blog" },
     ],
   },
   {

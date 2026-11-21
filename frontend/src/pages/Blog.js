@@ -4,7 +4,8 @@ import { useTranslation } from "react-i18next";
 import { Calendar, Tag, ArrowRight, BookOpen } from "lucide-react";
 import api from "@/lib/api";
 import EmptyState from "@/components/EmptyState";
-import useDocumentHead from "@/lib/useDocumentHead";
+import usePageSeo from "@/hooks/usePageSeo";
+import { ROUTES } from "@/routes/paths";
 
 const PAGE_SIZE = 12;
 
@@ -65,11 +66,10 @@ export default function Blog() {
 
   const hasMore = data && data.items.length < (data.total || 0);
 
-  useDocumentHead({
+  usePageSeo(ROUTES.blog, {
     title: "Blog Sharago — porady, historie i nowości",
     description: "Blog Sharago — porady dla właścicieli pojazdów, historie z garażu, nowości o platformie.",
-    canonical: "https://sharago.pl/blog",
-    ogType: "website",
+  }, {
     rssFeed: "https://sharago.pl/api/blog/feed.xml",
     rssTitle: "Sharago Blog",
   });

@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, Navigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import api from "@/lib/api";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import Footer from "@/components/layout/Footer";
+import NotFound from "@/pages/NotFound";
 
 const PL_MONTHS = ["stycznia","lutego","marca","kwietnia","maja","czerwca","lipca","sierpnia","września","października","listopada","grudnia"];
 
@@ -27,6 +28,9 @@ export default function LegalPage() {
     api.get(`/legal/${slug}`).then(r => setPage(r.data)).catch(() => setPage(false));
   }, [slug]);
 
+  if (slug === "polityka-cookies") return <Navigate to="/legal/cookie-policy" replace />;
+  if (page === false) return <NotFound />;
+
   return (
     <div className="min-h-screen flex flex-col bg-vehiq-bg text-vehiq-text" data-testid={`legal-${slug}`}>
       <header className="border-b border-vehiq-border">
@@ -41,8 +45,6 @@ export default function LegalPage() {
       <main className="flex-1 max-w-4xl mx-auto px-6 py-10 w-full">
         {page === null ? (
           <div className="text-vehiq-muted">{t("common.loading")}</div>
-        ) : page === false ? (
-          <div className="text-vehiq-muted">{t("errors.notFound")}</div>
         ) : (
           <article>
             <h1 className="vehiq-display text-4xl sm:text-5xl text-vehiq-text mb-2">

@@ -4,12 +4,15 @@ import { useTranslation } from "react-i18next";
 import api from "@/lib/api";
 import { Plus, Pin, MessageCircle, MessagesSquare, Search, X } from "lucide-react";
 import EmptyState from "@/components/EmptyState";
+import usePageSeo from "@/hooks/usePageSeo";
+import { ROUTES } from "@/routes/paths";
 import { SkeletonList } from "@/components/Skeleton";
 
 const CATS = ["all", "mechanics", "electrics", "tuning", "tips", "general"];
 const POPULAR_MAKES = ["BMW", "Audi", "Mercedes-Benz", "Volkswagen", "Skoda", "Toyota", "Honda", "Ford", "Opel", "Renault", "Peugeot", "Fiat", "Hyundai", "Kia", "Mazda", "Nissan", "Volvo", "Porsche", "Tesla", "Subaru"];
 
 export default function Forum() {
+  usePageSeo(ROUTES.forum);
   const { t } = useTranslation();
   const [params, setParams] = useSearchParams();
   const [threads, setThreads] = useState(null);

@@ -9,6 +9,8 @@ import LazyImage from "@/components/LazyImage";
 import { SkeletonListingGrid } from "@/components/Skeleton";
 import { photoThumb, resolveCover } from "@/lib/photos";
 import { useAuth } from "@/contexts/AuthContext";
+import usePageSeo from "@/hooks/usePageSeo";
+import { ROUTES } from "@/routes/paths";
 import { fmtPrice, getUnits } from "@/lib/units";
 
 const POPULAR_MAKES = [
@@ -26,6 +28,7 @@ function useDebounced(value, ms = 300) {
 }
 
 export default function Marketplace() {
+  usePageSeo(ROUTES.marketplace);
   const { t } = useTranslation();
   const { user } = useAuth();
   const units = getUnits(user);

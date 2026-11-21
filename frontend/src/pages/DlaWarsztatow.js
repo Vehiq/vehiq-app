@@ -1,6 +1,8 @@
 import { Link } from "react-router-dom";
 import { Wrench, QrCode, Users, Search, Check, ArrowRight } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import usePageSeo from "@/hooks/usePageSeo";
+import { ROUTES } from "@/routes/paths";
 
 /**
  * Marketing landing page for workshops (Iter 53 + 55).
@@ -11,6 +13,7 @@ import { useAuth } from "@/contexts/AuthContext";
  *   - Anonymous → /register?next=/register/business (unified account first)
  */
 export default function DlaWarsztatow() {
+  usePageSeo(ROUTES.forWorkshops);
   const { user } = useAuth();
   const ctaHref = user
     ? (user.business_id ? "/business/dashboard" : "/register/business?type=workshop")

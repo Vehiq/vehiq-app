@@ -68,7 +68,7 @@ LEGAL_SEED = [
 <p>Podanie danych jest dobrowolne, ale bez adresu e-mail nie założysz konta. Nie podejmujemy wobec Ciebie decyzji opartych wyłącznie na zautomatyzowanym przetwarzaniu.</p>
 
 <h3>9. Pliki cookies</h3>
-<p>Używamy cookies niezbędnych (logowanie, bezpieczeństwo) oraz – tylko po Twojej zgodzie – analitycznych (Google Analytics). Szczegóły i sposób zmiany zgody opisuje <a href="/legal/polityka-cookies">Polityka cookies</a>.</p>
+<p>Używamy cookies niezbędnych (logowanie, bezpieczeństwo) oraz – tylko po Twojej zgodzie – analitycznych (Google Analytics). Szczegóły i sposób zmiany zgody opisuje <a href="/legal/cookie-policy">Polityka cookies</a>.</p>
 
 <h3>10. Zmiany polityki</h3>
 <p>O istotnych zmianach poinformujemy e-mailem lub komunikatem w serwisie co najmniej 14 dni przed ich wejściem w życie.</p>
@@ -145,63 +145,7 @@ LEGAL_SEED = [
         "content_en": "",
     },
     {
-        "slug": "regulamin-konkursu",
-        "title_pl": "Regulamin konkursu",
-        "title_en": "Contest Rules",
-        "content_pl": """<h2>Regulamin konkursu „Zaproś znajomych – wygraj tydzień w Darłówku”</h2>
-
-<h3>§1. Organizator</h3>
-<ol>
-  <li>Organizatorem konkursu jest Jakub Zdybicki prowadzący działalność gospodarczą pod firmą Piksel Jakub Zdybicki, Terpentyna 197, 23-251 Terpentyna, NIP 715-181-28-34 („Organizator”).</li>
-  <li>Konkurs prowadzony jest w serwisie sharago.pl („Serwis”).</li>
-  <li>Konkurs nie jest grą losową, loterią ani zakładem wzajemnym w rozumieniu ustawy o grach hazardowych. O wygranej decyduje wyłącznie liczba aktywnych poleceń.</li>
-</ol>
-
-<h3>§2. Czas trwania</h3>
-<p>Konkurs trwa od 21.11.2026 do 31.12.2026, godz. 23:59. Wyniki ogłosimy do 15.01.2027.</p>
-
-<h3>§3. Uczestnicy</h3>
-<ol>
-  <li>W konkursie może wziąć udział pełnoletnia osoba fizyczna z pełną zdolnością do czynności prawnych, zamieszkała w Polsce, posiadająca konto w Serwisie („Uczestnik”).</li>
-  <li>W konkursie nie mogą brać udziału: Organizator, jego współpracownicy oraz członkowie ich rodzin (wstępni, zstępni, rodzeństwo, małżonkowie, osoby pozostające w stosunku przysposobienia).</li>
-  <li>Udział w konkursie jest bezpłatny i nie wymaga zakupu.</li>
-</ol>
-
-<h3>§4. Zasady</h3>
-<ol>
-  <li>Każdy Uczestnik ma w Serwisie swój kod polecający.</li>
-  <li><strong>Aktywne polecenie</strong> to osoba, która w czasie trwania konkursu: (a) założyła nowe konto z kodem polecającym Uczestnika, (b) dodała co najmniej jeden pojazd oraz (c) dodała co najmniej jeden wpis serwisowy.</li>
-  <li>Nie liczy się polecenie osoby, która miała już wcześniej konto w Serwisie.</li>
-  <li>Zakazane jest zakładanie fałszywych kont, wielu kont przez tę samą osobę oraz wprowadzanie fikcyjnych danych. Organizator może weryfikować polecenia i wykluczyć z konkursu Uczestnika, który narusza te zasady.</li>
-  <li>Wygrywa Uczestnik z największą liczbą aktywnych poleceń. Przy równej liczbie wygrywa ten, kto osiągnął ją wcześniej.</li>
-</ol>
-
-<h3>§5. Nagroda</h3>
-<ol>
-  <li>Nagrodą jest tydzień (7 nocy) pobytu dla maksymalnie 4 osób w apartamencie w Darłówku o wartości 3000 zł brutto, w terminie uzgodnionym z Organizatorem, do wykorzystania do 30.06.2027, z wyłączeniem okresu od 1.07 do 31.08.</li>
-  <li>Zwycięzca otrzymuje też dodatkową nagrodę pieniężną w wysokości 333 zł, którą Organizator pobiera i odprowadza jako 10% zryczałtowany podatek dochodowy od nagrody.</li>
-  <li>Nagrody nie można wymienić na gotówkę ani przenieść na inną osobę.</li>
-</ol>
-
-<h3>§6. Ogłoszenie wyników</h3>
-<ol>
-  <li>Zwycięzcę powiadomimy e-mailem na adres konta. Za zgodą zwycięzcy jego nazwę użytkownika opublikujemy w Serwisie.</li>
-  <li>Zwycięzca potwierdza przyjęcie nagrody w ciągu 7 dni od powiadomienia. Jeśli tego nie zrobi, nagroda przechodzi na kolejnego Uczestnika z największą liczbą aktywnych poleceń.</li>
-</ol>
-
-<h3>§7. Reklamacje</h3>
-<p>Reklamacje można składać na adres <a href="mailto:kontakt@sharago.com">kontakt@sharago.com</a> do 14 dni po ogłoszeniu wyników. Organizator odpowiada w ciągu 14 dni.</p>
-
-<h3>§8. Dane osobowe</h3>
-<p>Administratorem danych Uczestników jest Organizator. Dane przetwarzamy w celu przeprowadzenia konkursu, wydania nagrody i rozliczeń podatkowych, na zasadach opisanych w <a href="/legal/privacy-policy">Polityce prywatności</a> Serwisu. Od zwycięzcy pobierzemy imię, nazwisko i adres, wyłącznie w celu wydania nagrody i rozliczenia podatku.</p>
-
-<h3>§9. Postanowienia końcowe</h3>
-<p>Regulamin jest dostępny w Serwisie pod adresem sharago.pl/legal/regulamin-konkursu. W sprawach nieuregulowanych stosuje się prawo polskie.</p>
-""",
-        "content_en": "",
-    },
-    {
-        "slug": "polityka-cookies",
+        "slug": "cookie-policy",
         "title_pl": "Polityka cookies",
         "title_en": "Cookie Policy",
         "content_pl": """<h2>Polityka plików cookies serwisu Sharago</h2>

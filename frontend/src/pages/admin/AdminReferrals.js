@@ -53,7 +53,7 @@ export default function AdminReferrals() {
                 <th className="px-4 py-3">Code</th>
                 <th className="px-4 py-3">Invited</th>
                 <th className="px-4 py-3">Qualified</th>
-                <th className="px-4 py-3">Active (konkurs)</th>
+                <th className="px-4 py-3">Active</th>
                 <th className="px-4 py-3">Last invite</th>
               </tr>
             </thead>

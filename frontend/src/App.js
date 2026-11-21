@@ -53,6 +53,7 @@ import BusinessOnboarding from "@/pages/BusinessOnboarding";
 import Blog from "@/pages/Blog";
 import BlogPost from "@/pages/BlogPost";
 import NotFound from "@/pages/NotFound";
+import { ROUTES } from "@/routes/paths";
 
 import AdminLogin from "@/pages/admin/AdminLogin";
 import AdminChangePassword from "@/pages/admin/AdminChangePassword";
@@ -131,6 +132,9 @@ function LangSync() {
       i18n.changeLanguage(user.language);
     }
   }, [user, i18n]);
+  useEffect(() => {
+    document.documentElement.lang = i18n.language?.startsWith("en") ? "en" : "pl";
+  }, [i18n.language]);
   return null;
 }
 
@@ -160,39 +164,39 @@ function App() {
 
         <Routes>
           {/* Public auth */}
-          <Route path="/" element={<PublicHomeRedirect />} />
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/register" element={<RegisterPage />} />
+          <Route path={ROUTES.home} element={<PublicHomeRedirect />} />
+          <Route path={ROUTES.login} element={<LoginPage />} />
+          <Route path={ROUTES.register} element={<RegisterPage />} />
           {/* Iter 53: B2B marketing + registration */}
-          <Route path="/dla-warsztatow" element={<DlaWarsztatow />} />
-          <Route path="/dla-dealerow" element={<DlaDealerow />} />
-          <Route path="/register/business" element={<BusinessRegister />} />
+          <Route path={ROUTES.forWorkshops} element={<DlaWarsztatow />} />
+          <Route path={ROUTES.forDealers} element={<DlaDealerow />} />
+          <Route path={ROUTES.registerBusiness} element={<BusinessRegister />} />
           {/* Iter 54b — public workshop directory */}
-          <Route path="/warsztaty" element={<WorkshopList />} />
-          <Route path="/warsztaty/:slug" element={<WorkshopProfile />} />
-          <Route path="/auth/callback" element={<AuthCallback />} />
-          <Route path="/password-reset" element={<PasswordResetRequest />} />
-          <Route path="/password-reset/confirm" element={<PasswordResetConfirm />} />
-          <Route path="/onboarding" element={<PrivateRoute><Onboarding /></PrivateRoute>} />
+          <Route path={ROUTES.workshops} element={<WorkshopList />} />
+          <Route path={ROUTES.workshop} element={<WorkshopProfile />} />
+          <Route path={ROUTES.authCallback} element={<AuthCallback />} />
+          <Route path={ROUTES.passwordReset} element={<PasswordResetRequest />} />
+          <Route path={ROUTES.passwordResetConfirm} element={<PasswordResetConfirm />} />
+          <Route path={ROUTES.onboarding} element={<PrivateRoute><Onboarding /></PrivateRoute>} />
 
           {/* Legal pages (public) */}
-          <Route path="/legal/:slug" element={<LegalPage />} />
+          <Route path={ROUTES.legal} element={<LegalPage />} />
 
           {/* Public vehicle profile (shareable) */}
-          <Route path="/vehicles/:slug" element={<PublicVehicle />} />
-          <Route path="/historia/:token" element={<PublicVehicle />} />
-          <Route path="/v/:shortId" element={<VehicleShort />} />
-          <Route path="/u/:slug" element={<PublicProfile />} />
+          <Route path={ROUTES.publicVehicle} element={<PublicVehicle />} />
+          <Route path={ROUTES.publicHistory} element={<PublicVehicle />} />
+          <Route path={ROUTES.vehicleShort} element={<VehicleShort />} />
+          <Route path={ROUTES.publicProfile} element={<PublicProfile />} />
 
           {/* Blog (public) */}
-          <Route path="/blog" element={<Blog />} />
-          <Route path="/blog/:slug" element={<BlogPost />} />
+          <Route path={ROUTES.blog} element={<Blog />} />
+          <Route path={ROUTES.blogPost} element={<BlogPost />} />
 
           {/* Admin (separate, no Layout) */}
-          <Route path="/gv91-admin" element={<AdminLogin />} />
-          <Route path="/gv91-admin/reset-password" element={<AdminResetPassword />} />
-          <Route path="/gv91-admin/change-password" element={<AdminChangePassword />} />
-          <Route path="/gv91-admin/*" element={<AdminLayout />}>
+          <Route path={ROUTES.adminLogin} element={<AdminLogin />} />
+          <Route path={ROUTES.adminResetPassword} element={<AdminResetPassword />} />
+          <Route path={ROUTES.adminChangePassword} element={<AdminChangePassword />} />
+          <Route path={ROUTES.adminArea} element={<AdminLayout />}>
             <Route path="dashboard" element={<AdminDashboard />} />
             <Route path="users" element={<AdminUsers />} />
             <Route path="vehicles" element={<AdminVehicles />} />
@@ -214,35 +218,35 @@ function App() {
 
           {/* Authenticated app */}
           <Route element={<PrivateRoute><Layout /></PrivateRoute>}>
-            <Route path="/garage" element={<Garage />} />
-            <Route path="/garage/new" element={<AddVehicle />} />
-            <Route path="/garage/:id" element={<VehicleProfile />} />
-            <Route path="/marketplace" element={<Marketplace />} />
-            <Route path="/marketplace/mine" element={<MyListings />} />
-            <Route path="/marketplace/messages" element={<Messages />} />
-            <Route path="/marketplace/new" element={<CreateListing />} />
-            <Route path="/marketplace/:id/edit" element={<CreateListing />} />
-            <Route path="/marketplace/:id" element={<ListingDetail />} />
-            <Route path="/wynajem" element={<Rentals />} />
-            <Route path="/rentals" element={<Rentals />} />
-            <Route path="/odkupie" element={<OpenToOffersPage />} />
-            <Route path="/zamiany" element={<SwapPage />} />
-            <Route path="/forum" element={<Forum />} />
-            <Route path="/forum/new" element={<NewThread />} />
-            <Route path="/forum/:id" element={<ThreadDetail />} />
-            <Route path="/profile" element={<Profile />} />
-            <Route path="/users/search" element={<UserSearch />} />
-            <Route path="/search" element={<Search />} />
-            <Route path="/services" element={<Services />} />
-            <Route path="/services/new" element={<AddService />} />
-            <Route path="/services/:slug" element={<ServiceDetail />} />
-            <Route path="/events" element={<Events />} />
-            <Route path="/events/new" element={<AddEvent />} />
-            <Route path="/events/:slug" element={<EventDetail />} />
-            <Route path="/fuel/:shortId" element={<QuickFuelPage />} />
+            <Route path={ROUTES.garage} element={<Garage />} />
+            <Route path={ROUTES.garageNew} element={<AddVehicle />} />
+            <Route path={ROUTES.garageVehicle} element={<VehicleProfile />} />
+            <Route path={ROUTES.marketplace} element={<Marketplace />} />
+            <Route path={ROUTES.marketplaceMine} element={<MyListings />} />
+            <Route path={ROUTES.marketplaceMessages} element={<Messages />} />
+            <Route path={ROUTES.marketplaceNew} element={<CreateListing />} />
+            <Route path={ROUTES.marketplaceEdit} element={<CreateListing />} />
+            <Route path={ROUTES.listing} element={<ListingDetail />} />
+            <Route path={ROUTES.rentalsPl} element={<Rentals />} />
+            <Route path={ROUTES.rentals} element={<Rentals />} />
+            <Route path={ROUTES.openToOffers} element={<OpenToOffersPage />} />
+            <Route path={ROUTES.swaps} element={<SwapPage />} />
+            <Route path={ROUTES.forum} element={<Forum />} />
+            <Route path={ROUTES.forumNew} element={<NewThread />} />
+            <Route path={ROUTES.thread} element={<ThreadDetail />} />
+            <Route path={ROUTES.profile} element={<Profile />} />
+            <Route path={ROUTES.userSearch} element={<UserSearch />} />
+            <Route path={ROUTES.search} element={<Search />} />
+            <Route path={ROUTES.services} element={<Services />} />
+            <Route path={ROUTES.servicesNew} element={<AddService />} />
+            <Route path={ROUTES.service} element={<ServiceDetail />} />
+            <Route path={ROUTES.events} element={<Events />} />
+            <Route path={ROUTES.eventsNew} element={<AddEvent />} />
+            <Route path={ROUTES.event} element={<EventDetail />} />
+            <Route path={ROUTES.quickFuel} element={<QuickFuelPage />} />
             {/* Iter 54b — B2B dashboard for workshops */}
-            <Route path="/business/dashboard" element={<BusinessDashboard />} />
-            <Route path="/business/onboarding" element={<BusinessOnboarding />} />
+            <Route path={ROUTES.businessDashboard} element={<BusinessDashboard />} />
+            <Route path={ROUTES.businessOnboarding} element={<BusinessOnboarding />} />
           </Route>
 
           <Route path="*" element={<NotFound />} />

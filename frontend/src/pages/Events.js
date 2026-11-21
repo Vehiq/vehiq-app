@@ -4,10 +4,13 @@ import { useTranslation } from "react-i18next";
 import api from "@/lib/api";
 import { Plus, MapPin, Calendar, Users, Crosshair } from "lucide-react";
 import EmptyState from "@/components/EmptyState";
+import usePageSeo from "@/hooks/usePageSeo";
+import { ROUTES } from "@/routes/paths";
 
 const TYPES = ["all", "meet", "track", "show", "rally", "other"];
 
 export default function Events() {
+  usePageSeo(ROUTES.events);
   const { t } = useTranslation();
   const [params, setParams] = useSearchParams();
   const [items, setItems] = useState(null);

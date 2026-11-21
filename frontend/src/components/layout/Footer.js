@@ -14,14 +14,16 @@ export default function Footer() {
           <div className="vehiq-display text-xl tracking-wide text-vehiq-text">Sharago</div>
         </div>
         <nav className="flex flex-wrap gap-x-5 gap-y-2 text-sm md:mx-auto">
+          <Link to="/blog" className="text-vehiq-muted hover:text-vehiq-gold" data-testid="footer-blog">Blog</Link>
+          <Link to="/forum" className="text-vehiq-muted hover:text-vehiq-gold" data-testid="footer-forum">Forum</Link>
+          <Link to="/marketplace" className="text-vehiq-muted hover:text-vehiq-gold" data-testid="footer-marketplace">{lang === "en" ? "Marketplace" : "Giełda"}</Link>
+          <Link to="/events" className="text-vehiq-muted hover:text-vehiq-gold" data-testid="footer-events">{lang === "en" ? "Events" : "Wydarzenia"}</Link>
           <Link to={`/warsztaty`} className="text-vehiq-muted hover:text-vehiq-gold" data-testid="footer-workshops">{lang === "en" ? "Find workshop" : "Znajdź warsztat"}</Link>
           <Link to={`/dla-warsztatow`} className="text-vehiq-muted hover:text-vehiq-gold" data-testid="footer-for-workshops">{lang === "en" ? "For workshops" : "Dla warsztatów"}</Link>
           <Link to={`/dla-dealerow`} className="text-vehiq-muted hover:text-vehiq-gold" data-testid="footer-for-dealers">{lang === "en" ? "For dealers" : "Dla dealerów"}</Link>
           <Link to={`/legal/privacy-policy`} className="text-vehiq-muted hover:text-vehiq-gold" data-testid="footer-privacy">{t("footer.privacy")}</Link>
           <Link to={`/legal/terms-of-service`} className="text-vehiq-muted hover:text-vehiq-gold" data-testid="footer-terms">{t("footer.terms")}</Link>
-          {/* Paczka 2 — nowe linki */}
-          <Link to={`/legal/regulamin-konkursu`} className="text-vehiq-muted hover:text-vehiq-gold" data-testid="footer-contest-rules">{lang === "en" ? "Contest rules" : "Regulamin konkursu"}</Link>
-          <Link to={`/legal/polityka-cookies`} className="text-vehiq-muted hover:text-vehiq-gold" data-testid="footer-cookie-policy">{lang === "en" ? "Cookie policy" : "Polityka cookies"}</Link>
+          <Link to={`/legal/cookie-policy`} className="text-vehiq-muted hover:text-vehiq-gold" data-testid="footer-cookie-policy">{lang === "en" ? "Cookie policy" : "Polityka cookies"}</Link>
           <button type="button" onClick={openCookieSettings} className="text-vehiq-muted hover:text-vehiq-gold" data-testid="footer-cookie-settings">{lang === "en" ? "Cookie settings" : "Ustawienia cookies"}</button>
           <Link to={`/legal/marketplace-terms`} className="text-vehiq-muted hover:text-vehiq-gold" data-testid="footer-mp-terms">{t("footer.marketplace")}</Link>
           <Link to={`/legal/contact`} className="text-vehiq-muted hover:text-vehiq-gold" data-testid="footer-contact">{t("footer.contact")}</Link>

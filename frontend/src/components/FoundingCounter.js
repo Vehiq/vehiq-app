@@ -57,11 +57,7 @@ export default function FoundingCounter() {
       </div>
 
       <p className="text-xs text-vehiq-muted mt-3 leading-relaxed">
-        {t("founding.blurb", {
-          registered,
-          defaultValue:
-            "Zarejestruj się jako jeden z pierwszych 100 użytkowników i weź udział w losowaniu biletów na Regenwald. Dodanie pojazdu = potwierdzenie miejsca.",
-        })}
+        {t("founding.blurb", { registered })}
       </p>
     </div>
   );

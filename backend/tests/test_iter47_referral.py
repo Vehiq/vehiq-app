@@ -156,7 +156,6 @@ class TestQualificationHook:
         assert s["referral_code"] == referral_flow["code"]
         assert s["total"] >= 1
         assert s["qualified"] >= 1
-        assert s["contest_tickets"] == 1 + s["qualified"]
 
     def test_invitee_became_founding_member(self, referral_flow):
         r = requests.get(f"{API}/auth/me", headers=_headers(referral_flow["invitee_token"]))

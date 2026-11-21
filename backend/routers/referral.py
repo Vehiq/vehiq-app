@@ -220,8 +220,6 @@ async def my_referral_stats(user=Depends(get_current_user)):
         "qualified": qualified,
         # Paczka 1 P3: `active` = referred user added a vehicle AND a service entry.
         "active": active,
-        # Legacy field kept for backward compatibility (ReferralSection v1).
-        "contest_tickets": 1 + qualified,
         "is_founding_member": bool(user.get("is_founding_member")),
         "founding_member_number": user.get("founding_member_number"),
     }
@@ -353,9 +351,9 @@ async def admin_dashboard_stats(admin=Depends(get_admin)):
 
 
 
-@admin_referral_router.get("/contest-top")
-async def admin_contest_top(admin=Depends(get_admin), limit: int = 20):
-    """Paczka 1 P3: TOP referrers by ACTIVE referrals for the Darłówko contest.
+@admin_referral_router.get("/referral-top")
+async def admin_referral_top(admin=Depends(get_admin), limit: int = 20):
+    """TOP referrers by ACTIVE referrals.
 
     Each row shows: user name (+ email), active referrals, total registered.
     """

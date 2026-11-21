@@ -6,7 +6,7 @@ import adminApi from "@/lib/adminApi";
  * Admin > Founding Members
  * ------------------------
  * Table view of every user who earned the Founding Member #N badge, ordered
- * by rank. Includes a CSV export button for outreach / prize fulfilment.
+ * by rank. Includes a CSV export button for outreach.
  */
 export default function AdminFoundingMembers() {
   const [data, setData] = useState({ members: [], total: 0, cap: 100, remaining: 100 });

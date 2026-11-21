@@ -90,21 +90,10 @@ export default function ReferralSection({ user }) {
     >
       <div>
         <h3 className="text-lg font-semibold text-vehiq-text mb-1" data-testid="referral-title">
-          Zaproś znajomych i wygraj tydzień w apartamencie w Darłówku nad Bałtykiem
+          {t("referral.title")}
         </h3>
-        <p className="text-xs text-vehiq-muted leading-relaxed" data-testid="referral-contest-rules">
-          Wygrywa osoba z największą liczbą aktywnych poleceń do 31.12.2026.{" "}
-          <a
-            href="/legal/regulamin-konkursu"
-            className="text-vehiq-gold hover:underline"
-            data-testid="referral-contest-regulamin"
-          >
-            Regulamin
-          </a>
-          .
-        </p>
-        <p className="text-[11px] text-vehiq-muted leading-relaxed mt-2">
-          Aktywne polecenie = osoba zarejestrowana z Twoim kodem, która dodała min. 1 pojazd oraz min. 1 wpis serwisowy. Sama rejestracja się nie liczy.
+        <p className="text-xs text-vehiq-muted leading-relaxed" data-testid="referral-subtitle">
+          {t("referral.subtitle")}
         </p>
       </div>
 

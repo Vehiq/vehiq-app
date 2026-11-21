@@ -116,7 +116,8 @@
       "marketplace": "Marketplace",
       "community": "Community",
       "account": "Account"
-    }
+    },
+    "blog": "Blog"
   },
   "auth": {
     "loginTitle": "Your virtual garage online",
@@ -747,10 +748,11 @@
     "eventComment": "New comment on event"
   },
   "errors": {
-    "notFound": "Not found",
+    "notFound": "Page not found",
     "notFoundDesc": "The page you're looking for doesn't exist.",
     "goHome": "Back to garage",
-    "generic": "Something went wrong"
+    "generic": "Something went wrong",
+    "backHome": "Back to home page"
   },
   "admin": {
     "loginTitle": "Admin Access",
@@ -761,8 +763,8 @@
     "currentPassword": "Current password"
   },
   "referral": {
-    "title": "Invite friends and win Regenwald tickets",
-    "subtitle": "Every friend who signs up via your link and adds a vehicle earns you an extra ticket in the contest.",
+    "title": "Invite friends",
+    "subtitle": "Share your referral link. Everyone who joins via your link shows up in the stats below.",
     "copy": "Copy",
     "copied": "Copied!",
     "share": "Share",
@@ -772,8 +774,7 @@
     "inviteNoticeBody": "Code {{code}} — you're joining the Founding 100 program.",
     "stats": {
       "invited": "Invited",
-      "qualified": "Qualified",
-      "tickets": "Your tickets"
+      "qualified": "Qualified"
     }
   },
   "founding": {
@@ -782,7 +783,7 @@
     "counterLabel": "spots left of 100",
     "open": "Program open",
     "full": "Program closed",
-    "blurb": "Register as one of the first 100 users and enter the draw for Regenwald tickets. Adding a vehicle = confirming your spot."
+    "blurb": "Register as one of the first 100 users and become a Founding Member. Adding a vehicle = confirming your spot."
   },
   "gdpr": {
     "title": "My data",

@@ -116,7 +116,8 @@
       "marketplace": "Marketplace",
       "community": "Społeczność",
       "account": "Konto"
-    }
+    },
+    "blog": "Blog"
   },
   "auth": {
     "loginTitle": "Twój wirtualny garaż w internecie",
@@ -747,10 +748,11 @@
     "eventComment": "Nowy komentarz pod wydarzeniem"
   },
   "errors": {
-    "notFound": "Nie znaleziono",
+    "notFound": "Nie znaleziono strony",
     "notFoundDesc": "Strona, której szukasz, nie istnieje.",
     "goHome": "Wróć do garażu",
-    "generic": "Coś poszło nie tak"
+    "generic": "Coś poszło nie tak",
+    "backHome": "Wróć na stronę główną"
   },
   "admin": {
     "loginTitle": "Admin Access",
@@ -761,8 +763,8 @@
     "currentPassword": "Current password"
   },
   "referral": {
-    "title": "Zaproś znajomych i wygraj bilety na Regenwald",
-    "subtitle": "Każdy znajomy, który zarejestruje się przez Twój link i doda pojazd, daje Ci dodatkowy los w konkursie.",
+    "title": "Zaproś znajomych",
+    "subtitle": "Udostępnij swój link polecający. Każda osoba, która dołączy przez Twój link, pojawi się w statystykach poniżej.",
     "copy": "Kopiuj",
     "copied": "Skopiowano!",
     "share": "Udostępnij",
@@ -772,8 +774,7 @@
     "inviteNoticeBody": "Kod {{code}} — dołączasz do programu Founding 100.",
     "stats": {
       "invited": "Zaproszonych",
-      "qualified": "Zakwalifikowanych",
-      "tickets": "Twoje losy"
+      "qualified": "Zakwalifikowanych"
     }
   },
   "founding": {
@@ -782,7 +783,7 @@
     "counterLabel": "miejsc pozostało ze 100",
     "open": "Program otwarty",
     "full": "Program zamknięty",
-    "blurb": "Zarejestruj się jako jeden z pierwszych 100 użytkowników i weź udział w losowaniu biletów na Regenwald. Dodanie pojazdu = potwierdzenie miejsca."
+    "blurb": "Zarejestruj się jako jeden z pierwszych 100 użytkowników i zostań Founding Member. Dodanie pojazdu = potwierdzenie miejsca."
   },
   "gdpr": {
     "title": "Moje dane",

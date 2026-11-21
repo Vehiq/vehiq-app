@@ -3,7 +3,15 @@
   "framework": "vite",
   "buildCommand": "yarn build",
   "outputDirectory": "build",
+  "redirects": [
+    { "source": "/legal/polityka-cookies", "destination": "/legal/cookie-policy", "permanent": true }
+  ],
   "rewrites": [
+    {
+      "source": "/sitemap.xml",
+      "has": [{ "type": "host", "value": "sharago.pl" }],
+      "destination": "https://vehiq-app.onrender.com/api/sitemap.xml"
+    },
     {
       "source": "/((?!api/|robots\\.txt|sitemap\\.xml|favicon\\.ico|manifest\\.json|assets/|.*\\.[A-Za-z0-9]{1,5}$).*)",
       "destination": "/index.html"

@@ -8,6 +8,9 @@ from auth_utils import get_admin
 
 router = APIRouter(prefix="/legal", tags=["legal"])
 
+# Unpublished pages: content stays in the DB but the public URL returns 404.
+HIDDEN_SLUGS = {"regulamin-konkursu"}
+
 
 class LegalUpdate(BaseModel):
     title_pl: str | None = None
@@ -20,12 +23,14 @@ class LegalUpdate(BaseModel):
 @router.get("")
 async def list_pages():
     db = get_db()
-    items = await db.legal_pages.find({}, {"_id": 0}).to_list(50)
+    items = await db.legal_pages.find({"slug": {"$nin": list(HIDDEN_SLUGS)}}, {"_id": 0}).to_list(50)
     return items
 
 
 @router.get("/{slug}")
 async def get_page(slug: str):
+    if slug in HIDDEN_SLUGS:
+        raise HTTPException(status_code=404, detail="Page not found")
     db = get_db()
     page = await db.legal_pages.find_one({"slug": slug}, {"_id": 0})
     if not page:

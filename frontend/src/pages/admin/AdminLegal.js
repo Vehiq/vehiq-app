@@ -5,10 +5,6 @@ import { toast } from "sonner";
 const SLUGS = [
   "privacy-policy",
   "terms-of-service",
-  // Paczka 2 — new PL legal pages
-  "regulamin-konkursu",
-  "polityka-cookies",
-  // Legacy still editable
   "cookie-policy",
   "marketplace-terms",
   "contact",

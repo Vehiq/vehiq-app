@@ -279,6 +279,8 @@ GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth"
 GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token"
 GOOGLE_USERINFO_URL = "https://www.googleapis.com/oauth2/v2/userinfo"
 STATE_TTL_SECONDS = 600  # 10 min
+# Frontends a Google login may return to (key travels inside the signed state).
+OAUTH_RETURN_SITES = {"pl": "https://sharago.pl", "com": "https://sharago.com"}
 
 
 def _state_secret() -> bytes:
@@ -289,23 +291,24 @@ def _state_secret() -> bytes:
     return secret.encode("utf-8")
 
 
-def _make_state(next_path: str = "") -> str:
+def _make_state(next_path: str = "", site: str = "") -> str:
     """Signed, short-lived CSRF state token. No DB needed.
 
-    Format: <random_hex>.<unix_ts>.<base64url_next>.<hmac>
+    Format: <random>.<unix_ts>.<site>.<next_path>.<hmac>
     """
     nonce = secrets.token_urlsafe(16)
     ts = str(int(time.time()))
     # Allow forwarding a `next=` redirect inside state so the user lands where
     # they tried to go before logging in. Sanitized to a path on our domain.
     safe_next = next_path if next_path.startswith("/") else ""
-    payload = f"{nonce}.{ts}.{safe_next}"
+    safe_site = site if site in OAUTH_RETURN_SITES else ""
+    payload = f"{nonce}.{ts}.{safe_site}.{safe_next}"
     sig = hmac.new(_state_secret(), payload.encode("utf-8"), hashlib.sha256).hexdigest()
     return f"{payload}.{sig}"
 
 
-def _verify_state(state: str) -> str:
-    """Returns the embedded `next_path` if state is valid+fresh, else raises."""
+def _verify_state(state: str) -> tuple[str, str]:
+    """Returns (site, next_path) if state is valid+fresh, else raises."""
     if not state or state.count(".") < 3:
         raise HTTPException(status_code=400, detail="Invalid OAuth state")
     parts = state.rsplit(".", 1)
@@ -313,8 +316,8 @@ def _verify_state(state: str) -> str:
     expected = hmac.new(_state_secret(), payload.encode("utf-8"), hashlib.sha256).hexdigest()
     if not hmac.compare_digest(sig, expected):
         raise HTTPException(status_code=400, detail="State signature mismatch")
-    bits = payload.split(".", 2)
-    if len(bits) < 2:
+    bits = payload.split(".", 3)
+    if len(bits) < 4:
         raise HTTPException(status_code=400, detail="State malformed")
     try:
         ts = int(bits[1])
@@ -322,11 +325,16 @@ def _verify_state(state: str) -> str:
         raise HTTPException(status_code=400, detail="State malformed")
     if time.time() - ts > STATE_TTL_SECONDS:
         raise HTTPException(status_code=400, detail="State expired — please retry")
-    return bits[2] if len(bits) > 2 else ""
+    return bits[2], bits[3]
+
+
+def _site_from_origin(origin: str) -> str:
+    o = (origin or "").rstrip("/").lower().replace("://www.", "://")
+    return next((k for k, v in OAUTH_RETURN_SITES.items() if v == o), "")
 
 
 @router.get("/google")
-async def google_login(next: Optional[str] = ""):
+async def google_login(next: Optional[str] = "", origin: Optional[str] = ""):
     """Kick off Google OAuth — redirect to the consent screen."""
     client_id = os.environ.get("GOOGLE_CLIENT_ID")
     redirect_uri = os.environ.get("GOOGLE_REDIRECT_URI")
@@ -335,7 +343,7 @@ async def google_login(next: Optional[str] = ""):
             status_code=503,
             detail="Google OAuth not configured (missing GOOGLE_CLIENT_ID or GOOGLE_REDIRECT_URI)",
         )
-    state = _make_state(next or "")
+    state = _make_state(next or "", _site_from_origin(origin or ""))
     params = {
         "client_id": client_id,
         "redirect_uri": redirect_uri,
@@ -394,7 +402,7 @@ async def google_callback(code: Optional[str] = None, state: Optional[str] = Non
         return _callback_error_redirect("missing_code")
 
     try:
-        next_path = _verify_state(state)
+        site, next_path = _verify_state(state)
     except HTTPException as exc:
         return _callback_error_redirect("state_invalid" if exc.status_code == 400 else "state_error")
 
@@ -499,7 +507,7 @@ async def google_callback(code: Optional[str] = None, state: Optional[str] = Non
         user["referral_code"] = await attach_referral_code_to_new_user(db, user_id)
 
     token = create_access_token({"sub": user["id"], "type": "user"})
-    target = _frontend_url()
+    target = OAUTH_RETURN_SITES.get(site) or _frontend_url()
     safe_next = next_path if next_path.startswith("/") else "/garage"
     redirect_url = f"{target}/auth/callback?token={token}&next={safe_next}"
     # Log non-PII parts for debugging unexpected hosts (e.g. onrender interstitials).

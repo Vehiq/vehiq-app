@@ -14,6 +14,8 @@ import {
 } from "lucide-react";
 import api from "@/lib/api";
 import useDocumentHead from "@/lib/useDocumentHead";
+import { blogPostSeo } from "@/seo/pages";
+import NotFound from "@/pages/NotFound";
 
 const WORDS_PER_MINUTE = 200;
 
@@ -76,34 +78,18 @@ export default function BlogPost() {
   };
 
   // Build head metadata (safe when post is null — hook is always called).
-  const metaTitle = post
-    ? post.meta_title || `${post.title} — Blog Sharago`
-    : "Blog Sharago";
-  const metaDesc = post
-    ? post.meta_description || post.excerpt || ""
-    : "";
-  const canonical = `https://sharago.pl/blog/${slug}`;
+  const seo = blogPostSeo(slug, post);
   useDocumentHead({
-    title: metaTitle,
-    description: metaDesc,
-    canonical,
-    ogUrl: canonical,
-    ogType: "article",
-    ogImage: post?.cover_image || undefined,
+    title: seo.title,
+    description: seo.description,
+    canonical: seo.url,
+    ogTitle: seo.ogTitle,
+    ogUrl: seo.url,
+    ogType: seo.type,
+    ogImage: seo.image,
   });
 
-  if (error === "not-found") {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-vehiq-bg text-center px-4" data-testid="blog-post-404">
-        <div>
-          <BookOpen size={48} className="mx-auto text-vehiq-gold/40" />
-          <h1 className="vehiq-display text-3xl text-vehiq-text mt-4">Wpis nie znaleziony</h1>
-          <p className="text-vehiq-muted mt-2">Ten wpis może być wersją roboczą lub został usunięty.</p>
-          <Link to="/blog" className="vehiq-btn-primary inline-block mt-6">Wróć na blog</Link>
-        </div>
-      </div>
-    );
-  }
+  if (error === "not-found") return <NotFound />;
 
   if (!post) {
     return (

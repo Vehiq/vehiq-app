@@ -3,7 +3,8 @@ import { Link, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
-import useDocumentHead from "@/lib/useDocumentHead";
+import usePageSeo from "@/hooks/usePageSeo";
+import { ROUTES } from "@/routes/paths";
 import {
   Home, Wrench, Bot, ShoppingBag, Warehouse, MessageSquare,
   ArrowRight, ChevronRight, Loader2,
@@ -67,14 +68,9 @@ export default function Landing() {
   const navigate = useNavigate();
   const [demoBusy, setDemoBusy] = useState(false);
 
-  useDocumentHead({
-    title: lang === "en" ? "Sharago — Your Virtual Garage" : "Sharago — Wirtualny Garaż",
-    description: lang === "en"
-      ? "Sharago is your virtual garage online. Manage vehicles, track service history, rent and sell. AI Mechanic and motoring forum in one place."
-      : "Sharago to Twój wirtualny garaż w internecie. Zarządzaj autami, śledź historię serwisową, wynajmuj i sprzedawaj. AI Mechanic i forum motoryzacyjne.",
-    canonical: "https://sharago.pl",
-    ogUrl: "https://sharago.pl",
-    ogImage: "https://sharago.pl/logo.png",
+  usePageSeo(ROUTES.home, {
+    title: "Sharago — Your Virtual Garage",
+    description: "Sharago is your virtual garage online. Manage vehicles, track service history, rent and sell. AI Mechanic and motoring forum in one place.",
   });
 
   const startDemo = async () => {
@@ -95,6 +91,7 @@ export default function Landing() {
   const tx = {
     pl: {
       heroH1: "Nadszedł czas oddzielić motoryzację od chaosu.",
+      heroH1Sub: "Historia serwisowa auta online – za darmo",
       heroSub: "Uporządkuj swoje pojazdy. Twoje auto wreszcie ma swoje miejsce w sieci.",
       heroJoin: "Dołącz do pierwszych 100 kierowców którzy budują Sharago razem z nami.",
       tryDemo: "Zobacz demo",
@@ -104,8 +101,6 @@ export default function Landing() {
       featuresSub: "Sharago łączy najważniejsze narzędzia dla każdego właściciela auta.",
       foundingTitle: "Pierwsi. Zawsze.",
       foundingText: "Sharago jest budowane przez kierowców dla kierowców. Szukamy pierwszych 100 osób które chcą nie tylko korzystać z platformy — ale ją współtworzyć.",
-      foundingPrize: "🏆 Nagroda główna: Tydzień w Darłówku nad Bałtykiem — 7 nocy w prywatnym apartamencie dla 4 osób. Przyjeżdżacie swoimi autami!",
-      foundingSub: "Dodanie pojazdu = potwierdzenie miejsca w konkursie. Losowanie po zebraniu 100 uczestników — nagroda do zrealizowania w terminie uzgodnionym z laureatem.",
       foundingCta: "Chcę być jednym z pierwszych →",
       ctaTitle: "Nie musisz się rejestrować żeby sprawdzić Sharago",
       ctaBtn: "Wypróbuj demo teraz",
@@ -115,6 +110,10 @@ export default function Landing() {
       legalPriv: "Polityka prywatności",
       legalTerm: "Regulamin",
       legalCont: "Kontakt",
+      navForum: "Forum",
+      navMarketplace: "Giełda",
+      navEvents: "Wydarzenia",
+      navForWorkshops: "Dla warsztatów",
     },
     en: {
       heroH1: "Time to separate your cars from the noise.",
@@ -127,8 +126,6 @@ export default function Landing() {
       featuresSub: "Sharago combines the essential tools for every car owner.",
       foundingTitle: "First. Always.",
       foundingText: "Sharago is built by drivers, for drivers. We are looking for the first 100 people who want not just to use the platform — but to build it together with us.",
-      foundingPrize: "🏆 Main prize: A week in Darłówko on the Baltic Sea — 7 nights in a private apartment for 4 people. Come by car!",
-      foundingSub: "Adding a vehicle = confirming your spot in the contest. Draw after 100 participants — prize to be arranged with the winner.",
       foundingCta: "I want to be one of the first →",
       ctaTitle: "You don't need to register to try Sharago",
       ctaBtn: "Try the demo now",
@@ -138,6 +135,10 @@ export default function Landing() {
       legalPriv: "Privacy policy",
       legalTerm: "Terms of service",
       legalCont: "Contact",
+      navForum: "Forum",
+      navMarketplace: "Marketplace",
+      navEvents: "Events",
+      navForWorkshops: "For workshops",
     },
   }[lang];
 
@@ -150,6 +151,9 @@ export default function Landing() {
             <img src="/logo.png" alt="Sharago" className="h-12 md:h-14 w-auto object-contain" />
           </div>
           <div className="flex items-center gap-4">
+            <Link to="/blog" data-testid="landing-nav-blog" className="text-vehiq-muted hover:text-vehiq-text">
+              Blog
+            </Link>
             <Link to="/warsztaty" data-testid="landing-nav-workshops" className="text-vehiq-muted hover:text-vehiq-text hidden sm:inline">
               {lang === "en" ? "Find workshop" : "Znajdź warsztat"}
             </Link>
@@ -171,8 +175,11 @@ export default function Landing() {
 
         <div className="max-w-3xl mx-auto px-6 pt-16 pb-20 text-center">
           <img src="/logo.png" alt="Sharago" className="h-24 md:h-32 w-auto mx-auto mb-8 object-contain" />
-          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-semibold leading-tight mb-6">
-            {tx.heroH1}
+          <h1 className="mb-6" data-testid="landing-hero-h1">
+            <span className="block text-4xl sm:text-5xl lg:text-6xl font-semibold leading-tight">{tx.heroH1}</span>
+            {tx.heroH1Sub && (
+              <span className="block mt-4 text-lg sm:text-xl font-medium text-vehiq-gold" data-testid="landing-hero-h1-sub">{tx.heroH1Sub}</span>
+            )}
           </h1>
           <p className="text-base sm:text-lg text-vehiq-muted max-w-2xl mx-auto mb-4 leading-relaxed">
             {tx.heroSub}
@@ -242,18 +249,6 @@ export default function Landing() {
           <p className="text-base text-vehiq-muted leading-relaxed max-w-2xl mx-auto">{tx.foundingText}</p>
         </div>
 
-        <div
-          className="rounded-xl border border-vehiq-gold/30 bg-vehiq-gold/5 p-6 sm:p-8 mb-8"
-          data-testid="landing-founding-prize"
-        >
-          <p className="text-vehiq-gold text-base sm:text-lg font-medium mb-3 leading-relaxed">
-            {tx.foundingPrize}
-          </p>
-          <p className="text-xs sm:text-sm text-vehiq-muted leading-relaxed">
-            {tx.foundingSub}
-          </p>
-        </div>
-
         <div className="text-center">
           <Link
             to="/register"
@@ -291,6 +286,11 @@ export default function Landing() {
             <span>{tx.footerCopy}</span>
           </div>
           <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-vehiq-muted">
+            <Link to="/blog" className="hover:text-vehiq-text" data-testid="landing-footer-blog">Blog</Link>
+            <Link to="/forum" className="hover:text-vehiq-text" data-testid="landing-footer-forum">{tx.navForum}</Link>
+            <Link to="/marketplace" className="hover:text-vehiq-text" data-testid="landing-footer-marketplace">{tx.navMarketplace}</Link>
+            <Link to="/events" className="hover:text-vehiq-text" data-testid="landing-footer-events">{tx.navEvents}</Link>
+            <Link to="/dla-warsztatow" className="hover:text-vehiq-text" data-testid="landing-footer-for-workshops">{tx.navForWorkshops}</Link>
             <Link to="/legal/terms-of-service" className="hover:text-vehiq-text" data-testid="landing-footer-terms">{tx.legalTerm}</Link>
             <Link to="/legal/privacy-policy" className="hover:text-vehiq-text" data-testid="landing-footer-privacy">{tx.legalPriv}</Link>
             <Link to="/legal/contact" className="hover:text-vehiq-text" data-testid="landing-footer-contact">{tx.legalCont}</Link>

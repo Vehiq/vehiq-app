@@ -2,7 +2,8 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import api from "@/lib/api";
 import { Wrench, Store, Sparkles, Truck, ShieldCheck, MapPin, Search } from "lucide-react";
-import { Helmet } from "react-helmet-async";
+import usePageSeo from "@/hooks/usePageSeo";
+import { ROUTES } from "@/routes/paths";
 
 const TYPE_META = {
   workshop:  { label: "Warsztat",  Icon: Wrench },
@@ -13,6 +14,7 @@ const TYPE_META = {
 };
 
 export default function WorkshopList() {
+  usePageSeo(ROUTES.workshops);
   const [items, setItems] = useState([]);
   const [q, setQ] = useState("");
   const [city, setCity] = useState("");
@@ -35,11 +37,6 @@ export default function WorkshopList() {
 
   return (
     <div className="min-h-screen bg-vehiq-bg text-vehiq-text" data-testid="workshop-list-page">
-      <Helmet>
-        <title>Warsztaty i firmy motoryzacyjne | Sharago</title>
-        <meta name="description" content="Znajdź zweryfikowany warsztat, komis, detailing lub lawetę w swoim mieście. Publiczna historia serwisowa i opinie na Sharago." />
-      </Helmet>
-
       <div className="max-w-6xl mx-auto px-4 py-10 space-y-8">
         <header className="space-y-2">
           <h1 className="vehiq-display text-4xl sm:text-5xl">Warsztaty i firmy</h1>
