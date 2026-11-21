@@ -16,6 +16,7 @@ import api from "@/lib/api";
 import useDocumentHead from "@/lib/useDocumentHead";
 import { blogPostSeo } from "@/seo/pages";
 import NotFound from "@/pages/NotFound";
+import Logo from "@/components/Logo";
 
 const WORDS_PER_MINUTE = 200;
 
@@ -114,7 +115,7 @@ export default function BlogPost() {
             <ArrowLeft size={14} /> Wróć
           </button>
           <Link to="/" className="flex items-center gap-2">
-            <img src="/logo.png" alt="Sharago" className="h-12 md:h-14 w-auto object-contain" draggable="false" />
+            <Logo size="md" />
           </Link>
           <button
             onClick={copyLink}

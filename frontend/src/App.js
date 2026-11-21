@@ -52,7 +52,7 @@ import BusinessOnboarding from "@/pages/BusinessOnboarding";
 import Blog from "@/pages/Blog";
 import BlogPost from "@/pages/BlogPost";
 import NotFound from "@/pages/NotFound";
-import { ROUTES } from "@/routes/paths";
+import { ROUTES, ADMIN_PREFIX } from "@/routes/paths";
 
 import AdminLogin from "@/pages/admin/AdminLogin";
 import AdminChangePassword from "@/pages/admin/AdminChangePassword";
@@ -90,7 +90,14 @@ function PageTracker() {
   // Reset per-page head before the new page's effects set their own (no stale title/canonical).
   useLayoutEffect(() => {
     document.title = "Sharago — Wirtualny Garaż";
-    document.head.querySelectorAll('link[rel="canonical"]').forEach((el) => el.remove());
+    document.head.querySelectorAll('link[rel="canonical"], meta[data-admin-robots]').forEach((el) => el.remove());
+    if (pathname.toLowerCase().startsWith(ADMIN_PREFIX)) {
+      const meta = document.createElement("meta");
+      meta.setAttribute("name", "robots");
+      meta.setAttribute("content", "noindex, nofollow");
+      meta.setAttribute("data-admin-robots", "");
+      document.head.appendChild(meta);
+    }
   }, [pathname]);
   useEffect(() => {
     const sid = localStorage.getItem("sharago_session") || crypto.randomUUID();

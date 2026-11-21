@@ -10,6 +10,7 @@ import {
   ArrowRight, ChevronRight, Loader2,
 } from "lucide-react";
 import FoundingCounter from "@/components/FoundingCounter";
+import Logo from "@/components/Logo";
 
 /**
  * Public landing page (Iter 35).
@@ -150,7 +151,7 @@ export default function Landing() {
       <header className="relative">
         <nav className="max-w-6xl mx-auto px-6 pt-6 flex items-center justify-between text-sm">
           <div className="flex items-center gap-2">
-            <img src="/logo.png" alt="Sharago" className="h-12 md:h-14 w-auto object-contain" />
+            <Logo size="md" />
           </div>
           <div className="flex items-center gap-4">
             <Link to="/blog" data-testid="landing-nav-blog" className="text-vehiq-muted hover:text-vehiq-text">
@@ -176,7 +177,7 @@ export default function Landing() {
         </nav>
 
         <div className="max-w-3xl mx-auto px-6 pt-16 pb-20 text-center">
-          <img src="/logo.png" alt="Sharago" className="h-24 md:h-32 w-auto mx-auto mb-8 object-contain" />
+          <img src="/logo-stacked.png" alt="Sharago — Wirtualny Garaż" className="h-28 md:h-36 w-auto mx-auto mb-8 object-contain" data-testid="landing-hero-logo" />
           <h1 className="mb-6" data-testid="landing-hero-h1">
             <span className="block text-4xl sm:text-5xl lg:text-6xl font-semibold leading-tight">{tx.heroH1}</span>
             {tx.heroH1Sub && (
@@ -284,7 +285,7 @@ export default function Landing() {
       <footer className="bg-vehiq-nav border-t border-vehiq-border">
         <div className="max-w-6xl mx-auto px-6 py-10 flex flex-col md:flex-row items-center justify-between gap-6 text-sm">
           <div className="flex items-center gap-3 text-vehiq-muted">
-            <img src="/logo.png" alt="Sharago" className="h-10 w-auto object-contain" />
+            <Logo size="sm" />
             <span>{tx.footerCopy}</span>
           </div>
           <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-vehiq-muted">

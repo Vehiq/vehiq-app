@@ -9,6 +9,7 @@ import VehicleQr from "@/components/VehicleQr";
 import { photoUrl, photoThumb } from "@/lib/photos";
 import { useAuth } from "@/contexts/AuthContext";
 import { fmtDistance, fmtPrice, getUnits } from "@/lib/units";
+import Logo from "@/components/Logo";
 
 function getOrCreateSessionId() {
   let sid = localStorage.getItem("sharago_session");
@@ -153,7 +154,7 @@ export default function PublicVehicle() {
             <ArrowLeft size={14} /> {t("common.back")}
           </button>
           <Link to="/" className="flex items-center gap-2">
-            <img src="/logo.png" alt="Sharago" className="h-12 md:h-14 w-auto object-contain" draggable="false" />
+            <Logo size="md" />
           </Link>
           <button onClick={copy} className="vehiq-btn-secondary inline-flex items-center gap-2 text-xs" data-testid="public-share-btn">
             {copied ? <Check size={14} /> : <Share2 size={14} />} {t("share.share")}

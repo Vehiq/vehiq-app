@@ -6,6 +6,7 @@ import LanguageSwitcher from "@/components/LanguageSwitcher";
 import { useAuth } from "@/contexts/AuthContext";
 import api from "@/lib/api";
 import useClickOutside from "@/hooks/useClickOutside";
+import Logo from "@/components/Logo";
 
 export default function TopBar({ onMenu }) {
   const { t } = useTranslation();
@@ -62,6 +63,9 @@ export default function TopBar({ onMenu }) {
       <div className="flex items-center gap-3 px-4 md:px-6 py-3">
         <button type="button" onClick={onMenu} className="md:hidden p-2 rounded-md text-vehiq-text hover:bg-vehiq-card" data-testid="topbar-menu">
           <Menu size={20} />
+        </button>
+        <button type="button" onClick={() => navigate("/garage")} className="md:hidden shrink-0" data-testid="topbar-mobile-logo" aria-label="Sharago">
+          <Logo size="md" variant="mark" />
         </button>
 
         <div className="flex-1 flex items-center gap-2 max-w-xl">

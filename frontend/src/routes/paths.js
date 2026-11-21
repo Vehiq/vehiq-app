@@ -54,6 +54,8 @@ export const ROUTES = {
   businessOnboarding: "/business/onboarding",
 };
 
+export const ADMIN_PREFIX = ROUTES.adminLogin;
+
 // Mirrors React Router v6 matching: case-insensitive, ":param" = one segment, trailing "*" = rest.
 export function matchRoute(pattern, pathname) {
   const segs = pathname.split("/").filter(Boolean);

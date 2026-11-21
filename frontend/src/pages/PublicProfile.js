@@ -6,6 +6,7 @@ import { resolveCover } from "@/lib/photos";
 import { useAuth } from "@/contexts/AuthContext";
 import GarageCard from "@/components/GarageCard";
 import { Car, MessageCircle, Eye, ArrowLeft } from "lucide-react";
+import Logo from "@/components/Logo";
 
 /**
  * Minimal sticky header used on public pages that render outside the main
@@ -21,7 +22,7 @@ function PublicHeader() {
           <ArrowLeft size={14} /> {t("common.home", { defaultValue: "Strona główna" })}
         </Link>
         <Link to="/" className="flex items-center gap-2" data-testid="public-profile-logo">
-          <img src="/logo.png" alt="Sharago" className="h-10 md:h-12 w-auto object-contain" draggable="false" />
+          <Logo size="md" />
         </Link>
         <span className="w-16 md:w-24" aria-hidden="true" />
       </div>

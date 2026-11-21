@@ -1,10 +1,4 @@
 User-agent: *
 Allow: /
 
-# Block admin and auth-only routes
-Disallow: /gv91-admin
-Disallow: /admin
-Disallow: /api/admin
-
-# Public sitemap
 Sitemap: https://sharago.pl/sitemap.xml

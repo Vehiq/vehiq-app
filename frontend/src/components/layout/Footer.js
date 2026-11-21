@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import { openCookieSettings } from "@/components/CookieBanner";
+import Logo from "@/components/Logo";
 
 export default function Footer() {
   const { t, i18n } = useTranslation();
@@ -10,8 +11,7 @@ export default function Footer() {
     <footer className="border-t border-vehiq-border bg-vehiq-nav/40 mt-auto" data-testid="footer">
       <div className="max-w-7xl mx-auto px-6 py-8 flex flex-col md:flex-row md:items-center gap-6 md:gap-3">
         <div className="flex items-center gap-2">
-          <img src="/logo.png" alt="Sharago" className="h-12 md:h-14 w-auto object-contain" draggable="false" />
-          <div className="vehiq-display text-xl tracking-wide text-vehiq-text">Sharago</div>
+          <Logo size="sm" />
         </div>
         <nav className="flex flex-wrap gap-x-5 gap-y-2 text-sm md:mx-auto">
           <Link to="/blog" className="text-vehiq-muted hover:text-vehiq-gold" data-testid="footer-blog">Blog</Link>
@@ -29,7 +29,7 @@ export default function Footer() {
           <Link to={`/legal/contact`} className="text-vehiq-muted hover:text-vehiq-gold" data-testid="footer-contact">{t("footer.contact")}</Link>
         </nav>
         <div className="flex items-center gap-4">
-          <LanguageSwitcher compact />
+          <LanguageSwitcher />
           <span className="text-xs text-vehiq-muted hidden md:inline">{t("footer.copyright")}</span>
         </div>
       </div>

@@ -6,6 +6,7 @@ import LanguageSwitcher from "@/components/LanguageSwitcher";
 import Footer from "@/components/layout/Footer";
 import NotFound from "@/pages/NotFound";
 import useDocumentHead from "@/lib/useDocumentHead";
+import Logo from "@/components/Logo";
 
 const PL_MONTHS = ["stycznia","lutego","marca","kwietnia","maja","czerwca","lipca","sierpnia","września","października","listopada","grudnia"];
 
@@ -39,7 +40,7 @@ export default function LegalPage() {
       <header className="border-b border-vehiq-border">
         <div className="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-2">
-            <img src="/logo.png" alt="Sharago" className="h-12 md:h-14 w-auto object-contain" draggable="false" />
+            <Logo size="md" />
           </Link>
           <LanguageSwitcher />
         </div>

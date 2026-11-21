@@ -1,5 +1,5 @@
 // Vercel Routing Middleware: per-URL meta tags for sharago.pl, <html lang> per host, real 404 status for unknown URLs.
-import { ROUTES, findRoute } from "./src/routes/paths.js";
+import { ROUTES, ADMIN_PREFIX, findRoute } from "./src/routes/paths.js";
 import { pageSeo, blogPostSeo, DEFAULT_OG_IMAGE } from "./src/seo/pages.js";
 
 export const config = {
@@ -49,7 +49,7 @@ export function applyHead(html, { lang, seo, noindex }) {
     ];
     out = out.replace("</head>", `    ${tags.join("\n    ")}\n  </head>`);
   }
-  if (noindex) out = out.replace("</head>", `    <meta name="robots" content="noindex" />\n  </head>`);
+  if (noindex) out = out.replace("</head>", `    <meta name="robots" content="${noindex}" />\n  </head>`);
   return out;
 }
 
@@ -76,16 +76,18 @@ export default async function middleware(request) {
   const lang = HOSTS[url.hostname];
   if (!lang) return;
 
-  const { status, seo } = await resolvePage(url.pathname, lang === "pl");
-  if (lang === "pl" && status === 200 && !seo) return;
+  const isAdmin = url.pathname.toLowerCase().startsWith(ADMIN_PREFIX);
+  const { status, seo } = isAdmin ? { status: 200, seo: null } : await resolvePage(url.pathname, lang === "pl");
+  if (lang === "pl" && status === 200 && !seo && !isAdmin) return;
+  const robots = isAdmin ? "noindex, nofollow" : status === 404 ? "noindex" : "";
 
   const indexRes = await fetch(new URL("/index.html", url.origin));
   if (!indexRes.ok) return;
-  const html = applyHead(await indexRes.text(), { lang, seo, noindex: status === 404 });
+  const html = applyHead(await indexRes.text(), { lang, seo, noindex: robots });
   const headers = {
     "content-type": "text/html; charset=utf-8",
     "cache-control": "public, max-age=0, must-revalidate",
   };
-  if (status === 404) headers["x-robots-tag"] = "noindex";
+  if (robots) headers["x-robots-tag"] = robots;
   return new Response(request.method === "HEAD" ? null : html, { status, headers });
 }

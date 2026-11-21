@@ -2,14 +2,7 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronDown } from "lucide-react";
 
-const FlagPL = () => (
-  <span className="inline-flex h-4 w-6 overflow-hidden rounded-sm border border-vehiq-border">
-    <span className="h-1/2 w-full bg-white" />
-    <span className="h-1/2 w-full bg-[#DC143C] absolute mt-2" />
-  </span>
-);
-
-export default function LanguageSwitcher({ compact = false }) {
+export default function LanguageSwitcher() {
   const { i18n } = useTranslation();
   const [open, setOpen] = useState(false);
   const current = i18n.language?.startsWith("en") ? "en" : "pl";
@@ -27,8 +20,7 @@ export default function LanguageSwitcher({ compact = false }) {
         className="flex items-center gap-2 rounded-md border border-vehiq-border bg-vehiq-card/40 px-3 py-1.5 text-sm text-vehiq-text hover:bg-vehiq-gold-dim transition-colors"
         data-testid="language-switcher-button"
       >
-        <span className="text-base leading-none">{current === "pl" ? "🇵🇱" : "🇬🇧"}</span>
-        {!compact && <span className="uppercase tracking-wider text-xs">{current}</span>}
+        <span className="uppercase tracking-wider text-xs font-semibold" data-testid="language-switcher-current">{current}</span>
         <ChevronDown size={14} className="text-vehiq-muted" />
       </button>
       {open && (
@@ -42,7 +34,7 @@ export default function LanguageSwitcher({ compact = false }) {
             className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-vehiq-gold-dim text-vehiq-text"
             data-testid="lang-option-pl"
           >
-            <span>🇵🇱</span> Polski
+            <span className="w-6 text-xs font-semibold text-vehiq-muted">PL</span> Polski
           </button>
           <button
             type="button"
@@ -50,7 +42,7 @@ export default function LanguageSwitcher({ compact = false }) {
             className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-vehiq-gold-dim text-vehiq-text"
             data-testid="lang-option-en"
           >
-            <span>🇬🇧</span> English
+            <span className="w-6 text-xs font-semibold text-vehiq-muted">EN</span> English
           </button>
         </div>
       )}
