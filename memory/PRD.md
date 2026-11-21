@@ -2234,3 +2234,27 @@ Bez zmian w kolekcjach — używane: `business_accounts` (dodatkowe pola: logo_u
 ### Testy
 Backend curl E2E — wszystkie zielone (slugify PL, business register, GET/{slug}, GET/{slug}/stats, /auth/me business_id, PATCH profile, access/list.profile_complete). Frontend screenshoty — Landing z nowymi nav linkami OK, `/warsztaty` list OK, `/warsztaty/:slug` renderuje header + statCards OK, LoginPage z b2b link OK. Testing agent v3 był niedostępny (agent not found error).
 
+
+## Paczka 1 — Przygotowanie do startu (DONE 2026-11-21)
+
+### P1 — Nagłówek na profilu publicznym
+- Nowy `PublicHeader` w `PublicProfile.js` (sticky, logo→"/", przycisk "← Strona główna"). Działa anonim + zalogowany.
+
+### P2 — Widoczność pojazdów
+- Istniejące: `privacy.profile_visible` (OverviewTab) i status "sold" (VehicleProfile → `vehicle-mark-sold-btn`).
+- Dodano: backend filter `status not in [sold, archived]` dla non-ownera w `/users/{slug}`, `/users/{slug}/card` i `/search` (sekcja vehicles).
+
+### P3 — Konkurs Zaproś Znajomych
+- Tekst nagrody: "tydzień w apartamencie w Darłówku nad Bałtykiem" + link `/legal/regulamin-konkursu` (strona **jeszcze nie istnieje w CMS** — admin musi dodać przez `/gv91-admin/legal`).
+- Nowy koncept `active referral` = referred_user dodał min. 1 pojazd + min. 1 wpis serwisowy. Flaga `active: bool` w `referrals`, licznik `referral_active_count` w `profiles`.
+- Nowa funkcja `activate_referral_on_service_entry` wywoływana w `/service` POST i `/vehicles/{id}/service-entries` POST.
+- `/referral/stats` zwraca `active`. UI `ReferralSection` pokazuje "Aktywne polecenia: X" (accent).
+- Nowy admin endpoint `GET /api/admin/contest-top?limit=20`.
+- `AdminReferrals` pokazuje TOP 20 z kolumną "Active (konkurs)".
+
+### P4 — Cennik / płatności
+- Jedyny aktywny przycisk płatny: `rental-limit-upgrade` w `CreateListing.js` (modal limitu Free) → zamieniony na nieklikalną etykietę "Wkrótce".
+- Toast "Przejdź na Premium" w `SwapPage.js` zmieniony na neutralny "Możesz mieć 1 aktywne auto na giełdzie. Wkrótce zdejmiemy ten limit."
+- `PhotoLimitModal` już wcześniej w trybie waitlist (brak wzmianki o cenie).
+- Zero Stripe checkout calls istnieje w frontendzie.
+

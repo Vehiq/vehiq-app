@@ -811,12 +811,12 @@ export default function CreateListing() {
       {limitModal && (
         <div className="fixed inset-0 z-50 bg-vehiq-bg/80 backdrop-blur-sm flex items-center justify-center p-4" data-testid="rental-limit-modal">
           <div className="vehiq-card p-8 max-w-md w-full space-y-4 border-vehiq-gold/40">
-            <h2 className="vehiq-display text-2xl text-vehiq-text">Limit Free</h2>
+            <h2 className="vehiq-display text-2xl text-vehiq-text">Limit darmowego konta</h2>
             <p className="text-sm text-vehiq-muted">
               {limitModal === "service" ? (
-                <>W planie Free możesz mieć <strong className="text-vehiq-text">1 aktywne ogłoszenie usługi</strong>. Przejdź na Premium, aby dodawać bez limitu.</>
+                <>W darmowym planie możesz mieć <strong className="text-vehiq-text">1 aktywne ogłoszenie usługi</strong>. Wkrótce zdejmiemy ten limit.</>
               ) : (
-                <>W planie Free możesz mieć <strong className="text-vehiq-text">1 aktywne ogłoszenie wynajmu</strong>. Przejdź na Premium, aby dodawać bez limitu.</>
+                <>W darmowym planie możesz mieć <strong className="text-vehiq-text">1 aktywne ogłoszenie wynajmu</strong>. Wkrótce zdejmiemy ten limit.</>
               )}
             </p>
             <div className="flex gap-2 pt-2">
@@ -826,16 +826,17 @@ export default function CreateListing() {
                 className="vehiq-btn-secondary flex-1"
                 data-testid="rental-limit-close"
               >
-                Anuluj
+                Zamknij
               </button>
-              <button
-                type="button"
-                onClick={() => navigate("/profile?upgrade=1")}
-                className="vehiq-btn-primary flex-1"
-                data-testid="rental-limit-upgrade"
+              {/* Paczka 1 P4: płatności wyłączone — "Przejdź na Premium"
+                 zastąpione nieklikalną etykietą "Wkrótce". */}
+              <div
+                className="flex-1 inline-flex items-center justify-center px-4 py-2 rounded border border-vehiq-border bg-vehiq-card text-vehiq-muted text-sm cursor-not-allowed select-none"
+                aria-disabled="true"
+                data-testid="rental-limit-upgrade-soon"
               >
-                Przejdź na Premium
-              </button>
+                Wkrótce
+              </div>
             </div>
           </div>
         </div>

@@ -171,6 +171,30 @@ async def qualify_referral_and_founding(db, user_id: str):
         return
 
 
+async def activate_referral_on_service_entry(db, user_id: str):
+    """Paczka 1 P3: an *active* referral = referred user added a vehicle AND
+    at least one service entry. Called from the service-entries create path.
+
+    Idempotent — the referral row is flipped once (guarded by `active=False`).
+    """
+    ref_doc = await db.referrals.find_one(
+        {"referred_id": user_id, "qualified": True, "active": {"$ne": True}},
+        {"_id": 0, "id": 1, "referrer_id": 1},
+    )
+    if not ref_doc:
+        return
+    now_iso = datetime.now(timezone.utc).isoformat()
+    upd = await db.referrals.update_one(
+        {"id": ref_doc["id"], "active": {"$ne": True}},
+        {"$set": {"active": True, "active_at": now_iso}},
+    )
+    if upd.modified_count == 1:
+        await db.profiles.update_one(
+            {"id": ref_doc["referrer_id"]},
+            {"$inc": {"referral_active_count": 1}},
+        )
+
+
 # ---------------- user endpoints ----------------
 
 @router.get("/my-code")
@@ -189,11 +213,14 @@ async def my_referral_stats(user=Depends(get_current_user)):
     code = await ensure_referral_code(db, user)
     total = await db.referrals.count_documents({"referrer_id": user["id"]})
     qualified = await db.referrals.count_documents({"referrer_id": user["id"], "qualified": True})
+    active = await db.referrals.count_documents({"referrer_id": user["id"], "active": True})
     return {
         "referral_code": code,
         "total": total,
         "qualified": qualified,
-        # Contest ticket count = 1 base + qualified referrals (front-end can display)
+        # Paczka 1 P3: `active` = referred user added a vehicle AND a service entry.
+        "active": active,
+        # Legacy field kept for backward compatibility (ReferralSection v1).
         "contest_tickets": 1 + qualified,
         "is_founding_member": bool(user.get("is_founding_member")),
         "founding_member_number": user.get("founding_member_number"),
@@ -253,9 +280,10 @@ async def admin_referrals(
             "_id": "$referrer_id",
             "total": {"$sum": 1},
             "qualified": {"$sum": {"$cond": ["$qualified", 1, 0]}},
+            "active": {"$sum": {"$cond": ["$active", 1, 0]}},
             "last_at": {"$max": "$created_at"},
         }},
-        {"$sort": {"qualified": -1, "total": -1}},
+        {"$sort": {"active": -1, "qualified": -1, "total": -1}},
         {"$limit": 200},
     ]
     top = []
@@ -265,6 +293,8 @@ async def admin_referrals(
             "user": p,
             "total": r["total"],
             "qualified": r["qualified"],
+            # Paczka 1 P3: `active` = qualified + added service entry.
+            "active": r.get("active", 0),
             "last_at": r["last_at"],
         })
 
@@ -320,3 +350,34 @@ async def admin_dashboard_stats(admin=Depends(get_admin)):
         "total_referrals": total_referrals,
         "qualified_referrals": qualified_referrals,
     }
+
+
+
+@admin_referral_router.get("/contest-top")
+async def admin_contest_top(admin=Depends(get_admin), limit: int = 20):
+    """Paczka 1 P3: TOP referrers by ACTIVE referrals for the Darłówko contest.
+
+    Each row shows: user name (+ email), active referrals, total registered.
+    """
+    db = get_db()
+    pipeline = [
+        {"$group": {
+            "_id": "$referrer_id",
+            "total": {"$sum": 1},
+            "active": {"$sum": {"$cond": ["$active", 1, 0]}},
+        }},
+        {"$sort": {"active": -1, "total": -1}},
+        {"$limit": max(1, min(int(limit), 100))},
+    ]
+    rows = []
+    async for r in db.referrals.aggregate(pipeline):
+        p = await db.profiles.find_one(
+            {"id": r["_id"]},
+            {"_id": 0, "id": 1, "name": 1, "email": 1, "slug": 1, "referral_code": 1},
+        )
+        rows.append({
+            "user": p,
+            "active": int(r.get("active", 0)),
+            "total_registered": int(r.get("total", 0)),
+        })
+    return {"items": rows, "total": len(rows)}

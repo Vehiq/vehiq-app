@@ -53,12 +53,13 @@ export default function AdminReferrals() {
                 <th className="px-4 py-3">Code</th>
                 <th className="px-4 py-3">Invited</th>
                 <th className="px-4 py-3">Qualified</th>
+                <th className="px-4 py-3">Active (konkurs)</th>
                 <th className="px-4 py-3">Last invite</th>
               </tr>
             </thead>
             <tbody data-testid="admin-referrals-ranking-tbody">
-              {data.ranking.map((r, i) => (
-                <tr key={r.user?.id || i} className="border-b border-[#1E2A42]/60">
+              {data.ranking.slice(0, 20).map((r, i) => (
+                <tr key={r.user?.id || i} className="border-b border-[#1E2A42]/60" data-testid={`admin-referrals-top-row-${i}`}>
                   <td className="px-4 py-3 font-mono text-vehiq-gold">#{i + 1}</td>
                   <td className="px-4 py-3">
                     <div>{r.user?.name || "—"}</div>
@@ -70,6 +71,7 @@ export default function AdminReferrals() {
                   <td className="px-4 py-3 font-mono text-xs">{r.user?.referral_code || "—"}</td>
                   <td className="px-4 py-3">{r.total}</td>
                   <td className="px-4 py-3 text-emerald-400 font-semibold">{r.qualified}</td>
+                  <td className="px-4 py-3 text-vehiq-gold font-semibold" data-testid={`admin-referrals-top-active-${i}`}>{r.active ?? 0}</td>
                   <td className="px-4 py-3 text-xs text-[#9CA1C2]">{(r.last_at || "").slice(0, 10)}</td>
                 </tr>
               ))}

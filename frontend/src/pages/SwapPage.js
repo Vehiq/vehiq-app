@@ -128,7 +128,7 @@ export default function SwapPage() {
     } catch (e) {
       const detail = e?.response?.data?.detail;
       if (e?.response?.status === 402 && detail?.code === "swap_limit_free") {
-        toast.error("Free tier: 1 aktywne auto na giełdzie. Przejdź na Premium.");
+        toast.error("Możesz mieć 1 aktywne auto na giełdzie. Wkrótce zdejmiemy ten limit.");
       } else {
         toast.error(detail?.message || detail || "Błąd");
       }

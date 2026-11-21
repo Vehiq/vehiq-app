@@ -89,6 +89,8 @@ async def _build_card(db, p: dict, viewer_is_owner: bool) -> dict:
     if not viewer_is_owner:
         veh_filter["searchable"] = {"$ne": False}
         veh_filter["$or"] = [{"privacy.profile_visible": {"$ne": False}}, {"privacy": {"$exists": False}}]
+        # Paczka 1 P2: hide vehicles marked "sold" / "archived" from non-owner views.
+        veh_filter["status"] = {"$nin": ["sold", "archived"]}
     public_vehicles = await db.vehicles.find(
         veh_filter,
         {"_id": 0, "id": 1, "slug": 1, "make": 1, "model": 1, "year": 1, "photos": 1, "cover_photo_index": 1,
@@ -198,6 +200,8 @@ async def public_user_profile(slug_or_id: str, viewer=Depends(get_optional_user)
                 {"$or": [{"privacy.profile_visible": {"$ne": False}}, {"privacy": {"$exists": False}}]},
             ]},
         ]
+        # Paczka 1 P2: never list sold/archived vehicles on the public profile.
+        veh_filter["status"] = {"$nin": ["sold", "archived"]}
     raw_vehicles = await db.vehicles.find(veh_filter, {"_id": 0}).sort("created_at", -1).to_list(120)
     vehicles_public = []
     for v in raw_vehicles:

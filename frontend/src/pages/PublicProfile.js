@@ -7,6 +7,28 @@ import { useAuth } from "@/contexts/AuthContext";
 import GarageCard from "@/components/GarageCard";
 import { Car, MessageCircle, Eye, ArrowLeft } from "lucide-react";
 
+/**
+ * Minimal sticky header used on public pages that render outside the main
+ * app `<Layout>` (profile, vehicle). Keeps the Sharago brand present and
+ * gives anonymous visitors a path back to the home page.
+ */
+function PublicHeader() {
+  const { t } = useTranslation();
+  return (
+    <header className="sticky top-0 z-20 bg-vehiq-bg/95 backdrop-blur border-b border-vehiq-border" data-testid="public-profile-header">
+      <div className="max-w-5xl mx-auto px-4 md:px-6 py-3 flex items-center justify-between gap-3">
+        <Link to="/" className="inline-flex items-center gap-1 text-sm text-vehiq-muted hover:text-vehiq-gold" data-testid="public-profile-home">
+          <ArrowLeft size={14} /> {t("common.home", { defaultValue: "Strona główna" })}
+        </Link>
+        <Link to="/" className="flex items-center gap-2" data-testid="public-profile-logo">
+          <img src="/logo.png" alt="Sharago" className="h-10 md:h-12 w-auto object-contain" draggable="false" />
+        </Link>
+        <span className="w-16 md:w-24" aria-hidden="true" />
+      </div>
+    </header>
+  );
+}
+
 export default function PublicProfile() {
   const { slug } = useParams();
   const { t } = useTranslation();
@@ -18,14 +40,26 @@ export default function PublicProfile() {
     api.get(`/users/${slug}`).then(r => setData(r.data)).catch(() => setData(false));
   }, [slug]);
 
-  if (data === null) return null;
-  if (data === false) return <div className="text-center text-vehiq-muted py-16" data-testid="public-profile-404">{t("publicProfile.notFound")}</div>;
+  if (data === null) return (
+    <>
+      <PublicHeader />
+      <div className="animate-pulse text-center text-vehiq-muted py-16">…</div>
+    </>
+  );
+  if (data === false) return (
+    <>
+      <PublicHeader />
+      <div className="text-center text-vehiq-muted py-16" data-testid="public-profile-404">{t("publicProfile.notFound")}</div>
+    </>
+  );
 
   const { card, vehicles = [], forum_threads = [], active_listings = [], is_owner } = data;
   const showOwnerView = is_owner && !previewMode;
 
   return (
-    <div className="space-y-6 animate-fade-in" data-testid="public-profile-page">
+    <>
+      <PublicHeader />
+    <div className="max-w-5xl mx-auto px-4 md:px-6 py-6 space-y-6 animate-fade-in" data-testid="public-profile-page">
       {is_owner && (
         <div className="vehiq-card p-3 flex items-center justify-between bg-vehiq-gold-dim/30" data-testid="owner-banner">
           <div className="text-xs text-vehiq-text inline-flex items-center gap-2">
@@ -98,5 +132,6 @@ export default function PublicProfile() {
         </div>
       </div>
     </div>
+    </>
   );
 }

@@ -90,13 +90,21 @@ export default function ReferralSection({ user }) {
     >
       <div>
         <h3 className="text-lg font-semibold text-vehiq-text mb-1" data-testid="referral-title">
-          {t("referral.title", { defaultValue: "Zaproś znajomych i wygraj bilety na Regenwald" })}
+          Zaproś znajomych i wygraj tydzień w apartamencie w Darłówku nad Bałtykiem
         </h3>
-        <p className="text-xs text-vehiq-muted leading-relaxed">
-          {t("referral.subtitle", {
-            defaultValue:
-              "Każdy znajomy, który zarejestruje się przez Twój link i doda pojazd, daje Ci dodatkowy los w konkursie.",
-          })}
+        <p className="text-xs text-vehiq-muted leading-relaxed" data-testid="referral-contest-rules">
+          Wygrywa osoba z największą liczbą aktywnych poleceń do 31.12.2026.{" "}
+          <a
+            href="/legal/regulamin-konkursu"
+            className="text-vehiq-gold hover:underline"
+            data-testid="referral-contest-regulamin"
+          >
+            Regulamin
+          </a>
+          .
+        </p>
+        <p className="text-[11px] text-vehiq-muted leading-relaxed mt-2">
+          Aktywne polecenie = osoba zarejestrowana z Twoim kodem, która dodała min. 1 pojazd oraz min. 1 wpis serwisowy. Sama rejestracja się nie liczy.
         </p>
       </div>
 
@@ -151,19 +159,19 @@ export default function ReferralSection({ user }) {
       {/* Stats + Founding Member badge */}
       <div className="grid grid-cols-3 gap-3">
         <StatCard
-          label={t("referral.stats.invited", { defaultValue: "Zaproszonych" })}
+          label="Zaproszonych"
           value={stats?.total ?? "—"}
           testId="referral-stat-total"
         />
         <StatCard
-          label={t("referral.stats.qualified", { defaultValue: "Zakwalifikowanych" })}
+          label="Dodali pojazd"
           value={stats?.qualified ?? "—"}
           testId="referral-stat-qualified"
         />
         <StatCard
-          label={t("referral.stats.tickets", { defaultValue: "Twoje losy" })}
-          value={stats?.contest_tickets ?? "—"}
-          testId="referral-stat-tickets"
+          label="Aktywne polecenia"
+          value={stats?.active ?? "—"}
+          testId="referral-stat-active"
           accent
         />
       </div>

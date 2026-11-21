@@ -67,9 +67,11 @@ async def global_search(
         ]}
         if viewer:
             privacy_clause["$or"].append({"user_id": viewer["id"]})
-        f = privacy_clause
+        # Paczka 1 P2: sold / archived vehicles never surface in search
+        # (viewer's own included — the owner has `/garage` for those).
+        f = {"$and": [privacy_clause, {"status": {"$nin": ["sold", "archived"]}}]}
         if rx:
-            f = {"$and": [privacy_clause, {"$or": [{"make": rx}, {"model": rx}]}]}
+            f["$and"].append({"$or": [{"make": rx}, {"model": rx}]})
         items = await db.vehicles.find(f, {"_id": 0, "id": 1, "slug": 1, "make": 1, "model": 1, "year": 1, "user_id": 1,
                                             "photos": 1, "cover_photo_index": 1, "status": 1}).limit(limit_per).to_list(limit_per)
         owner_ids = list({v["user_id"] for v in items if v.get("user_id")})

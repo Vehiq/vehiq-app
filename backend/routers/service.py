@@ -52,6 +52,12 @@ async def create(payload: ServiceEntryIn, user=Depends(get_current_user)):
     doc.pop("_id", None)
     from activity import log_activity
     await log_activity(user["id"], "service.add", "vehicle", payload.vehicle_id, f"{payload.type} — {payload.cost} PLN")
+    # Paczka 1 P3: user's first service entry → flips any pending referral row to "active".
+    try:
+        from routers.referral import activate_referral_on_service_entry
+        await activate_referral_on_service_entry(db, user["id"])
+    except Exception:
+        pass
     return doc
 
 
