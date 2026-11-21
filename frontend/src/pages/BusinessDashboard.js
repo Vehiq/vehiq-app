@@ -4,7 +4,7 @@ import api from "@/lib/api";
 import { resolveCover } from "@/lib/photos";
 import { toast } from "sonner";
 import { Wrench, CheckCircle2, Clock, Ban, Plus, X } from "lucide-react";
-import { Helmet } from "react-helmet-async";
+import useDocumentHead from "@/lib/useDocumentHead";
 
 const STATUS_META = {
   approved: { label: "Zatwierdzony", Icon: CheckCircle2, cls: "text-emerald-400 bg-emerald-500/10 border-emerald-500/30" },
@@ -48,6 +48,7 @@ export default function BusinessDashboard() {
     } finally { setLoading(false); }
   };
   useEffect(() => { reload(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  useDocumentHead({ title: data.business ? `Panel firmy — ${data.business.name} | Sharago` : "" });
 
   if (loading) return <div className="min-h-screen flex items-center justify-center text-vehiq-muted" data-testid="business-dashboard-loading">Ładowanie…</div>;
 
@@ -70,8 +71,6 @@ export default function BusinessDashboard() {
   const biz = data.business;
   return (
     <div className="min-h-screen bg-vehiq-bg text-vehiq-text" data-testid="business-dashboard-page">
-      <Helmet><title>Panel firmy — {biz.name} | Sharago</title></Helmet>
-
       <div className="max-w-5xl mx-auto px-4 py-8 space-y-6">
         <header className="flex items-start justify-between gap-4">
           <div>

@@ -3,7 +3,6 @@ import "@/App.css";
 import "@/i18n";
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { Toaster } from "sonner";
-import { HelmetProvider } from "react-helmet-async";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { usePageTracking } from "@/hooks/usePageTracking";
 import Layout from "@/components/layout/Layout";
@@ -158,7 +157,6 @@ function ScrollToTop() {
 
 function App() {
   return (
-    <HelmetProvider>
       <BrowserRouter>
         <AuthProvider>
           <ErrorBoundary>
@@ -260,7 +258,6 @@ function App() {
         </ErrorBoundary>
       </AuthProvider>
     </BrowserRouter>
-    </HelmetProvider>
   );
 }
 

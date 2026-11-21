@@ -3,9 +3,7 @@ import { useEffect } from "react";
 /**
  * Lightweight imperative head-tag manager.
  *
- * react-helmet-async@2 has incomplete tag propagation on React 19 (only <title>
- * reliably updates; <link rel="canonical"> and og:* meta tags fail to mount).
- * Since this is an SPA with no SSR, we just mutate document.head directly.
+ * No external head library: SPA without SSR, so we mutate document.head directly.
  *
  * Each tag is upserted via a stable data-vehiq-head="<key>" marker so reloads
  * replace, not duplicate. Returning from the effect does NOT remove tags —

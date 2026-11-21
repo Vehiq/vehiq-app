@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import api from "@/lib/api";
 import { toast } from "sonner";
 import { ArrowRight, Check, Wrench, Clock, Tag, Upload } from "lucide-react";
-import { Helmet } from "react-helmet-async";
+import useDocumentHead from "@/lib/useDocumentHead";
 
 /**
  * 3-step B2B onboarding (Iter 55).
@@ -46,6 +46,7 @@ export default function BusinessOnboarding() {
   const [makes, setMakes] = useState(new Set());
   const [tags, setTags] = useState(new Set());
   const [busy, setBusy] = useState(false);
+  useDocumentHead({ title: "Onboarding warsztatu | Sharago" });
 
   useEffect(() => {
     (async () => {
@@ -86,8 +87,6 @@ export default function BusinessOnboarding() {
 
   return (
     <div className="min-h-screen bg-vehiq-bg text-vehiq-text" data-testid="business-onboarding-page">
-      <Helmet><title>Onboarding warsztatu | Sharago</title></Helmet>
-
       <div className="max-w-2xl mx-auto px-4 py-10 space-y-6">
         <header className="space-y-2">
           <div className="text-xs uppercase tracking-widest text-vehiq-gold">Krok {step} z 3</div>

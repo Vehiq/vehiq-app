@@ -2282,3 +2282,9 @@ Backend curl E2E — wszystkie zielone (slugify PL, business register, GET/{slug
 - Google OAuth: parametr `origin` → podpisany state (pl/com) → powrót na domenę startową. CORS zawsze zawiera 4 domeny produkcyjne.
 - POMINIĘTE (decyzja usera): szablony HTML stron prawnych w seed.py z 8 załączników + data 21.11.2026 (pliki nie dotarły).
 - Skrypt read-only: `scripts/scan_contest_texts.py` (skan bazy prod).
+
+## Hotfix Vercel build — 2026-11-21 — DONE
+- Usunięto react-helmet-async (peer react<=18 vs React 19 → npm ERESOLVE na Vercel; dodane w commit 02150a9, Iter 54b/55). Tytuły w WorkshopProfile/BusinessDashboard/BusinessOnboarding przez useDocumentHead; HelmetProvider usunięty z App.js.
+- Czysty `npm install` + `npm run build` (Node 24, npm 11) → exit 0, bez flag. frontend/package-lock.json wygenerowany z czystej instalacji.
+- vercel.json: sitemap rewrite → https://api.sharago.pl/api/sitemap.xml (api.sharago.pl /api/health 200, cert Google Trust Services ważny do 19.02.2027).
+- Teksty konkursu: brak w kodzie/i18n/backend/e-mailach; UI poleceń nie czyta treści z bazy.

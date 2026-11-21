@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import api from "@/lib/api";
 import { ShieldCheck, MapPin, Globe, Phone, Mail, Wrench, ArrowLeft } from "lucide-react";
-import { Helmet } from "react-helmet-async";
+import useDocumentHead from "@/lib/useDocumentHead";
 
 const TYPE_LABELS = {
   workshop: "Warsztat",
@@ -35,6 +35,10 @@ export default function WorkshopProfile() {
     })();
     return () => { alive = false; };
   }, [slug]);
+  useDocumentHead(biz ? {
+    title: `${biz.name} — ${TYPE_LABELS[biz.type] || "Warsztat"} | Sharago`,
+    description: (biz.description || `${biz.name} — ${biz.city}. ${TYPE_LABELS[biz.type] || "Firma motoryzacyjna"} na Sharago.`).slice(0, 160),
+  } : {});
 
   if (err) return (
     <div className="min-h-screen flex items-center justify-center text-vehiq-muted" data-testid="workshop-not-found">
@@ -48,11 +52,6 @@ export default function WorkshopProfile() {
 
   return (
     <div className="min-h-screen bg-vehiq-bg text-vehiq-text" data-testid="workshop-profile-page">
-      <Helmet>
-        <title>{biz.name} — {TYPE_LABELS[biz.type] || "Warsztat"} | Sharago</title>
-        <meta name="description" content={(biz.description || `${biz.name} — ${biz.city}. ${TYPE_LABELS[biz.type] || "Firma motoryzacyjna"} na Sharago.`).slice(0, 160)} />
-      </Helmet>
-
       <div className="max-w-4xl mx-auto px-4 py-8 space-y-6">
         <Link to="/warsztaty" className="inline-flex items-center gap-1 text-sm text-vehiq-muted hover:text-vehiq-gold" data-testid="workshop-back">
           <ArrowLeft size={14} /> Wszystkie warsztaty
