@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useLayoutEffect } from "react";
 import "@/App.css";
 import "@/i18n";
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
@@ -87,6 +87,12 @@ function PageTracker() {
   // this the SPA looked like a single-page site to GA — only the initial
   // load was tracked and every internal nav was invisible.
   usePageTracking();
+  const { pathname } = useLocation();
+  // Reset per-page head before the new page's effects set their own (no stale title/canonical).
+  useLayoutEffect(() => {
+    document.title = "Sharago — Wirtualny Garaż";
+    document.head.querySelectorAll('link[rel="canonical"]').forEach((el) => el.remove());
+  }, [pathname]);
   useEffect(() => {
     const sid = localStorage.getItem("sharago_session") || crypto.randomUUID();
     localStorage.setItem("sharago_session", sid);

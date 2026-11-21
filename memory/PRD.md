@@ -2269,3 +2269,16 @@ Backend curl E2E — wszystkie zielone (slugify PL, business register, GET/{slug
 - OG: `/og-image.jpg` 1200×630, pełen zestaw og: + twitter: tagów.
 - Emaile: kontakt@sharago.pl → kontakt@sharago.com w `email_service.py` + fallback ADMIN_EMAIL w `seed.py`.
 
+
+## Paczka 3 (PL) — 2026-11-21 — DONE (testing iteration_32 + manual)
+- Konkurs usunięty z kodu/i18n PL+EN/seed (program poleceń zostaje; admin endpoint `/api/admin/referral-top`, pole `contest_tickets` usunięte).
+- `/legal/regulamin-konkursu` ukryta (backend `HIDDEN_SLUGS` w routers/legal.py → 404, treść w DB zostaje).
+- Jedno źródło tras: `frontend/src/routes/paths.js` (App.js + middleware). SEO PL: `frontend/src/seo/pages.js`, hook `usePageSeo`.
+- Vercel Routing Middleware `frontend/middleware.js`: meta per URL (tylko sharago.pl), lang pl/en wg hosta, 404 dla nieznanych tras i nieistniejących /blog/:slug, /legal/:slug. Test harness: `node scripts/mw_test.mjs <url...>` (API=...).
+- NotFound z noindex; reset title/canonical przy nawigacji (App.js useLayoutEffect).
+- Sitemap backend `/api/sitemap.xml` (strony pkt 2 + blog), rewrite w vercel.json (host sharago.pl → vehiq-app.onrender.com — zmienić na api.sharago.pl przy przełączeniu). Statyczny sitemap usunięty, robots poprawiony.
+- Menu Blog (landing + sidebar), stopki z Blog/Forum/Giełda/Wydarzenia/Dla warsztatów, H1 z frazą.
+- AdminLegal SLUGS: privacy-policy, terms-of-service, cookie-policy, marketplace-terms, contact. Redirecty /legal/polityka-cookies i /pl/polityka-cookies → /legal/cookie-policy.
+- Google OAuth: parametr `origin` → podpisany state (pl/com) → powrót na domenę startową. CORS zawsze zawiera 4 domeny produkcyjne.
+- POMINIĘTE (decyzja usera): szablony HTML stron prawnych w seed.py z 8 załączników + data 21.11.2026 (pliki nie dotarły).
+- Skrypt read-only: `scripts/scan_contest_texts.py` (skan bazy prod).

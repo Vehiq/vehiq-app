@@ -5,6 +5,7 @@ import api from "@/lib/api";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import Footer from "@/components/layout/Footer";
 import NotFound from "@/pages/NotFound";
+import useDocumentHead from "@/lib/useDocumentHead";
 
 const PL_MONTHS = ["stycznia","lutego","marca","kwietnia","maja","czerwca","lipca","sierpnia","września","października","listopada","grudnia"];
 
@@ -27,6 +28,8 @@ export default function LegalPage() {
   useEffect(() => {
     api.get(`/legal/${slug}`).then(r => setPage(r.data)).catch(() => setPage(false));
   }, [slug]);
+  const pageTitle = page ? (lang === "en" ? page.title_en : page.title_pl) : "";
+  useDocumentHead({ title: pageTitle ? `${pageTitle} | Sharago` : "" });
 
   if (slug === "polityka-cookies") return <Navigate to="/legal/cookie-policy" replace />;
   if (page === false) return <NotFound />;

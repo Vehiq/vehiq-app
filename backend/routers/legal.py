@@ -10,6 +10,8 @@ router = APIRouter(prefix="/legal", tags=["legal"])
 
 # Unpublished pages: content stays in the DB but the public URL returns 404.
 HIDDEN_SLUGS = {"regulamin-konkursu"}
+# Legacy duplicate of cookie-policy (URL redirects there); kept readable, not listed.
+UNLISTED_SLUGS = HIDDEN_SLUGS | {"polityka-cookies"}
 
 
 class LegalUpdate(BaseModel):
@@ -23,7 +25,7 @@ class LegalUpdate(BaseModel):
 @router.get("")
 async def list_pages():
     db = get_db()
-    items = await db.legal_pages.find({"slug": {"$nin": list(HIDDEN_SLUGS)}}, {"_id": 0}).to_list(50)
+    items = await db.legal_pages.find({"slug": {"$nin": list(UNLISTED_SLUGS)}}, {"_id": 0}).to_list(50)
     return items
 
 

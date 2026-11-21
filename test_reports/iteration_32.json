@@ -1,0 +1,41 @@
+{
+  "summary": "Paczka 3 (contest removal + SEO/404/titles) tested. Backend pytest 7/7 PASS. Frontend: almost every requested check passes: landing has one H1 with the slogan and the sub line, PL title/canonical/lang are correct, nav and footer links are there, NotFound works for unknown URLs, /legal/regulamin-konkursu and an unknown blog slug (PL + EN 'Page not found', robots noindex, home link '/'), the /legal/polityka-cookies -> /legal/cookie-policy redirect works, titles are right on all listed pages, the app sidebar and footer are correct with no contest link, the Profile referral section has no contest text and its counters still show, AdminLegal lists exactly 5 slugs, the Referrals header says 'ACTIVE', and EN (logged out) shows no contest text with html lang=en. Problems found: leftover contest text in the privacy-policy body_pl field returned by the API, stale <title>/canonical on pages that do not set their own head, the requested admin credentials not being a user account, and a few minor items.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "GET /api/legal/privacy-policy", "issue": "Response field body_pl (not rendered; UI uses content_pl) still contains 'Konkurs „Zaproś znajomych” i wydanie nagrody' and 'dane zwycięzcy konkursu ... wydano nagrodę'. The same text is in backend/seed.py lines 35 and 60. seed only inserts missing pages, so existing DBs keep it unless a migration $unset/updates body_pl."},
+      {"endpoint": "GET /api/legal", "issue": "Lists the legacy slug 'polityka-cookies', a duplicate of cookie-policy. Consider adding it to HIDDEN_SLUGS or hiding it from the list."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "useDocumentHead / pages without usePageSeo", "issue": "<title> and canonical are never reset on SPA navigation. Seen: 404 -> '/' redirects to /garage and the title stays 'Nie znaleziono strony | Sharago'. /legal/cookie-policy reached after a blog post keeps the title 'Pierwszy wpis na blogu Sharago | Blog Sharago'. On a fresh load it shows the generic 'Sharago — Wirtualny Garaż'. The public, indexable LegalPage sets no title or canonical, so it inherits the canonical https://sharago.pl/ from the landing page.", "selector": "document.title / link[rel=canonical]", "priority": "MEDIUM"},
+      {"component": "Privacy policy content_pl", "issue": "Contains the link <a href=\"/pl/polityka-cookies\">. That path is not a route, so it now shows the 404 page. It should point to /legal/cookie-policy.", "selector": ".legal-content a", "priority": "LOW"},
+      {"component": "LanguageSwitcher (logged in)", "issue": "Picking EN as the logged-in smoke user (profile language Polski) left html lang=pl and all texts in PL. Likely the user's profile language overrides the switch. EN works when logged out.", "selector": "[data-testid=lang-option-en]", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Landing footer", "issues": ["No 'Polityka cookies' link in the landing footer (only Regulamin, Polityka prywatności, Kontakt). The app Footer.js has it. Add it if it was required on landing too."]},
+      {"screen": "Blog post", "issues": ["/blog/pierwszy-wpis-na-blogu-vehiq has 2 <h1> elements: the title plus probably a markdown '#' heading in the post body. Minor SEO issue."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_iter32_contest_removal_seo.py", "/app/test_reports/pytest/pytest_iter32.xml"],
+  "action_items": [
+    "Remove contest text from legal_pages.privacy-policy body_pl (migration) and from seed.py lines 35 and 60, or drop the unused body_pl field",
+    "Reset or set <title> and canonical for every route: give LegalPage a usePageSeo/useDocumentHead with its own canonical, and add a default title fallback for app pages without SEO",
+    "Change the privacy-policy content link from /pl/polityka-cookies to /legal/cookie-policy",
+    "Optional: hide 'polityka-cookies' from GET /api/legal; check that the logged-in EN switch persists; add 'Polityka cookies' to the landing footer if wanted",
+    "Credentials note: kontakt@sharago.com/VehiqAdmin2026! is admin-only. POST /api/auth/login returns 401 because there is no users doc. The logged-in user checks were done with smoke-test-vehiq@example.com / SmokePass123!"
+  ],
+  "critical_code_review_comments": [
+    "NotFound sets document.title directly but does not restore or replace canonical/og tags. Other pages without SEO hooks inherit stale head tags because useDocumentHead never cleans up.",
+    "seed.py still holds contest-era privacy text in body_pl"
+  ],
+  "updated_files": ["/app/backend/tests/test_iter32_contest_removal_seo.py"],
+  "success_rate": {"backend": "100% (7/7)", "frontend": "~90% (requested checks pass; title/canonical staleness + minor items)"},
+  "seed_data_creation": "None. Admin panel UI was opened by putting the API admin token in localStorage, so the admin password was not changed (first_login=true is still set).",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "The preview ingress returns 429 on Vite dev modules when the browser reloads many pages. Do one page.goto, wait 20-60 s between browser runs, and navigate client-side with history.pushState + a popstate event. The user login in the UI must be smoke-test-vehiq@example.com / SmokePass123!. To reach the admin UI without the forced password change, POST /api/admin/login and set localStorage 'sharago_admin_token'. Language option testids: lang-option-en / lang-option-pl.",
+  "rca of the issue": "Stale title/canonical: useDocumentHead deliberately does no cleanup on unmount, and LegalPage plus the authenticated pages (garage etc.) never call it, so they keep the previous route's tags. Contest text: the privacy-policy doc has both content_pl (clean, rendered) and a legacy body_pl (from seed.py, still with contest text) that the public API returns."
+}

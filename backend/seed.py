@@ -32,7 +32,6 @@ LEGAL_SEED = [
     <tr><td>Wiadomości e-mail związane z kontem i przypomnienia</td><td>Art. 6 ust. 1 lit. b</td></tr>
     <tr><td>Bezpieczeństwo serwisu, zapobieganie nadużyciom, logi</td><td>Art. 6 ust. 1 lit. f – prawnie uzasadniony interes</td></tr>
     <tr><td>Statystyki odwiedzin (Google Analytics)</td><td>Art. 6 ust. 1 lit. a – Twoja zgoda (baner cookies)</td></tr>
-    <tr><td>Konkurs „Zaproś znajomych” i wydanie nagrody</td><td>Art. 6 ust. 1 lit. b oraz lit. c – obowiązki podatkowe</td></tr>
     <tr><td>Rozpatrywanie reklamacji, dochodzenie i obrona roszczeń</td><td>Art. 6 ust. 1 lit. f</td></tr>
   </tbody>
 </table>
@@ -56,8 +55,7 @@ LEGAL_SEED = [
 <ul>
   <li>dane konta i treści – do usunięcia konta, a potem przez okres przedawnienia roszczeń,</li>
   <li>logi serwera – do 12 miesięcy,</li>
-  <li>dane statystyczne Google Analytics – do 14 miesięcy,</li>
-  <li>dane zwycięzcy konkursu – przez 5 lat od końca roku, w którym wydano nagrodę (obowiązki podatkowe).</li>
+  <li>dane statystyczne Google Analytics – do 14 miesięcy.</li>
 </ul>
 
 <h3>7. Profil publiczny</h3>

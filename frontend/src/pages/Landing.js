@@ -110,6 +110,7 @@ export default function Landing() {
       legalPriv: "Polityka prywatności",
       legalTerm: "Regulamin",
       legalCont: "Kontakt",
+      legalCookies: "Polityka cookies",
       navForum: "Forum",
       navMarketplace: "Giełda",
       navEvents: "Wydarzenia",
@@ -135,6 +136,7 @@ export default function Landing() {
       legalPriv: "Privacy policy",
       legalTerm: "Terms of service",
       legalCont: "Contact",
+      legalCookies: "Cookie policy",
       navForum: "Forum",
       navMarketplace: "Marketplace",
       navEvents: "Events",
@@ -293,6 +295,7 @@ export default function Landing() {
             <Link to="/dla-warsztatow" className="hover:text-vehiq-text" data-testid="landing-footer-for-workshops">{tx.navForWorkshops}</Link>
             <Link to="/legal/terms-of-service" className="hover:text-vehiq-text" data-testid="landing-footer-terms">{tx.legalTerm}</Link>
             <Link to="/legal/privacy-policy" className="hover:text-vehiq-text" data-testid="landing-footer-privacy">{tx.legalPriv}</Link>
+            <Link to="/legal/cookie-policy" className="hover:text-vehiq-text" data-testid="landing-footer-cookies">{tx.legalCookies}</Link>
             <Link to="/legal/contact" className="hover:text-vehiq-text" data-testid="landing-footer-contact">{tx.legalCont}</Link>
           </div>
           <div className="flex items-center gap-3 text-vehiq-muted text-xs">

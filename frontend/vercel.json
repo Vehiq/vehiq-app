@@ -4,7 +4,8 @@
   "buildCommand": "yarn build",
   "outputDirectory": "build",
   "redirects": [
-    { "source": "/legal/polityka-cookies", "destination": "/legal/cookie-policy", "permanent": true }
+    { "source": "/legal/polityka-cookies", "destination": "/legal/cookie-policy", "permanent": true },
+    { "source": "/pl/polityka-cookies", "destination": "/legal/cookie-policy", "permanent": true }
   ],
   "rewrites": [
     {
