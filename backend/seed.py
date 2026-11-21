@@ -4,162 +4,255 @@ from datetime import datetime, timezone
 LEGAL_SEED = [
     {
         "slug": "privacy-policy",
-        "title_pl": "Polityka Prywatności",
+        "title_pl": "Polityka prywatności",
         "title_en": "Privacy Policy",
-        "content_pl": """<h2>Polityka Prywatności Sharago</h2>
-<p><strong>Administrator danych:</strong> Sharago, e-mail: kontakt@sharago.com, https://sharago.pl</p>
-<h3>1. Jakie dane zbieramy</h3>
-<ul><li>Dane konta: imię, e-mail, hasło (zaszyfrowane), avatar, lokalizacja.</li>
-<li>Dane pojazdów i historia serwisowa.</li>
-<li>Dane techniczne: adres IP, typ urządzenia, język przeglądarki.</li></ul>
-<h3>2. Cele przetwarzania (RODO art. 6)</h3>
-<ul><li>Świadczenie usługi Sharago (art. 6 ust. 1 lit. b).</li>
-<li>Marketing własny — za zgodą (art. 6 ust. 1 lit. a).</li>
-<li>Bezpieczeństwo i wykrywanie nadużyć (art. 6 ust. 1 lit. f).</li></ul>
-<h3>3. Twoje prawa (RODO art. 13)</h3>
-<p>Masz prawo do dostępu, sprostowania, usunięcia, ograniczenia przetwarzania, przenoszenia danych oraz wniesienia sprzeciwu. Skontaktuj się: kontakt@sharago.com.</p>
-<h3>4. Okres przechowywania</h3>
-<p>Dane konta przechowujemy do momentu jego usunięcia. Dane rozliczeniowe — 5 lat (wymóg podatkowy).</p>
-<h3>5. Bezpieczeństwo</h3>
-<p>Stosujemy szyfrowanie TLS, hashowanie haseł (bcrypt), kontrolę dostępu role-based.</p>
-<h3>6. Cookies</h3>
-<p>Zob. <a href="/pl/polityka-cookies">Polityka Cookies</a>.</p>""",
-        "content_en": """<h2>Sharago Privacy Policy</h2>
-<p><strong>Data controller:</strong> Sharago, email: kontakt@sharago.com, https://sharago.pl</p>
-<h3>1. What data we collect</h3>
-<ul><li>Account data: name, email, password (hashed), avatar, location.</li>
-<li>Vehicle data and service history.</li>
-<li>Technical data: IP address, device type, browser language.</li></ul>
-<h3>2. Purposes of processing (GDPR art. 6)</h3>
-<ul><li>Providing the Sharago service (art. 6(1)(b)).</li>
-<li>Own marketing — with consent (art. 6(1)(a)).</li>
-<li>Security and abuse detection (art. 6(1)(f)).</li></ul>
-<h3>3. Your rights (GDPR art. 13)</h3>
-<p>You have the right to access, rectify, erase, restrict processing, data portability and to object. Contact: kontakt@sharago.com.</p>
-<h3>4. Retention period</h3>
-<p>Account data is kept until you delete it. Billing data — 5 years (tax requirement).</p>
-<h3>5. Security</h3>
-<p>We use TLS encryption, password hashing (bcrypt), role-based access control.</p>
-<h3>6. Cookies</h3>
-<p>See <a href="/en/cookie-policy">Cookie Policy</a>.</p>""",
+        "content_pl": """<h2>Polityka prywatności serwisu Sharago</h2>
+
+<h3>1. Administrator danych</h3>
+<p>Administratorem Twoich danych osobowych jest Jakub Zdybicki prowadzący działalność gospodarczą pod firmą Piksel Jakub Zdybicki, Terpentyna 197, 23-251 Terpentyna, NIP 715-181-28-34 (dalej: „Administrator”). Kontakt w sprawach danych osobowych: <a href="mailto:kontakt@sharago.com">kontakt@sharago.com</a>.</p>
+
+<h3>2. Jakie dane przetwarzamy</h3>
+<ul>
+  <li>Dane konta: adres e-mail, nazwa użytkownika, hasło (w formie zaszyfrowanej), a przy logowaniu przez Google także imię, nazwisko i zdjęcie profilowe przekazane przez Google.</li>
+  <li>Dane pojazdów: marka, model, rocznik, przebieg, zdjęcia oraz – jeśli je podasz – numer VIN i numer rejestracyjny.</li>
+  <li>Historia serwisowa i przypomnienia: daty, przebiegi, wykonane czynności, koszty, terminy przeglądów i ubezpieczeń.</li>
+  <li>Treści, które publikujesz: ogłoszenia na giełdzie, wpisy na forum, komentarze, wydarzenia.</li>
+  <li>Zapytania do AI Mechanika i odpowiedzi na nie.</li>
+  <li>Dane poleceń: kod polecający i informacja, kto kogo zaprosił.</li>
+  <li>Dane techniczne: adres IP, typ przeglądarki i urządzenia, logi serwera, pliki cookies.</li>
+</ul>
+
+<h3>3. Cele i podstawy prawne</h3>
+<table>
+  <thead>
+    <tr><th>Cel</th><th>Podstawa prawna (RODO)</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Założenie i prowadzenie konta, garaż, historia serwisowa, przypomnienia, profil publiczny, giełda, forum, AI Mechanik</td><td>Art. 6 ust. 1 lit. b – wykonanie umowy (regulaminu)</td></tr>
+    <tr><td>Wiadomości e-mail związane z kontem i przypomnienia</td><td>Art. 6 ust. 1 lit. b</td></tr>
+    <tr><td>Bezpieczeństwo serwisu, zapobieganie nadużyciom, logi</td><td>Art. 6 ust. 1 lit. f – prawnie uzasadniony interes</td></tr>
+    <tr><td>Statystyki odwiedzin (Google Analytics)</td><td>Art. 6 ust. 1 lit. a – Twoja zgoda (baner cookies)</td></tr>
+    <tr><td>Konkurs „Zaproś znajomych” i wydanie nagrody</td><td>Art. 6 ust. 1 lit. b oraz lit. c – obowiązki podatkowe</td></tr>
+    <tr><td>Rozpatrywanie reklamacji, dochodzenie i obrona roszczeń</td><td>Art. 6 ust. 1 lit. f</td></tr>
+  </tbody>
+</table>
+
+<h3>4. Odbiorcy danych</h3>
+<p>Dane powierzamy wyłącznie dostawcom, bez których serwis nie działa:</p>
+<ul>
+  <li>hosting i infrastruktura: Vercel Inc., Render Services Inc., MongoDB Inc. (baza danych), Cloudflare Inc. (przechowywanie zdjęć),</li>
+  <li>wysyłka e-maili: Brevo (Sendinblue SAS),</li>
+  <li>logowanie przez Google i statystyki: Google Ireland Ltd. / Google LLC,</li>
+  <li>AI Mechanik: Anthropic PBC – otrzymuje treść Twojego zapytania, bez danych konta,</li>
+  <li>obsługa księgowa i prawna Administratora,</li>
+  <li>po uruchomieniu płatności: Stripe Payments Europe Ltd.</li>
+</ul>
+<p>Nie sprzedajemy Twoich danych.</p>
+
+<h3>5. Przekazywanie danych poza EOG</h3>
+<p>Część dostawców ma siedzibę w USA. Przekazanie odbywa się na podstawie decyzji Komisji Europejskiej w sprawie EU-US Data Privacy Framework lub standardowych klauzul umownych zatwierdzonych przez Komisję Europejską.</p>
+
+<h3>6. Jak długo przechowujemy dane</h3>
+<ul>
+  <li>dane konta i treści – do usunięcia konta, a potem przez okres przedawnienia roszczeń,</li>
+  <li>logi serwera – do 12 miesięcy,</li>
+  <li>dane statystyczne Google Analytics – do 14 miesięcy,</li>
+  <li>dane zwycięzcy konkursu – przez 5 lat od końca roku, w którym wydano nagrodę (obowiązki podatkowe).</li>
+</ul>
+
+<h3>7. Profil publiczny</h3>
+<p>Na profilu publicznym widać Twoją nazwę użytkownika oraz pojazdy, których nie ukryłeś. Publiczny link do historii pojazdu widzi każdy, komu go przekażesz. Pojazd możesz ukryć lub oznaczyć jako sprzedany w dowolnej chwili. Numery rejestracyjne na zdjęciach możesz zamaskować w edytorze zdjęć.</p>
+
+<h3>8. Twoje prawa</h3>
+<p>Masz prawo do: dostępu do danych, ich sprostowania, usunięcia, ograniczenia przetwarzania, przeniesienia, sprzeciwu wobec przetwarzania opartego na prawnie uzasadnionym interesie oraz cofnięcia zgody w dowolnym momencie (bez wpływu na zgodność z prawem wcześniejszego przetwarzania). Napisz na <a href="mailto:kontakt@sharago.com">kontakt@sharago.com</a>. Masz też prawo złożyć skargę do Prezesa Urzędu Ochrony Danych Osobowych (ul. Stawki 2, 00-193 Warszawa).</p>
+<p>Podanie danych jest dobrowolne, ale bez adresu e-mail nie założysz konta. Nie podejmujemy wobec Ciebie decyzji opartych wyłącznie na zautomatyzowanym przetwarzaniu.</p>
+
+<h3>9. Pliki cookies</h3>
+<p>Używamy cookies niezbędnych (logowanie, bezpieczeństwo) oraz – tylko po Twojej zgodzie – analitycznych (Google Analytics). Szczegóły i sposób zmiany zgody opisuje <a href="/legal/polityka-cookies">Polityka cookies</a>.</p>
+
+<h3>10. Zmiany polityki</h3>
+<p>O istotnych zmianach poinformujemy e-mailem lub komunikatem w serwisie co najmniej 14 dni przed ich wejściem w życie.</p>
+""",
+        "content_en": "",
     },
     {
         "slug": "terms-of-service",
         "title_pl": "Regulamin",
         "title_en": "Terms of Service",
-        "content_pl": """<h2>Regulamin Sharago</h2>
-<h3>1. Postanowienia ogólne</h3>
-<p>Niniejszy regulamin określa zasady korzystania z platformy Sharago — wirtualnego garażu dostępnego pod https://sharago.pl.</p>
-<h3>2. Konto użytkownika</h3>
-<p>Rejestracja jest bezpłatna. Użytkownik zobowiązuje się do podawania prawdziwych danych i ochrony hasła.</p>
-<h3>3. Zasady korzystania</h3>
-<ul><li>Zakaz publikowania treści niezgodnych z prawem.</li>
-<li>Zakaz spamu, oszustw i nadużyć w marketplace.</li>
-<li>Zakaz prób obejścia zabezpieczeń.</li></ul>
-<h3>4. Odpowiedzialność</h3>
-<p>Sharago świadczy usługę „as is" i nie ponosi odpowiedzialności za poradnictwo AI mechanika — to wsparcie informacyjne, nie zastępuje wizyty u specjalisty.</p>
-<h3>5. Marketplace</h3>
-<p>Sharago jest platformą — nie jest stroną transakcji. Zob. <a href="/pl/regulamin-marketplace">Regulamin Marketplace</a>.</p>
-<h3>5a. Wynajem pojazdów i miejsc garażowych</h3>
-<p>Sharago.pl pełni rolę platformy ogłoszeniowej umożliwiającej publikację ogłoszeń wynajmu pojazdów i miejsc garażowych. Platforma nie jest stroną umów zawieranych między użytkownikami. Użytkownicy samodzielnie odpowiadają za zgodność transakcji z obowiązującym prawem, w szczególności za posiadanie odpowiedniego ubezpieczenia pojazdu oraz sporządzenie umowy najmu.</p>
-<h3>6. Rozwiązanie umowy</h3>
-<p>Możesz w każdej chwili usunąć konto. Możemy zawiesić konto w przypadku naruszeń.</p>
-<h3>7. Kontakt</h3>
-<p>kontakt@sharago.com</p>""",
-        "content_en": """<h2>Sharago Terms of Service</h2>
-<h3>1. General provisions</h3>
-<p>These terms govern the use of the Sharago virtual garage platform at https://sharago.pl.</p>
-<h3>2. User account</h3>
-<p>Registration is free. The user agrees to provide accurate data and protect their password.</p>
-<h3>3. Acceptable use</h3>
-<ul><li>No unlawful content.</li>
-<li>No spam, fraud, or marketplace abuse.</li>
-<li>No attempts to bypass security.</li></ul>
-<h3>4. Liability</h3>
-<p>Sharago is provided "as is". AI Mechanic offers informational support, not a substitute for a professional mechanic.</p>
-<h3>5. Marketplace</h3>
-<p>Sharago is a platform — not a party to transactions. See <a href="/en/marketplace-terms">Marketplace Terms</a>.</p>
-<h3>5a. Vehicle &amp; garage rental listings</h3>
-<p>Sharago.pl operates as a classifieds platform allowing publication of vehicle and garage/parking-space rental listings. The platform is not a party to agreements concluded between users. Users are solely responsible for legal compliance of any transaction, in particular for maintaining adequate vehicle insurance and concluding a rental agreement.</p>
-<h3>6. Termination</h3>
-<p>You may delete your account at any time. We may suspend accounts violating these terms.</p>
-<h3>7. Contact</h3>
-<p>kontakt@sharago.com</p>""",
+        "content_pl": """<h2>Regulamin serwisu Sharago</h2>
+
+<h3>§1. Postanowienia ogólne</h3>
+<ol>
+  <li>Regulamin określa zasady korzystania z serwisu internetowego Sharago dostępnego pod adresami sharago.pl i sharago.com („Serwis”).</li>
+  <li>Usługodawcą jest Jakub Zdybicki prowadzący działalność gospodarczą pod firmą Piksel Jakub Zdybicki, Terpentyna 197, 23-251 Terpentyna, NIP 715-181-28-34, e-mail: <a href="mailto:kontakt@sharago.com">kontakt@sharago.com</a> („Usługodawca”).</li>
+  <li>Użytkownik to pełnoletnia osoba fizyczna, osoba prawna lub jednostka organizacyjna, która korzysta z Serwisu.</li>
+</ol>
+
+<h3>§2. Wymagania techniczne</h3>
+<p>Do korzystania z Serwisu potrzebujesz urządzenia z dostępem do internetu, aktualnej przeglądarki z włączoną obsługą JavaScript i cookies oraz aktywnego adresu e-mail.</p>
+
+<h3>§3. Konto</h3>
+<ol>
+  <li>Konto zakładasz przez formularz rejestracji lub przez logowanie Google. Założenie konta oznacza akceptację Regulaminu i zawarcie umowy o świadczenie usług drogą elektroniczną na czas nieokreślony.</li>
+  <li>Każda osoba może mieć jedno konto. Odpowiadasz za poufność swojego hasła.</li>
+  <li>W każdej chwili możesz zażądać usunięcia konta, pisząc na adres e-mail Usługodawcy. Usuwamy konto w ciągu 14 dni od zgłoszenia.</li>
+</ol>
+
+<h3>§4. Usługi</h3>
+<ol>
+  <li>Serwis umożliwia w szczególności: prowadzenie wirtualnego garażu i historii serwisowej pojazdów, ustawianie przypomnień, udostępnianie profilu publicznego i publicznej historii pojazdu, publikowanie ogłoszeń na giełdzie (w tym propozycji wymiany), udział w forum i wydarzeniach, korzystanie z AI Mechanika oraz z programu poleceń.</li>
+  <li>Obecnie wszystkie usługi są bezpłatne. Usługodawca może wprowadzić plany płatne. Nastąpi to przez zmianę Regulaminu zgodnie z §10. Żaden Użytkownik nie zostanie obciążony opłatą bez wyraźnego zamówienia płatnego planu.</li>
+  <li>Przypomnienia mają charakter pomocniczy. Za dotrzymanie terminów przeglądu, ubezpieczenia i serwisu odpowiada Użytkownik.</li>
+  <li>AI Mechanik udziela odpowiedzi informacyjnych generowanych automatycznie. Odpowiedzi mogą być niepełne lub błędne i nie zastępują diagnozy wykwalifikowanego mechanika.</li>
+  <li>Usługodawca nie jest stroną transakcji ani wymian zawieranych między Użytkownikami na giełdzie i nie odpowiada za stan, legalność ani opis oferowanych pojazdów i części.</li>
+</ol>
+
+<h3>§5. Treści Użytkowników</h3>
+<ol>
+  <li>Odpowiadasz za treści, które publikujesz: zdjęcia, opisy, ogłoszenia, wpisy i komentarze.</li>
+  <li>Zakazane jest publikowanie treści niezgodnych z prawem, obraźliwych, wprowadzających w błąd, naruszających prawa osób trzecich (w tym wizerunek i prawa autorskie), spamu oraz ogłoszeń pojazdów lub części pochodzących z przestępstwa.</li>
+  <li>Publikując treść, udzielasz Usługodawcy niewyłącznej, nieodpłatnej licencji na jej wyświetlanie w Serwisie przez czas jej publikacji.</li>
+  <li>Usługodawca może usunąć treść naruszającą Regulamin. Każdy może zgłosić niedozwoloną treść na adres e-mail Usługodawcy. Zgłoszenie rozpatrujemy bez zbędnej zwłoki, a o decyzji informujemy autora treści wraz z uzasadnieniem.</li>
+</ol>
+
+<h3>§6. Zablokowanie konta</h3>
+<p>Usługodawca może zablokować lub usunąć konto w przypadku poważnego lub uporczywego naruszania Regulaminu, po wcześniejszym wezwaniu do zaprzestania naruszeń, chyba że naruszenie jest rażące lub zagraża bezpieczeństwu Serwisu.</p>
+
+<h3>§7. Dostępność i odpowiedzialność</h3>
+<ol>
+  <li>Usługodawca dokłada starań, aby Serwis działał bez przerw. Mogą wystąpić przerwy techniczne, o dłuższych informujemy z wyprzedzeniem, jeśli to możliwe.</li>
+  <li>Zalecamy przechowywanie ważnych dokumentów pojazdu także poza Serwisem.</li>
+</ol>
+
+<h3>§8. Reklamacje</h3>
+<ol>
+  <li>Reklamacje zgłaszaj na adres <a href="mailto:kontakt@sharago.com">kontakt@sharago.com</a>, opisując problem i podając adres e-mail konta.</li>
+  <li>Odpowiadamy w ciągu 14 dni od otrzymania reklamacji.</li>
+</ol>
+
+<h3>§9. Konsumenci</h3>
+<ol>
+  <li>Konsument może skorzystać z pozasądowych sposobów rozpatrywania sporu, w tym z pomocy powiatowego (miejskiego) rzecznika konsumentów lub wojewódzkiego inspektoratu Inspekcji Handlowej.</li>
+  <li>Przepisy dotyczące konsumentów stosuje się także do osób fizycznych prowadzących działalność gospodarczą, gdy umowa nie ma dla nich charakteru zawodowego.</li>
+</ol>
+
+<h3>§10. Zmiany Regulaminu</h3>
+<p>O zmianie Regulaminu informujemy e-mailem i komunikatem w Serwisie co najmniej 14 dni przed jej wejściem w życie. Jeśli nie akceptujesz zmian, możesz usunąć konto przed tym terminem.</p>
+
+<h3>§11. Postanowienia końcowe</h3>
+<p>W sprawach nieuregulowanych stosuje się prawo polskie, w szczególności Kodeks cywilny i ustawę o świadczeniu usług drogą elektroniczną. Zasady przetwarzania danych osobowych opisuje <a href="/legal/privacy-policy">Polityka prywatności</a>.</p>
+""",
+        "content_en": "",
     },
     {
-        "slug": "cookie-policy",
-        "title_pl": "Polityka Cookies",
-        "title_en": "Cookie Policy",
-        "content_pl": """<h2>Polityka Cookies Sharago</h2>
-<h3>Czym są pliki cookies</h3>
-<p>To małe pliki tekstowe zapisywane przez przeglądarkę. Używamy ich w trzech kategoriach:</p>
-<h3>Kategorie cookies</h3>
-<ul>
-<li><strong>Niezbędne</strong> — sesja, autoryzacja. Nie można wyłączyć.</li>
-<li><strong>Analityczne</strong> — anonimowe statystyki ruchu. Wymagają zgody.</li>
-<li><strong>Marketingowe</strong> — personalizacja treści. Wymagają zgody.</li>
-</ul>
-<h3>Jak wyłączyć</h3>
-<p>Możesz w każdej chwili zmienić ustawienia w banerze cookies lub w ustawieniach przeglądarki.</p>""",
-        "content_en": """<h2>Sharago Cookie Policy</h2>
-<h3>What are cookies</h3>
-<p>Small text files stored by your browser. We use them in three categories:</p>
-<h3>Cookie categories</h3>
-<ul>
-<li><strong>Necessary</strong> — session, authentication. Cannot be disabled.</li>
-<li><strong>Analytics</strong> — anonymous traffic statistics. Require consent.</li>
-<li><strong>Marketing</strong> — content personalization. Require consent.</li>
-</ul>
-<h3>How to disable</h3>
-<p>You can change settings in the cookie banner or in your browser settings.</p>""",
+        "slug": "regulamin-konkursu",
+        "title_pl": "Regulamin konkursu",
+        "title_en": "Contest Rules",
+        "content_pl": """<h2>Regulamin konkursu „Zaproś znajomych – wygraj tydzień w Darłówku”</h2>
+
+<h3>§1. Organizator</h3>
+<ol>
+  <li>Organizatorem konkursu jest Jakub Zdybicki prowadzący działalność gospodarczą pod firmą Piksel Jakub Zdybicki, Terpentyna 197, 23-251 Terpentyna, NIP 715-181-28-34 („Organizator”).</li>
+  <li>Konkurs prowadzony jest w serwisie sharago.pl („Serwis”).</li>
+  <li>Konkurs nie jest grą losową, loterią ani zakładem wzajemnym w rozumieniu ustawy o grach hazardowych. O wygranej decyduje wyłącznie liczba aktywnych poleceń.</li>
+</ol>
+
+<h3>§2. Czas trwania</h3>
+<p>Konkurs trwa od 21.11.2026 do 31.12.2026, godz. 23:59. Wyniki ogłosimy do 15.01.2027.</p>
+
+<h3>§3. Uczestnicy</h3>
+<ol>
+  <li>W konkursie może wziąć udział pełnoletnia osoba fizyczna z pełną zdolnością do czynności prawnych, zamieszkała w Polsce, posiadająca konto w Serwisie („Uczestnik”).</li>
+  <li>W konkursie nie mogą brać udziału: Organizator, jego współpracownicy oraz członkowie ich rodzin (wstępni, zstępni, rodzeństwo, małżonkowie, osoby pozostające w stosunku przysposobienia).</li>
+  <li>Udział w konkursie jest bezpłatny i nie wymaga zakupu.</li>
+</ol>
+
+<h3>§4. Zasady</h3>
+<ol>
+  <li>Każdy Uczestnik ma w Serwisie swój kod polecający.</li>
+  <li><strong>Aktywne polecenie</strong> to osoba, która w czasie trwania konkursu: (a) założyła nowe konto z kodem polecającym Uczestnika, (b) dodała co najmniej jeden pojazd oraz (c) dodała co najmniej jeden wpis serwisowy.</li>
+  <li>Nie liczy się polecenie osoby, która miała już wcześniej konto w Serwisie.</li>
+  <li>Zakazane jest zakładanie fałszywych kont, wielu kont przez tę samą osobę oraz wprowadzanie fikcyjnych danych. Organizator może weryfikować polecenia i wykluczyć z konkursu Uczestnika, który narusza te zasady.</li>
+  <li>Wygrywa Uczestnik z największą liczbą aktywnych poleceń. Przy równej liczbie wygrywa ten, kto osiągnął ją wcześniej.</li>
+</ol>
+
+<h3>§5. Nagroda</h3>
+<ol>
+  <li>Nagrodą jest tydzień (7 nocy) pobytu dla maksymalnie 4 osób w apartamencie w Darłówku o wartości 3000 zł brutto, w terminie uzgodnionym z Organizatorem, do wykorzystania do 30.06.2027, z wyłączeniem okresu od 1.07 do 31.08.</li>
+  <li>Zwycięzca otrzymuje też dodatkową nagrodę pieniężną w wysokości 333 zł, którą Organizator pobiera i odprowadza jako 10% zryczałtowany podatek dochodowy od nagrody.</li>
+  <li>Nagrody nie można wymienić na gotówkę ani przenieść na inną osobę.</li>
+</ol>
+
+<h3>§6. Ogłoszenie wyników</h3>
+<ol>
+  <li>Zwycięzcę powiadomimy e-mailem na adres konta. Za zgodą zwycięzcy jego nazwę użytkownika opublikujemy w Serwisie.</li>
+  <li>Zwycięzca potwierdza przyjęcie nagrody w ciągu 7 dni od powiadomienia. Jeśli tego nie zrobi, nagroda przechodzi na kolejnego Uczestnika z największą liczbą aktywnych poleceń.</li>
+</ol>
+
+<h3>§7. Reklamacje</h3>
+<p>Reklamacje można składać na adres <a href="mailto:kontakt@sharago.com">kontakt@sharago.com</a> do 14 dni po ogłoszeniu wyników. Organizator odpowiada w ciągu 14 dni.</p>
+
+<h3>§8. Dane osobowe</h3>
+<p>Administratorem danych Uczestników jest Organizator. Dane przetwarzamy w celu przeprowadzenia konkursu, wydania nagrody i rozliczeń podatkowych, na zasadach opisanych w <a href="/legal/privacy-policy">Polityce prywatności</a> Serwisu. Od zwycięzcy pobierzemy imię, nazwisko i adres, wyłącznie w celu wydania nagrody i rozliczenia podatku.</p>
+
+<h3>§9. Postanowienia końcowe</h3>
+<p>Regulamin jest dostępny w Serwisie pod adresem sharago.pl/legal/regulamin-konkursu. W sprawach nieuregulowanych stosuje się prawo polskie.</p>
+""",
+        "content_en": "",
     },
+    {
+        "slug": "polityka-cookies",
+        "title_pl": "Polityka cookies",
+        "title_en": "Cookie Policy",
+        "content_pl": """<h2>Polityka plików cookies serwisu Sharago</h2>
+
+<h3>1. Czym są pliki cookies</h3>
+<p>Pliki cookies to małe pliki tekstowe zapisywane na Twoim urządzeniu przez przeglądarkę. Podobnie działają inne technologie, np. pamięć lokalna przeglądarki (localStorage). W tej polityce nazywamy je wszystkie „cookies”.</p>
+<p>Administratorem jest Jakub Zdybicki prowadzący działalność gospodarczą pod firmą Piksel Jakub Zdybicki, Terpentyna 197, 23-251 Terpentyna, NIP 715-181-28-34, e-mail: <a href="mailto:kontakt@sharago.com">kontakt@sharago.com</a>.</p>
+
+<h3>2. Jakich cookies używamy</h3>
+<table>
+  <thead>
+    <tr><th>Rodzaj</th><th>Po co</th><th>Czy wymaga zgody</th><th>Jak długo</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Niezbędne</td><td>Logowanie i utrzymanie sesji, bezpieczeństwo, zapamiętanie Twojej decyzji dotyczącej cookies</td><td>Nie – bez nich serwis nie działa</td><td>Do wylogowania lub do 12 miesięcy</td></tr>
+    <tr><td>Analityczne (Google Analytics 4)</td><td>Anonimowe statystyki: ile osób odwiedza serwis, z jakich źródeł, które funkcje są używane. Pomagają nam poprawiać Sharago</td><td>Tak – zapisujemy je dopiero po Twojej zgodzie</td><td>Do 2 lat (pliki _ga i _ga_*)</td></tr>
+  </tbody>
+</table>
+<p>Nie używamy cookies reklamowych ani nie śledzimy Cię w innych serwisach.</p>
+<p>Przy logowaniu przez Google pliki cookies może zapisywać Google, na zasadach opisanych w jego polityce prywatności.</p>
+
+<h3>3. Zgoda i jej zmiana</h3>
+<p>Przy pierwszej wizycie pokazujemy baner, w którym wybierasz: „Akceptuję wszystkie” albo „Tylko niezbędne”. Zgodę możesz w każdej chwili zmienić lub wycofać w „Ustawieniach cookies” w stopce serwisu. Wycofanie zgody nie wpływa na zgodność z prawem wcześniejszego przetwarzania.</p>
+
+<h3>4. Ustawienia przeglądarki</h3>
+<p>Możesz też usunąć cookies lub zablokować ich zapisywanie w ustawieniach swojej przeglądarki. Zablokowanie cookies niezbędnych może uniemożliwić logowanie i korzystanie z serwisu.</p>
+
+<h3>5. Więcej informacji</h3>
+<p>Szczegóły dotyczące przetwarzania danych osobowych i Twoich praw opisuje <a href="/legal/privacy-policy">Polityka prywatności</a>.</p>
+""",
+        "content_en": "",
+    },
+    # Legacy slugs retained so fresh installs still provision marketplace &
+    # contact pages. Seed is non-destructive — existing docs are never overwritten.
     {
         "slug": "marketplace-terms",
         "title_pl": "Regulamin Marketplace",
         "title_en": "Marketplace Terms",
         "content_pl": """<h2>Regulamin Marketplace Sharago</h2>
-<h3>1. Charakter platformy</h3>
-<p>Sharago Marketplace to platforma C2C łącząca sprzedających i kupujących. Sharago <strong>nie jest stroną transakcji</strong>.</p>
-<h3>2. Sprzedający</h3>
-<ul><li>Zapewnia prawdziwość opisu i zdjęć.</li>
-<li>Posiada prawo do oferowanego przedmiotu.</li>
-<li>Reaguje na wiadomości w rozsądnym czasie.</li></ul>
-<h3>3. Kupujący</h3>
-<ul><li>Sprawdza pojazd przed zakupem.</li>
-<li>Ustala warunki płatności bezpośrednio ze sprzedającym.</li></ul>
-<h3>4. Zakazane przedmioty</h3>
-<p>Kradzione pojazdy, części niespełniające norm, towary objęte ograniczeniami prawnymi.</p>
-<h3>5. Odpowiedzialność Sharago</h3>
-<p>Platforma zapewnia infrastrukturę. Nie odpowiada za jakość, autentyczność ani realizację transakcji.</p>""",
-        "content_en": """<h2>Sharago Marketplace Terms</h2>
-<h3>1. Platform nature</h3>
-<p>Sharago Marketplace is a C2C platform connecting sellers and buyers. Sharago <strong>is not a party to transactions</strong>.</p>
-<h3>2. Sellers</h3>
-<ul><li>Ensure accurate descriptions and photos.</li>
-<li>Have the right to sell the offered item.</li>
-<li>Respond to messages in reasonable time.</li></ul>
-<h3>3. Buyers</h3>
-<ul><li>Inspect the vehicle before purchase.</li>
-<li>Arrange payment directly with the seller.</li></ul>
-<h3>4. Prohibited items</h3>
-<p>Stolen vehicles, non-compliant parts, legally restricted goods.</p>
-<h3>5. Sharago liability</h3>
-<p>The platform provides infrastructure. It is not liable for quality, authenticity or transaction completion.</p>""",
+<p>Marketplace to część serwisu Sharago umożliwiająca publikowanie ogłoszeń sprzedaży, wynajmu, usług oraz zamian. Szczegółowe zasady i obowiązki użytkowników opisuje <a href="/legal/terms-of-service">Regulamin</a>.</p>
+<p>Kontakt: <a href="mailto:kontakt@sharago.com">kontakt@sharago.com</a></p>""",
+        "content_en": "",
     },
     {
         "slug": "contact",
         "title_pl": "Kontakt",
         "title_en": "Contact",
-        "content_pl": """<h2>Skontaktuj się z Sharago</h2>
-<p><strong>Firma:</strong> Sharago</p>
-<p><strong>E-mail:</strong> <a href="mailto:kontakt@sharago.com">kontakt@sharago.com</a></p>
-<p><strong>Strona:</strong> <a href="https://sharago.pl">https://sharago.pl</a></p>
-<p><strong>Czas odpowiedzi:</strong> do 48h w dni robocze.</p>""",
-        "content_en": """<h2>Contact Sharago</h2>
-<p><strong>Company:</strong> Sharago</p>
-<p><strong>Email:</strong> <a href="mailto:kontakt@sharago.com">kontakt@sharago.com</a></p>
-<p><strong>Website:</strong> <a href="https://sharago.pl">https://sharago.pl</a></p>
-<p><strong>Response time:</strong> up to 48h on business days.</p>""",
+        "content_pl": """<h2>Kontakt</h2>
+<p>Napisz do nas: <a href="mailto:kontakt@sharago.com">kontakt@sharago.com</a></p>
+<p>Odpowiadamy w ciągu 48 godzin roboczych.</p>""",
+        "content_en": "",
     },
 ]
 
@@ -336,7 +429,7 @@ async def seed_database(db):
     # Auto-seed admin from ADMIN_PASSWORD env (if set and admin doesn't exist yet)
     import os
     import bcrypt as _bcrypt
-    admin_email = os.environ.get("ADMIN_EMAIL", "admin@vehiq.app").lower()
+    admin_email = os.environ.get("ADMIN_EMAIL", "kontakt@sharago.com").lower()
     admin_password = os.environ.get("ADMIN_PASSWORD", "")
     existing_admin = await db.admin_account.find_one({"email": admin_email})
     if not existing_admin and admin_password:

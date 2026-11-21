@@ -2258,3 +2258,14 @@ Backend curl E2E — wszystkie zielone (slugify PL, business register, GET/{slug
 - `PhotoLimitModal` już wcześniej w trybie waitlist (brak wzmianki o cenie).
 - Zero Stripe checkout calls istnieje w frontendzie.
 
+
+## Paczka 2 (PL) — Analityka, zgoda cookies, strony prawne, OG preview (DONE 2026-11-21)
+
+- GA4 `G-RV0FMPK05R` + Consent Mode v2 (`analytics_storage: "denied"` default; grant po "Akceptuję wszystkie"; cookie clear przy wycofaniu).
+- Nowe eventy: `service_added`, `reminder_set`, `public_link_shared` — fired tylko po udanej odp. API, bez PII.
+- Stopka: 3 nowe linki (regulamin konkursu, polityka cookies, Ustawienia cookies → reopen banner).
+- Rejestracja: link do Polityki prywatności już istniał w `<pp>` + PL locale.
+- 4 strony prawne (PL) zaktualizowane/utworzone: privacy-policy, terms-of-service, regulamin-konkursu, polityka-cookies — data 21.11.2026.
+- OG: `/og-image.jpg` 1200×630, pełen zestaw og: + twitter: tagów.
+- Emaile: kontakt@sharago.pl → kontakt@sharago.com w `email_service.py` + fallback ADMIN_EMAIL w `seed.py`.
+

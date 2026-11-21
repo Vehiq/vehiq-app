@@ -219,13 +219,13 @@ def tpl_account_deleted(name: str, lang: str = "pl"):
         body = f"""<h2 style="{_H2}">Account deleted</h2>
 <p style="{_P}">Hi {name}, your account has been deleted. You have <strong style="color:#ffffff;">30 days</strong> to restore it if you change your mind. After that, all data will be permanently erased.</p>
 {_btn("Restore account →", f"{APP_URL}/account/restore")}
-<p style="{_MUTE}">If you didn't request this, contact us immediately at kontakt@sharago.pl.</p>"""
+<p style="{_MUTE}">If you didn't request this, contact us immediately at kontakt@sharago.com.</p>"""
     else:
         subject = "Twoje konto Sharago zostało usunięte"
         body = f"""<h2 style="{_H2}">Konto usunięte</h2>
 <p style="{_P}">Cześć {name}, Twoje konto zostało usunięte. Masz <strong style="color:#ffffff;">30 dni</strong> na przywrócenie konta jeśli zmienisz zdanie. Po tym czasie wszystkie dane zostaną trwale usunięte.</p>
 {_btn("Przywróć konto →", f"{APP_URL}/account/restore")}
-<p style="{_MUTE}">Jeśli to nie Ty — skontaktuj się z nami pod adresem kontakt@sharago.pl.</p>"""
+<p style="{_MUTE}">Jeśli to nie Ty — skontaktuj się z nami pod adresem kontakt@sharago.com.</p>"""
     return subject, _wrap_html(subject, body, lang)
 
 

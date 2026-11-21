@@ -1,6 +1,29 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import api from "@/lib/api";
+import { grantAnalyticsConsent, denyAnalyticsConsent } from "@/lib/analytics";
+
+/**
+ * Cookie consent banner — Paczka 2 (GA4 Consent Mode v2).
+ *
+ * The banner now listens to the global `sharago:open-cookie-settings` event
+ * so the footer "Ustawienia cookies" link can reopen it at any time.
+ * Choice sync:
+ *   - "Akceptuję wszystkie" → analytics granted, GA4 starts firing.
+ *   - "Tylko niezbędne"     → analytics denied, `_ga`/`_ga_*` cookies cleared.
+ */
+export const COOKIE_CONSENT_KEY = "sharago_cookie_consent";
+
+export function readCookieConsent() {
+  try {
+    const raw = localStorage.getItem(COOKIE_CONSENT_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch { return null; }
+}
+
+export function openCookieSettings() {
+  window.dispatchEvent(new Event("sharago:open-cookie-settings"));
+}
 
 export default function CookieBanner() {
   const { t } = useTranslation();
@@ -10,15 +33,32 @@ export default function CookieBanner() {
   const [marketing, setMarketing] = useState(false);
 
   useEffect(() => {
-    if (!localStorage.getItem("sharago_cookie_consent")) {
+    // First visit → auto-open after 500ms.
+    if (!localStorage.getItem(COOKIE_CONSENT_KEY)) {
       const t = setTimeout(() => setShow(true), 500);
       return () => clearTimeout(t);
     }
   }, []);
 
+  useEffect(() => {
+    // Listen for "open settings" requests from the footer link.
+    const onOpen = () => {
+      const current = readCookieConsent() || {};
+      setAnalytics(!!current.analytics);
+      setMarketing(!!current.marketing);
+      setShowSettings(true);
+      setShow(true);
+    };
+    window.addEventListener("sharago:open-cookie-settings", onOpen);
+    return () => window.removeEventListener("sharago:open-cookie-settings", onOpen);
+  }, []);
+
   const save = async (analyticsVal, marketingVal) => {
     const choice = { necessary: true, analytics: analyticsVal, marketing: marketingVal };
-    localStorage.setItem("sharago_cookie_consent", JSON.stringify(choice));
+    localStorage.setItem(COOKIE_CONSENT_KEY, JSON.stringify(choice));
+    // Sync with GA4 Consent Mode + clear GA cookies on withdrawal.
+    if (analyticsVal) grantAnalyticsConsent();
+    else denyAnalyticsConsent();
     try {
       await api.post("/notifications/cookie-consent", { ...choice, session_id: localStorage.getItem("sharago_session") || crypto.randomUUID() });
     } catch {}

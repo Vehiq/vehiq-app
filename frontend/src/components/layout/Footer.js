@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
+import { openCookieSettings } from "@/components/CookieBanner";
 
 export default function Footer() {
   const { t, i18n } = useTranslation();
@@ -18,7 +19,10 @@ export default function Footer() {
           <Link to={`/dla-dealerow`} className="text-vehiq-muted hover:text-vehiq-gold" data-testid="footer-for-dealers">{lang === "en" ? "For dealers" : "Dla dealerów"}</Link>
           <Link to={`/legal/privacy-policy`} className="text-vehiq-muted hover:text-vehiq-gold" data-testid="footer-privacy">{t("footer.privacy")}</Link>
           <Link to={`/legal/terms-of-service`} className="text-vehiq-muted hover:text-vehiq-gold" data-testid="footer-terms">{t("footer.terms")}</Link>
-          <Link to={`/legal/cookie-policy`} className="text-vehiq-muted hover:text-vehiq-gold" data-testid="footer-cookies">{t("footer.cookies")}</Link>
+          {/* Paczka 2 — nowe linki */}
+          <Link to={`/legal/regulamin-konkursu`} className="text-vehiq-muted hover:text-vehiq-gold" data-testid="footer-contest-rules">{lang === "en" ? "Contest rules" : "Regulamin konkursu"}</Link>
+          <Link to={`/legal/polityka-cookies`} className="text-vehiq-muted hover:text-vehiq-gold" data-testid="footer-cookie-policy">{lang === "en" ? "Cookie policy" : "Polityka cookies"}</Link>
+          <button type="button" onClick={openCookieSettings} className="text-vehiq-muted hover:text-vehiq-gold" data-testid="footer-cookie-settings">{lang === "en" ? "Cookie settings" : "Ustawienia cookies"}</button>
           <Link to={`/legal/marketplace-terms`} className="text-vehiq-muted hover:text-vehiq-gold" data-testid="footer-mp-terms">{t("footer.marketplace")}</Link>
           <Link to={`/legal/contact`} className="text-vehiq-muted hover:text-vehiq-gold" data-testid="footer-contact">{t("footer.contact")}</Link>
         </nav>

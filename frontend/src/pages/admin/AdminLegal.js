@@ -2,7 +2,17 @@ import { useEffect, useState } from "react";
 import adminApi from "@/lib/adminApi";
 import { toast } from "sonner";
 
-const SLUGS = ["privacy-policy", "terms-of-service", "cookie-policy", "marketplace-terms", "contact"];
+const SLUGS = [
+  "privacy-policy",
+  "terms-of-service",
+  // Paczka 2 — new PL legal pages
+  "regulamin-konkursu",
+  "polityka-cookies",
+  // Legacy still editable
+  "cookie-policy",
+  "marketplace-terms",
+  "contact",
+];
 
 export default function AdminLegal() {
   const [active, setActive] = useState(SLUGS[0]);

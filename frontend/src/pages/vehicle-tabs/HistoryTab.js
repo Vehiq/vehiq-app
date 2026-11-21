@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import api from "@/lib/api";
 import { toast } from "sonner";
+import { trackEvent } from "@/hooks/usePageTracking";
 
 /**
  * HistoryTab (Iter 52a) — flat chronological list of service events.
@@ -235,6 +236,12 @@ function AddEntryForm({ vehicleId, lang, onDone }) {
         cost: form.cost ? Number(form.cost) : null,
         workshop: form.workshop || null,
       });
+      // Paczka 2 — GA4 events (no PII).
+      trackEvent("service_added", { service_type: form.service_type });
+      // Adding a service entry auto-schedules the next reminder for this
+      // service_type (backend `_compute_reminders`), so we fire `reminder_set`
+      // as a derivative event — no manual reminder-creation UI exists today.
+      trackEvent("reminder_set", { type: form.service_type });
       toast.success(lang === "pl" ? "Dodano wpis" : "Entry added");
       onDone();
     } catch (err) {
@@ -283,6 +290,8 @@ function ServiceBookShareModal({ vehicle, onClose }) {
     try {
       const { data } = await api.post(`/vehicles/${vehicle.id}/timeline/share`);
       setStatus(data);
+      // Paczka 2 — GA4 event (no PII).
+      trackEvent("public_link_shared", { action: "generated" });
       toast.success("Link wygenerowany");
     } catch { toast.error("Błąd generowania"); }
     finally { setLoading(false); }
@@ -305,6 +314,8 @@ function ServiceBookShareModal({ vehicle, onClose }) {
       await navigator.clipboard.writeText(url);
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
+      // Paczka 2 — GA4 event (no PII).
+      trackEvent("public_link_shared", { action: "copied" });
       toast.success("Skopiowano");
     } catch { toast.error("Nie udało się skopiować"); }
   };
