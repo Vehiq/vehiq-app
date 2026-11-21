@@ -163,7 +163,7 @@ export default function BulkPhotoUploader({
             <Trans i18nKey="upl.drop" components={{ b: <strong className="text-vehiq-text" /> }} />
           </div>
           <div className="text-[11px]">
-            {photos.length}/{maxPhotos} zdjęć · JPG/PNG do 15 MB
+            {i18n.t("upl.count", { n: photos.length, max: maxPhotos })}
           </div>
         </div>
       </div>

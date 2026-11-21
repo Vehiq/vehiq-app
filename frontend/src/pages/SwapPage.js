@@ -103,7 +103,7 @@ export default function SwapPage() {
       // Remove the card from the deck
       setDeck((d) => (d ? d.slice(1) : d));
     } catch (e) {
-      toast.error(e?.response?.data?.detail?.message || "Błąd");
+      toast.error(e?.response?.data?.detail?.message || i18n.t("swap.error"));
     } finally {
       setBusy(false);
     }
@@ -131,7 +131,7 @@ export default function SwapPage() {
       if (e?.response?.status === 402 && detail?.code === "swap_limit_free") {
         toast.error(i18n.t("swap.limit"));
       } else {
-        toast.error(detail?.message || detail || "Błąd");
+        toast.error(detail?.message || detail || i18n.t("swap.error"));
       }
     } finally {
       setBusy(false);
@@ -197,7 +197,7 @@ export default function SwapPage() {
               <SwapCard card={currentCard} onReact={react} busy={busy} />
               {deck.length > 1 && (
                 <div className="text-center text-xs text-vehiq-muted mt-3">
-                  Zostało jeszcze {deck.length - 1} {deck.length - 1 === 1 ? "auto" : "aut"}
+                  {i18n.t("swap.left", { count: deck.length - 1 })}
                 </div>
               )}
             </div>
@@ -230,7 +230,7 @@ export default function SwapPage() {
                 <div className="flex-1 min-w-0">
                   <div className="font-medium text-vehiq-text">{m.other_vehicle.label}</div>
                   <div className="text-xs text-vehiq-muted">
-                    {m.other_user?.name || "Właściciel"} • Twoje: {m.my_vehicle.label}
+                    {m.other_user?.name || i18n.t("swap.owner")} • {i18n.t("swap.yours")}: {m.my_vehicle.label}
                   </div>
                   <div className="text-[10px] text-vehiq-muted/70 mt-1">
                     Dopasowanie {String(m.matched_at || "").slice(0, 10)}
@@ -294,7 +294,7 @@ export default function SwapPage() {
                 </button>
               </div>
               <div className="text-[11px] text-vehiq-muted">
-                Free: 1 aktywne auto na giełdzie zamian. Premium — bez limitu.
+                {i18n.t("swap.freeNote")}
               </div>
             </div>
           )}
@@ -325,7 +325,7 @@ export default function SwapPage() {
                       <div className="text-xs text-vehiq-muted truncate">Szuka: {l.looking_for.join(", ")}</div>
                     )}
                   </div>
-                  <button onClick={() => removeListing(l.id)} className="text-vehiq-muted hover:text-red-400" data-testid={`swap-mine-delete-${l.id}`} aria-label="Usuń">
+                  <button onClick={() => removeListing(l.id)} className="text-vehiq-muted hover:text-red-400" data-testid={`swap-mine-delete-${l.id}`} aria-label={i18n.t("swap.remove")}>
                     <Trash2 size={16} />
                   </button>
                 </div>
@@ -385,7 +385,7 @@ function SwapCard({ card, onReact, busy }) {
             className="vehiq-btn-secondary inline-flex items-center justify-center gap-2"
             data-testid="swap-pass-btn"
           >
-            <X size={14} /> Innym razem
+            <X size={14} /> {i18n.t("swap.pass")}
           </button>
           <button
             onClick={() => onReact("interested")}
@@ -393,7 +393,7 @@ function SwapCard({ card, onReact, busy }) {
             className="vehiq-btn-primary inline-flex items-center justify-center gap-2"
             data-testid="swap-interested-btn"
           >
-            <Heart size={14} /> Pogadajmy
+            <Heart size={14} /> {i18n.t("swap.talk")}
           </button>
         </div>
       </div>

@@ -28,6 +28,12 @@ logger = logging.getLogger(__name__)
 
 # ---------------- rate limiter ----------------
 
+def client_ip_trusted(request: Request) -> bool:
+    """True when the IP comes from the Cloudflare header (Render prod). Without it (preview,
+    direct origin access) the IP is the shared proxy's, so per-IP locks would be a global DoS."""
+    return bool(request.headers.get("true-client-ip") or request.headers.get("cf-connecting-ip"))
+
+
 def client_ip(request: Request) -> str:
     """Client IP that the client cannot spoof.
 

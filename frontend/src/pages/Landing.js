@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import usePageSeo from "@/hooks/usePageSeo";
+import { openCookieSettings } from "@/components/CookieBanner";
 import { ROUTES } from "@/routes/paths";
 import {
   Home, Wrench, Bot, ShoppingBag, Warehouse, MessageSquare,
@@ -294,6 +295,7 @@ export default function Landing() {
             <Link to="/legal/terms-of-service" className="hover:text-vehiq-text" data-testid="landing-footer-terms">{tx.legalTerm}</Link>
             <Link to="/legal/privacy-policy" className="hover:text-vehiq-text" data-testid="landing-footer-privacy">{tx.legalPriv}</Link>
             <Link to="/legal/cookie-policy" className="hover:text-vehiq-text" data-testid="landing-footer-cookies">{tx.legalCookies}</Link>
+            <button type="button" onClick={openCookieSettings} className="hover:text-vehiq-text" data-testid="landing-footer-cookie-settings">{t("footer.cookieSettings")}</button>
             <Link to="/legal/contact" className="hover:text-vehiq-text" data-testid="landing-footer-contact">{tx.legalCont}</Link>
           </div>
           <div className="flex items-center gap-3 text-vehiq-muted text-xs">

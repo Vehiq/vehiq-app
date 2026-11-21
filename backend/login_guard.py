@@ -8,7 +8,7 @@ from datetime import datetime, timezone, timedelta
 
 from fastapi import HTTPException, Request
 
-from security import client_ip
+from security import client_ip, client_ip_trusted
 
 WINDOW = timedelta(minutes=15)
 RETENTION_SECONDS = 30 * 24 * 3600
@@ -37,7 +37,7 @@ async def assert_not_locked(db, scope: str, login: str, request: Request):
     base = {"scope": scope, "cleared": False, "created_at": {"$gt": since}}
     if login and await db.login_failures.count_documents({**base, "login": _norm(login)}) >= max_login:
         raise HTTPException(status_code=429, detail=LOCK_MESSAGE)
-    if await db.login_failures.count_documents({**base, "ip": client_ip(request)}) >= max_ip:
+    if client_ip_trusted(request) and await db.login_failures.count_documents({**base, "ip": client_ip(request)}) >= max_ip:
         raise HTTPException(status_code=429, detail=LOCK_MESSAGE)
 
 

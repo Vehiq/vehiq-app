@@ -120,7 +120,7 @@ export default function CreateListing() {
               year: v.year || "",
               mileage: v.mileage_current || "",
               title: `${v.make || ""} ${v.model || ""} ${v.year || ""}`.trim(),
-              description: `${v.engine || ""} ${v.fuel || ""}\nPrzebieg: ${v.mileage_current || 0} km`.trim(),
+              description: `${v.engine || ""} ${v.fuel || ""}\n${i18n.t("lst.mileagePrefill")}: ${v.mileage_current || 0} km`.trim(),
               photos: full, // Bug 22: all garage photos pre-selected
             }));
           }).catch(() => { /* silent — form still usable */ });
@@ -159,7 +159,7 @@ export default function CreateListing() {
       year: v.year || "",
       mileage: v.mileage_current || "",
       title: `${v.make || ""} ${v.model || ""} ${v.year || ""}`.trim(),
-      description: `${v.engine || ""} ${v.fuel || ""}\nPrzebieg: ${v.mileage_current || 0} km`.trim(),
+      description: `${v.engine || ""} ${v.fuel || ""}\n${i18n.t("lst.mileagePrefill")}: ${v.mileage_current || 0} km`.trim(),
       photos: seed,
     }));
     setGaragePhotos(seed);
@@ -509,7 +509,7 @@ export default function CreateListing() {
                 <input type="number" min="1900" max="2030" value={form.year} onChange={(e) => setForm({...form, year: e.target.value})} className="vehiq-input" data-testid="listing-year" />
               </div>
               <div>
-                <label className="vehiq-overline mb-2 block">{t("vehicle.mileage")} (km)</label>
+                <label className="vehiq-overline mb-2 block">{t("vehicle.mileage")}</label>
                 <input type="number" min="0" value={form.mileage} onChange={(e) => setForm({...form, mileage: e.target.value})} className="vehiq-input" data-testid="listing-mileage" />
               </div>
               <div>

@@ -235,7 +235,7 @@ async def totp_disable(payload: TotpDisableIn, admin=Depends(get_admin)):
     if not verify_password(payload.password, rec.get("password_hash") or ""):
         raise HTTPException(status_code=400, detail="Current password is incorrect")
     secret = totp_2fa.decrypt_secret(rec["totp_secret_enc"])
-    if not totp_2fa.verify_totp(secret, payload.code):
+    if not totp_2fa.verify_totp(secret, payload.code) and not totp_2fa.match_backup_code(payload.code, rec.get("totp_backup_hashes")):
         raise HTTPException(status_code=400, detail="Invalid code")
     await db.admin_account.update_one(
         {"email": ADMIN_EMAIL},

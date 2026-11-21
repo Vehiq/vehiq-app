@@ -1,0 +1,51 @@
+{
+  "summary": "Paczka 5 tested. Backend security: 7/7 pytest pass (admin per-login lockout incl. leftmost-XFF spoofing, admin IP lockout, user per-login lockout + other email from same IP -> 401, password-reset 3x then 429 with same {ok:true} for unknown and known email, failed-logins log fields with no password/_id, auth required, 2FA status). scripts/test_admin_2fa.py run against the public URL: all steps as expected (setup gives otpauth_uri/qr_png/secret, wrong code 400, 10 backup codes, otp_required, invalid_otp, TOTP 200, backup code works once then 401, disable ok). 2FA is DISABLED at the end (checked in DB). Admin UI: the Security page shows admin-2fa-card with status Disabled, the 'Set up 2FA' button shows a QR (530px PNG), and the admin-failed-logins table is visible. Enabling was not confirmed in the UI. EN: register consent text is exact with both links at 1920 and 390; cookie banner EN text, Cookie Policy link and the 'Accept all'/'Essential only' buttons are correct; login shows 'Run a workshop? Register your business →'; Profile language options are 'PL — Polski'/'EN — English'; marketplace/new labels for rental, parts and service are English; blog shows 'Tips, stories and news'; the /zamiany header is in English. PL: register text 'Akceptuję Regulamin i Politykę Prywatności', landing H1 and cookie banner are unchanged. Legal page at 390: no horizontal overflow, date in en-GB format ('26 January 2025'). The current privacy content has no tables or ol, so table styles could not be checked visually; the CSS is present. Regression: no console errors on garage, marketplace, forum, blog or swaps in EN, and none on the landing page in PL/EN. Vehicle profile was not opened.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "security.client_ip (preview env)", "issue": "In this preview env the ingress adds the shared GCP load-balancer IP 34.111.104.211 as the rightmost X-Forwarded-For entry, and no CF-Connecting-IP header reaches the backend. So every client that does not send True-Client-IP gets the same IP. My spoof test (5 bad admin logins) put an IP lock on 34.111.104.211, which then blocked the real admin login in the browser with 429 until I deleted my rows. On Render with Cloudflare this is fine. But if those headers are ever missing (direct *.onrender.com access or a misconfigured proxy), the admin IP lock becomes a global DoS, and an attacker who reaches the origin directly can forge True-Client-IP to get past the IP limit (the per-login limit still holds). Suggestion: only trust True-Client-IP/CF-Connecting-IP when the request comes from a Cloudflare IP range, or log a warning when they are missing."},
+      {"endpoint": "/api/auth/login", "issue": "slowapi '5/minute' per IP is checked before the guard's per-IP limit of 20, so a different email from the same IP within the same minute gets 429 (from slowapi), not 401. After about 60s, other emails get 401 as specified. This is expected layering; the test now waits 62s."},
+      {"endpoint": "/api/admin/2fa/disable", "issue": "Disabling needs password + TOTP only; a backup code is not accepted. If the admin loses the phone, they cannot disable 2FA from the UI (they can still log in with a backup code)."},
+      {"endpoint": "/api/admin/2fa/setup", "issue": "Opening the UI setup leaves totp_pending_enc in admin_account until the next setup. Harmless."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "LangSync (App.js:139-146)", "issue": "For a logged-in user, the header LanguageSwitcher choice is overridden by user.language whenever the user object refreshes. With profile language=pl, switching to EN in the header went back to PL after navigating. Only changing the language in Profile works. The switcher should also save to PUT /auth/me, or LangSync should not override an explicit choice.", "selector": "[data-testid=lang-option-en]", "priority": "MEDIUM"},
+      {"component": "CreateListing", "issue": "Mileage label shows the unit twice: 'MILEAGE (KM) (KM)' / 'PRZEBIEG (KM) (KM)' (car, rental and full_parts types)", "selector": "/marketplace/new", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "EN leftovers (hard-coded PL)", "issues": [
+        "Photo uploader hint '0/10 zdjęć · JPG/PNG do 15 MB' on /marketplace/new in EN",
+        "SwapPage swipe card: buttons 'Innym razem' and 'Pogadajmy', 'Zostało jeszcze N aut', 'Właściciel • Twoje:', 'Free: 1 aktywne auto na giełdzie zamian...', toast 'Błąd', aria-label 'Usuń' (SwapPage.js lines 106,134,200,233,297,328 and the swipe buttons)",
+        "Forum model filter placeholder 'np. M3, A4...' in EN",
+        "CreateListing prefilled description from a garage vehicle uses hard-coded 'Przebieg:' (CreateListing.js:123,162)",
+        "AdminContent.js textarea placeholders still have flag emoji (🇵🇱/🇬🇧). Not in scope, but inconsistent with the no-flag change."
+      ]},
+      {"screen": "Landing footer", "issues": ["The landing page uses its own footer without the 'Cookie settings' button. footer-cookie-settings exists only in Layout/LegalPage footers, so logged-out visitors on the home page cannot reopen cookie settings."]},
+      {"screen": "PL cookie banner", "issues": ["PL message has no Cookie Policy link, while EN has one. Left as is because PL was meant to stay unchanged; consider adding the link for parity."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_iter55_paczka5_security.py", "/app/test_reports/pytest/iter55.xml", "/app/scripts/test_admin_2fa.py"],
+  "action_items": [
+    "Fix LangSync overriding the header language switcher for logged-in users (save the choice to the profile or stop overriding)",
+    "Translate the remaining hard-coded PL strings: SwapPage swipe card/buttons/limits, photo uploader hint, forum model placeholder, CreateListing 'Przebieg:' prefill",
+    "Remove the duplicated '(KM)' in the CreateListing mileage label",
+    "Add a 'Cookie settings' button to the Landing page footer",
+    "Optional: harden client_ip so CF headers are trusted only from Cloudflare ranges, and warn when they are missing (shared-IP lockout risk)"
+  ],
+  "critical_code_review_comments": [
+    "login_guard.clear_failures clears only per-login rows, so IP-scoped failures from other logins stay until the 15-min window passes. This is intended.",
+    "Admin per-IP limit (5) equals the per-login limit (5): one NAT/office IP with several wrong attempts locks every admin login from that IP. This is acceptable for a single admin account.",
+    "TOTP replay protection covers only the last code within 90s. Fine with valid_window=1.",
+    "routers/admin.py is about 1038 lines; consider splitting out the auth/2fa routes."
+  ],
+  "updated_files": ["/app/backend/tests/test_iter55_paczka5_security.py"],
+  "success_rate": {"backend": "100%", "frontend": "85%"},
+  "seed_data_creation": "No seed data. Deleted my login_failures rows by login prefix (attacker-*, test_att*, test_unknown-*, other-*) and IP 10.20.30.40. The smoke user's language was set to en for testing and then reverted to pl. Admin 2FA is disabled.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Use True-Client-IP with random IPs for brute-force tests. Without it, all clients share the LB IP 34.111.104.211 and you can lock out the real admin. Cloudflare in front of the preview rate-limits the Vite dev module requests (429 / 'Verify you are human') after several full page loads: navigate with history.pushState and sleep ~90s between heavy scripts. The smoke user has profile language=pl, which overrides the header switcher; set language via PUT /api/auth/me for EN tests and revert after. The admin account still has first_login=true, so UI login goes to /gv91-admin/change-password; open /gv91-admin/security directly after login.",
+  "test_credentials": "Admin kontakt@sharago.com / VehiqAdmin2026!; user smoke-test-vehiq@example.com / SmokePass123!"
+}

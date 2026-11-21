@@ -68,7 +68,7 @@ export default function Forum() {
         </div>
         <div>
           <label className="vehiq-overline mb-1 block">{t("forum.filterModel")}</label>
-          <input value={model} onChange={(e) => setModel(e.target.value)} placeholder="np. M3, A4..." className="vehiq-input" data-testid="forum-model" disabled={!make && !model} />
+          <input value={model} onChange={(e) => setModel(e.target.value)} placeholder={t("ui.egModels")} className="vehiq-input" data-testid="forum-model" disabled={!make && !model} />
         </div>
         <div className="flex items-end gap-2">
           <button type="submit" className="vehiq-btn-primary inline-flex items-center gap-2 h-10" data-testid="forum-search"><Search size={14}/> {t("common.search")}</button>

@@ -1,13 +1,19 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronDown } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
 
 export default function LanguageSwitcher() {
   const { i18n } = useTranslation();
   const [open, setOpen] = useState(false);
   const current = i18n.language?.startsWith("en") ? "en" : "pl";
+  const { user, updateProfile } = useAuth();
   const change = (lng) => {
     i18n.changeLanguage(lng);
+    // Logged in: persist so LangSync (user.language) doesn't revert the choice.
+    if (user && user.language !== lng) {
+      updateProfile({ language: lng }).catch(() => {});
+    }
     localStorage.setItem("sharago_lang", lng);
     setOpen(false);
   };

@@ -29,8 +29,8 @@ export default function AdminContent() {
           <div key={key} className="bg-[#162035] border border-[#1E2A42] rounded p-4 space-y-2">
             <div className="text-xs uppercase tracking-widest text-[#2B7FE8]">{key}</div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <textarea value={content[key].value_pl} onChange={(e) => setContent({...content, [key]: {...content[key], value_pl: e.target.value}})} className="w-full bg-[#0A1220] border border-[#1E2A42] rounded px-3 py-2 text-sm" rows={3} placeholder="🇵🇱 Polish" />
-              <textarea value={content[key].value_en} onChange={(e) => setContent({...content, [key]: {...content[key], value_en: e.target.value}})} className="w-full bg-[#0A1220] border border-[#1E2A42] rounded px-3 py-2 text-sm" rows={3} placeholder="🇬🇧 English" />
+              <textarea value={content[key].value_pl} onChange={(e) => setContent({...content, [key]: {...content[key], value_pl: e.target.value}})} className="w-full bg-[#0A1220] border border-[#1E2A42] rounded px-3 py-2 text-sm" rows={3} placeholder="PL: Polish" />
+              <textarea value={content[key].value_en} onChange={(e) => setContent({...content, [key]: {...content[key], value_en: e.target.value}})} className="w-full bg-[#0A1220] border border-[#1E2A42] rounded px-3 py-2 text-sm" rows={3} placeholder="EN: English" />
             </div>
             <button onClick={() => save(key)} className="bg-[#2B7FE8] text-[#0D1626] px-3 py-1 rounded text-xs">Save</button>
           </div>

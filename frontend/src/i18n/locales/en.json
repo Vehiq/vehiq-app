@@ -848,7 +848,8 @@
     "loginBusinessQ": "Run a workshop?",
     "loginBusinessLink": "Register your business →",
     "rentDay": "Day",
-    "googleSignedIn": "Signed in with Google"
+    "googleSignedIn": "Signed in with Google",
+    "egModels": "e.g. M3, A4..."
   },
   "lst": {
     "partDetails": "Part details",
@@ -934,7 +935,8 @@
     "egCoverage": "e.g. Warsaw or \"nationwide\"",
     "limitService": "On the free plan you can have <b>1 active service listing</b>. We'll lift this limit soon.",
     "limitRental": "On the free plan you can have <b>1 active rental listing</b>. We'll lift this limit soon.",
-    "type": "Type"
+    "type": "Type",
+    "mileagePrefill": "Mileage"
   },
   "swap": {
     "listFirst": "List your car for a swap first",
@@ -961,7 +963,15 @@
     "noOffersDesc": "List your car to improve your chances of a match.",
     "seeks": "Looking for in return",
     "matched": "You've found a swap partner! 🚗↔🚗",
-    "matches": "Matches"
+    "matches": "Matches",
+    "left_one": "{{count}} car left",
+    "left_other": "{{count}} cars left",
+    "owner": "Owner",
+    "yours": "Yours",
+    "freeNote": "Free: 1 active car in swaps. Premium — no limit.",
+    "remove": "Remove",
+    "pass": "Maybe later",
+    "talk": "Let's talk"
   },
   "photoLimit": {
     "badEmail": "Enter a valid email address",
@@ -977,7 +987,8 @@
   "upl": {
     "processError": "Couldn't process the photo",
     "remove": "Remove photo",
-    "drop": "<b>Drag photos here</b> or click to choose"
+    "drop": "<b>Drag photos here</b> or click to choose",
+    "count": "{{n}}/{{max}} photos · JPG/PNG up to 15 MB"
   },
   "qr": {
     "close": "Close",
