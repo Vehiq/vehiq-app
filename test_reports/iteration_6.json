@@ -1,0 +1,38 @@
+{
+  "summary": "VEHIQ Iter6 testing complete. Backend: 20/20 tests PASS in test_iter6.py covering BUG1 password-reset request/confirm, BUG2 admin /test-email JSON shape + auth, BUG3 marketplace messages send/threads/history/mark-read/cannot-self, BUG4 km_driven formula via /vehicles/stats (per_vehicle 15000 active + 45000 archived = 60000 total) and /analytics/me total_km, CHANGE1 max_photos_per_vehicle=6, CHANGE2 forum make+model filters, CHANGE3 /vehicles/search with searchable+profile_visible privacy filtering and owner enrichment. Frontend: /password-reset and /password-reset/confirm pages render correctly (Reset your password / New password). /users/search page renders with us-make/us-model/us-year-from/us-year-to/us-search/us-clear and returns 1 Porsche result. /forum filters update URL params (?make=BMW&model=M3). /garage/new VehicleForm shows vf-mileage-at-purchase. Sidebar has 'Szukaj' nav linking to /users/search. SMTP logging confirmed in backend logs ('SMTP send →' and 'SMTP OK →' lines) for register welcome + password reset + test-email + new-message templates via Brevo.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter6.py",
+    "/app/test_reports/pytest/iter6_results.xml",
+    "/app/test_reports/pytest/iter6_msg.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "/api/auth/password-reset/confirm correctly rejects regular login JWT tokens (type=user) with 400 'Invalid token' — only accepts type=password_reset tokens.",
+    "/api/admin/test-email now returns deterministic JSON {success, error, to} (200) — never 502; admin auth required (401 without token). Verified via logs: SMTP send → and SMTP OK → captured.",
+    "/api/vehicles/stats correctly applies _km_driven formula: archived uses mileage_at_sale, else mileage_current; both minus mileage_at_purchase. Returns total_km_driven + active_count + archived_count + per_vehicle array.",
+    "/api/vehicles/search privacy filter is correct: searchable!=False AND (privacy.profile_visible!=False OR privacy missing). Owner enrichment via $in lookup is index-friendly.",
+    "Forum threads make/model filter handles BOTH linked vehicle (vehicle_id→vehicles.make/model) and free-text vehicle_label via $or — good defense-in-depth.",
+    "Marketplace messages /threads aggregation pipeline is correct: groups by (listing_id, other_user) with last_message + unread count via $cond. /messages/{listing}/{other} fetches history AND marks own messages as read in single roundtrip.",
+    "VehicleForm: vf-mileage-at-sale is conditionally rendered only when status=archived (intentional). vf-mileage-at-purchase always visible.",
+    "Note: /api/profile is not the right endpoint for onboarded toggle — use PUT /api/auth/me. Documented in /app/memory/test_credentials.md would help future agents.",
+    "FirstUseTooltips overlay can intercept clicks on first navigation to pages — Playwright tests should use force=True or dismiss tooltips first. Not a bug but a testing consideration."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter6.py (NEW — 20 tests across 7 test classes)",
+    "/app/test_reports/pytest/iter6_results.xml (NEW)",
+    "/app/test_reports/iteration_6.json (NEW)"
+  ],
+  "success_rate": {"backend": "100% (20/20)", "frontend": "100% (all critical flows verified)"},
+  "test_credentials": "Admin: kontakt@vehiq.pl / VehiqAdmin2026#Temp! (works). Test users created with TEST_iter6{a,b}_<hex>@example.com / TestPass1234!.",
+  "seed_data_creation": "TEST_iter6 users/vehicles/listings/forum thread created with TEST_ prefix and UUID isolation — safe to leave; no production data touched.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "All iter6 spec items verified. Key endpoints: /api/auth/password-reset/{request,confirm}; /api/admin/test-email returns JSON; /api/marketplace/messages, /messages/threads, /messages/{listing_id}/{other_id}; /api/vehicles/stats (NEW), /api/vehicles/search (NEW); /api/vehicles/{id}/mark-sold accepts mileage_at_sale; /api/forum/threads?make=&model=. Frontend testids: forum-make/model/search/clear, user-search-page, us-make/model/year-from/year-to/search/clear, us-result-{id}, vf-mileage-at-purchase (always), vf-mileage-at-sale (only when status=archived), privacy-toggle-searchable (in OverviewTab), contact-send (in ListingDetail). Sidebar 'Szukaj' → /users/search. Auth localStorage key: vehiq_token. New-user redirect to /onboarding — bypass with PUT /api/auth/me {onboarded:true}. Marketplace listings require 'type' field (e.g. 'car') in POST.",
+  "rca of the issue": "No issues found. All 20 backend tests pass and all 7 frontend areas verified end-to-end."
+}

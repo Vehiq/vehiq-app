@@ -1,0 +1,42 @@
+{
+  "summary": "VEHIQ Iter7 Phase B testing complete. BACKEND: 68/68 PASS (31 NEW iter7b + 37 iter7 Phase A regression). New tests cover: photo upload R2 503-when-not-configured semantics for both services & events (R2 not configured in env, returns 503 as expected; non-owner gets 403; unknown service id returns 404); service reviews lifecycle including UPSERT (same user re-rates updates not duplicates), recommended threshold logic (count>=3 AND avg>=4.5), and dropping recommended back to false when 4th rating drags avg<4.5; my-review returns {} when none and returns doc with rating after post; cross-user delete forbidden + own delete recomputes aggregates; event comments CRUD with pagination (items/total/page/limit), validation (1-2000 chars enforced via 422), own-edit OK, cross-user PUT/DELETE 403, owner DELETE OK; AI suggested_services keyword detection with seeded BMW detailing service in Warszawa successfully matched via PL prompt 'Mam BMW w Warszawie potrzebuję polerowanie lakieru' returning seeded service in suggested_services list (also verified empty list when no intent+city detected). Phase A regression all 37 tests still PASS. FRONTEND smoke: /services list page has data-testid services-view-list + services-view-map toggle buttons (Lista/Mapa) rendering correctly, services list shows 5.0 rating + (1) count for FazaB Test Warsztat. /services/:slug renders review section with all 5 stars data-testid review-star-1..5 + map-view container. /events/:slug renders comments section + comment input + map-view container. Event 'Zlot BMW Warszawa' displays correctly. Polish-first i18n verified across pages.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "Services list page Map view", "issue": "After clicking [data-testid=\"services-view-map\"] toggle, [data-testid=\"map-view\"] container was not detected within 2s in headless. Map view container DID render correctly on /services/:slug and /events/:slug detail pages so MapView component itself is fine — likely the toggle on the list page either renders the testid lazily after Leaflet asset load or uses a different wrapper. Re-check with longer wait or by inspecting the toggled DOM.", "selector": "[data-testid=\"services-view-map\"] -> [data-testid=\"map-view\"]", "priority": "MEDIUM"},
+      {"component": "Search page toggles", "issue": "On /search?category=services, [data-testid=\"services-view-list\"] and [data-testid=\"services-view-map\"] were NOT detected even though spec says toggles should appear when category in (all,services,events). May be a missing render branch in /pages/Search.js for the category=services pre-filter URL state.", "selector": "[data-testid=\"services-view-list\"], [data-testid=\"services-view-map\"]", "priority": "MEDIUM"}
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter7b.py",
+    "/app/backend/tests/test_iter7.py",
+    "/app/test_reports/pytest/iter7b_results.xml"
+  ],
+  "action_items": [
+    "Verify /services list page MapView renders [data-testid=\"map-view\"] after toggle click (may need to wait for leaflet tiles or check if conditional render hides it). Detail pages render it fine — only the list page toggle shows the gap.",
+    "Add [data-testid=\"services-view-list\"] / services-view-map (and events equivalents) to /pages/Search.js when category in (all, services, events) — currently not rendered on /search?category=services."
+  ],
+  "critical_code_review_comments": [
+    "routers/services.py upload_service_photos: order of checks is good (404 for missing service before 503 storage check; 403 owner check; 400 max-files; size+format; per-file failures captured). MAX_PHOTOS_PER_SERVICE=5 enforced via len(existing)+len(files) which is correct.",
+    "routers/services.py _recompute_rating uses round(...,2) and recommended=count>=3 AND avg>=4.5 — matches spec exactly. Aggregates persisted on service doc atomically.",
+    "routers/services.py add_review UPSERT logic: existing-doc check is correct — keeps id stable on re-rate. user_name/user_avatar populated only on first insert; if user later changes name, review still shows old name. Minor enhancement: refresh user_name on update path too.",
+    "routers/events.py CommentIn validation Field(min_length=1, max_length=2000) returns 422 — matches spec.",
+    "routers/ai_mechanic.py _detect_intent_and_city: brand handling has dead code path — `if brand and brand.lower() not in t: brand = vehicle.get('make')` is a no-op (brand is already vehicle make). Logic still works (brand is always passed to _suggest_services as vehicle's make, used as preference filter).",
+    "routers/ai_mechanic.py _suggest_services: when brand-prefer query returns no rows, falls back to non-brand query — good. Returns [] only when neither intent nor city detected — matches spec.",
+    "Frontend MapView verification: detail pages (/services/:slug, /events/:slug) render [data-testid=\"map-view\"] correctly. Investigate why list page conditional render may skip it."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter7b.py (NEW — 31 tests)",
+    "/app/test_reports/pytest/iter7b_results.xml (NEW)",
+    "/app/test_reports/iteration_8.json (NEW)"
+  ],
+  "success_rate": {"backend": "100% (68/68 — 31 iter7b + 37 iter7)", "frontend": "~85% (detail pages OK; /services list-page map toggle + /search toggles need verification)"},
+  "test_credentials": "Admin: kontakt@vehiq.pl / VehiqAdmin2026#Temp!. Test users TEST_iter7b_<role>_<hex>@example.com / TestPass1234!.",
+  "seed_data_creation": "All TEST_iter7b_<hex>-prefixed: 6 test users (owner/rev1-4/commenter), 1 workshop service (deleted in fixture teardown), 1 BMW detailing service for AI suggestion test (deleted), 1 meet event (deleted), 1 BMW vehicle. UI smoke also created TEST_iter7b_uismoke_<hex> user. R2 NOT configured in env — verified 503 path is well-formed.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Phase B endpoints all verified at API level: POST/DELETE /api/services/{id}/photos (503 expected — R2 unconfigured), POST/DELETE /api/events/{id}/photos, GET/POST/DELETE /api/services/{id}/reviews + /my-review, GET/POST/PUT/DELETE /api/events/{id}/comments, POST /api/ai/ask (returns suggested_services). Recommended threshold logic verified: 3rd 5-star sets recommended=true; 4th 1-star drops avg to 4.0 -> recommended back to false. AI keyword detection works for PL inputs: 'BMW w Warszawie polerowanie lakieru' -> matches a Warszawa detailing service with brands=['BMW']. Frontend gaps to retest after main-agent fix: /services list MapView container, /search toggles for services/events categories. R2 storage NEVER configured in current env — actual upload path was not exercised; if main agent enables R2 later, re-run tests to confirm uploaded[] payload shape with id/url/thumb_url/is_main fields.",
+  "rca of the issue": "Two minor frontend gaps. (1) Services list page Map toggle: clicking [data-testid=\"services-view-map\"] did not produce the [data-testid=\"map-view\"] selector within 2s. Likely either (a) MapView only mounts when service array is non-empty AND conditional render uses a different wrapper, or (b) async leaflet css/js load delays the testid. Suggest verifying /pages/Services.js renders <MapView data-testid=\"map-view\"> always when mapView=true. (2) /search page Map/List toggle: spec says toggles render when category in (all,services,events) — verify Search.js renderToggle() branch covers ?category=services URL initial state."
+}

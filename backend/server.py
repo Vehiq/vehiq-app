@@ -1,0 +1,612 @@
+"""Sharago Backend - FastAPI application"""
+from fastapi import FastAPI, APIRouter, HTTPException, Depends, Request, UploadFile, File, Header
+from fastapi.responses import JSONResponse, Response
+from xml.sax.saxutils import escape as xml_escape
+from dotenv import load_dotenv
+from starlette.middleware.cors import CORSMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware
+from motor.motor_asyncio import AsyncIOMotorClient
+import os
+import logging
+import certifi
+from pathlib import Path
+from datetime import datetime, timezone, timedelta
+from typing import Optional, List
+import uuid
+import asyncio
+
+ROOT_DIR = Path(__file__).parent
+load_dotenv(ROOT_DIR / '.env')
+
+# ---- Logging (must be configured before anything else logs) ----
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
+
+# ---- App version ----
+APP_VERSION = os.environ.get("APP_VERSION", "1.0.0")
+
+# ---- MongoDB connection (graceful) ----
+# Accept either MONGO_URL (legacy) or MONGO_URI (Render-style). REQUIRED.
+mongo_url = os.environ.get("MONGO_URL") or os.environ.get("MONGO_URI")
+db_name = os.environ.get("DB_NAME") or os.environ.get("MONGO_DB", "vehiq_database")
+if not mongo_url:
+    raise RuntimeError(
+        "MONGO_URL (or MONGO_URI) environment variable is required. "
+        "Set it in your Render Environment Variables."
+    )
+
+_client_kwargs = dict(
+    maxPoolSize=int(os.environ.get("MONGO_MAX_POOL_SIZE", 10)),
+    serverSelectionTimeoutMS=int(os.environ.get("MONGO_SERVER_SELECTION_TIMEOUT_MS", 5000)),
+    connectTimeoutMS=int(os.environ.get("MONGO_CONNECT_TIMEOUT_MS", 10000)),
+)
+if mongo_url.startswith("mongodb+srv://") or "mongodb.net" in mongo_url:
+    _client_kwargs["tlsCAFile"] = certifi.where()
+
+try:
+    client = AsyncIOMotorClient(mongo_url, **_client_kwargs)
+    db = client[db_name]
+    logger.info(f"MongoDB client initialized → db={db_name}, pool={_client_kwargs['maxPoolSize']}")
+except Exception as e:
+    logger.error(f"MongoDB client init failed: {e}. Backend will start but DB-backed endpoints will fail.")
+    client = None
+    db = None
+
+# Make db available
+from db_helper import set_db
+set_db(db)
+
+# ---- SECRET_KEY warning for production ----
+_jwt_secret_env = os.environ.get("SECRET_KEY") or os.environ.get("JWT_SECRET")
+if not _jwt_secret_env:
+    # Generate a stable random secret for this process so JWTs work in single-instance deploys.
+    # WARNING: this rotates on every restart — sessions WILL invalidate. Set SECRET_KEY explicitly in prod.
+    os.environ["SECRET_KEY"] = uuid.uuid4().hex + uuid.uuid4().hex
+    logger.warning(
+        "SECRET_KEY (JWT_SECRET) is not set! Using a random per-process secret — JWTs will be invalidated on restart. "
+        "Set SECRET_KEY in your Render env vars for stable sessions."
+    )
+
+# Routers
+from routers import auth as auth_router
+from routers import vehicles as vehicles_router
+from routers import service as service_router
+from routers import mileage as mileage_router
+from routers import reminders as reminders_router
+from routers import marketplace as marketplace_router
+from routers import forum as forum_router
+from routers import ai_mechanic as ai_router
+from routers import legal as legal_router
+from routers import cms as cms_router
+from routers import admin as admin_router
+from routers import analytics as analytics_router
+from routers import notifications as notifications_router
+from routers import dashboard as dashboard_router
+from routers import users as users_router
+from routers import services as services_router
+from routers import events as events_router
+from routers import search as search_router
+from routers import public_share as public_share_router
+from routers import blog as blog_router
+from routers import swaps as swaps_router
+from routers import referral as referral_router
+from routers import gdpr as gdpr_router
+from routers import admin_security as admin_security_router
+from routers import timeline as timeline_router
+# Iter 53: Stripe payments + B2B + waitlist
+from routers import payments as payments_router
+from routers import business as business_router
+from routers import waitlist as waitlist_router
+from routers import demo as demo_router
+from seed import seed_database
+
+app = FastAPI(title="Sharago API", version=APP_VERSION)
+
+api_router = APIRouter(prefix="/api")
+
+
+# Visit tracking middleware
+class VisitTrackingMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        path = request.url.path
+        # Track only non-API, non-static visits hitting backend
+        if db is not None and not path.startswith("/api") and not path.startswith("/static"):
+            try:
+                ua = request.headers.get("user-agent", "")
+                device = "mobile" if any(s in ua.lower() for s in ["mobile", "iphone", "android"]) else "desktop"
+                country = request.headers.get("cf-ipcountry") or request.headers.get("x-country") or "unknown"
+                doc = {
+                    "id": str(uuid.uuid4()),
+                    "page_path": path,
+                    "visited_at": datetime.now(timezone.utc).isoformat(),
+                    "user_id": None,
+                    "session_id": request.headers.get("x-session-id", str(uuid.uuid4())),
+                    "country": country,
+                    "device": device,
+                }
+                asyncio.create_task(db.page_views.insert_one(doc))
+            except Exception:
+                pass
+        return await call_next(request)
+
+
+@api_router.get("/")
+async def root():
+    return {"message": "Sharago API is running", "version": APP_VERSION}
+
+@api_router.api_route("/health", methods=["GET", "HEAD"])
+async def health():
+    """Liveness probe — GET + HEAD. Does NOT depend on MongoDB.
+
+    Render uses this for health checks and UptimeRobot's free tier only
+    supports HEAD requests. Without HEAD support the monitor reported the
+    service as Down even when it was healthy, so Render's cold-start delay
+    kicked in on every real user's first request.
+    """
+    return {"status": "ok", "version": APP_VERSION, "time": datetime.now(timezone.utc).isoformat()}
+
+@api_router.api_route("/health/ready", methods=["GET", "HEAD"])
+async def health_ready():
+    """Readiness probe — GET + HEAD. Verifies DB connectivity."""
+    if db is None:
+        return JSONResponse(status_code=503, content={"status": "no_db", "version": APP_VERSION})
+    try:
+        await client.admin.command("ping")
+        return {"status": "ready", "version": APP_VERSION}
+    except Exception as e:
+        return JSONResponse(status_code=503, content={"status": "db_unreachable", "error": str(e)[:200], "version": APP_VERSION})
+
+@api_router.post("/track")
+async def track_visit(payload: dict):
+    """Frontend calls this to track page visits."""
+    if db is None:
+        return {"ok": False, "reason": "db_unavailable"}
+    doc = {
+        "id": str(uuid.uuid4()),
+        "page_path": payload.get("path", "/"),
+        "visited_at": datetime.now(timezone.utc).isoformat(),
+        "user_id": payload.get("user_id"),
+        "session_id": payload.get("session_id", str(uuid.uuid4())),
+        "country": payload.get("country", "unknown"),
+        "device": payload.get("device", "desktop"),
+    }
+    await db.page_views.insert_one(doc)
+    return {"ok": True}
+
+
+# ---- Sitemap (Iter 36) ----
+# Dynamic sitemap.xml aggregating published blog posts, public vehicle slugs,
+# and core static routes. Boosts Google indexing of the new landing page +
+# user-generated content. Cached at the edge for 10 minutes.
+SITEMAP_BASE_URL = os.environ.get("SITEMAP_BASE_URL", "https://sharago.pl").rstrip("/")
+SITEMAP_STATIC_ROUTES = [
+    ("/",            "daily",   "1.0"),
+    ("/wynajem",     "daily",   "0.9"),
+    ("/marketplace", "daily",   "0.9"),
+    ("/forum",       "daily",   "0.7"),
+    ("/blog",        "daily",   "0.8"),
+    ("/login",       "monthly", "0.3"),
+    ("/register",    "monthly", "0.4"),
+]
+
+
+def _w3c_date(value) -> str:
+    """Coerce ISO/datetime to W3C date format (YYYY-MM-DD) for sitemaps."""
+    if not value:
+        return datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    if isinstance(value, datetime):
+        return value.strftime("%Y-%m-%d")
+    s = str(value)
+    # take first 10 chars of an ISO 8601 string ("2026-02-15T...")
+    return s[:10] if len(s) >= 10 else datetime.now(timezone.utc).strftime("%Y-%m-%d")
+
+
+@api_router.get("/sitemap.xml")
+async def sitemap_xml():
+    """Aggregate sitemap of static routes, published blog posts and public vehicles."""
+    now_w3c = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    urls: List[str] = []
+
+    # ---- Static routes ----
+    for path, changefreq, priority in SITEMAP_STATIC_ROUTES:
+        urls.append(
+            f"  <url>\n"
+            f"    <loc>{xml_escape(SITEMAP_BASE_URL + path)}</loc>\n"
+            f"    <lastmod>{now_w3c}</lastmod>\n"
+            f"    <changefreq>{changefreq}</changefreq>\n"
+            f"    <priority>{priority}</priority>\n"
+            f"  </url>"
+        )
+
+    if db is not None:
+        # ---- Published blog posts ----
+        try:
+            async for p in db.blog_posts.find(
+                {"published": True},
+                {"_id": 0, "slug": 1, "published_at": 1, "updated_at": 1},
+            ).sort("published_at", -1).limit(2000):
+                slug = p.get("slug")
+                if not slug:
+                    continue
+                lastmod = _w3c_date(p.get("updated_at") or p.get("published_at"))
+                urls.append(
+                    f"  <url>\n"
+                    f"    <loc>{xml_escape(f'{SITEMAP_BASE_URL}/blog/{slug}')}</loc>\n"
+                    f"    <lastmod>{lastmod}</lastmod>\n"
+                    f"    <changefreq>weekly</changefreq>\n"
+                    f"    <priority>0.7</priority>\n"
+                    f"  </url>"
+                )
+        except Exception as e:
+            logger.warning(f"sitemap: blog_posts query failed: {e}")
+
+        # ---- Public vehicles ----
+        try:
+            async for v in db.vehicles.find(
+                {"public": True, "slug": {"$exists": True, "$nin": [None, ""]}},
+                {"_id": 0, "slug": 1, "updated_at": 1, "created_at": 1},
+            ).sort("updated_at", -1).limit(5000):
+                slug = v.get("slug")
+                if not slug:
+                    continue
+                lastmod = _w3c_date(v.get("updated_at") or v.get("created_at"))
+                urls.append(
+                    f"  <url>\n"
+                    f"    <loc>{xml_escape(f'{SITEMAP_BASE_URL}/vehicles/{slug}')}</loc>\n"
+                    f"    <lastmod>{lastmod}</lastmod>\n"
+                    f"    <changefreq>weekly</changefreq>\n"
+                    f"    <priority>0.6</priority>\n"
+                    f"  </url>"
+                )
+        except Exception as e:
+            logger.warning(f"sitemap: vehicles query failed: {e}")
+
+    body = (
+        '<?xml version="1.0" encoding="UTF-8"?>\n'
+        '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
+        + "\n".join(urls)
+        + "\n</urlset>\n"
+    )
+    return Response(
+        content=body,
+        media_type="application/xml; charset=utf-8",
+        headers={"Cache-Control": "public, max-age=600"},
+    )
+
+
+# Include all routers
+api_router.include_router(auth_router.router)
+api_router.include_router(demo_router.router)
+api_router.include_router(vehicles_router.router)
+api_router.include_router(service_router.router)
+api_router.include_router(mileage_router.router)
+api_router.include_router(reminders_router.router)
+api_router.include_router(marketplace_router.router)
+api_router.include_router(forum_router.router)
+api_router.include_router(ai_router.router)
+api_router.include_router(legal_router.router)
+api_router.include_router(cms_router.router)
+api_router.include_router(admin_router.router)
+api_router.include_router(analytics_router.router)
+api_router.include_router(notifications_router.router)
+api_router.include_router(dashboard_router.router)
+api_router.include_router(users_router.router)
+api_router.include_router(services_router.router)
+api_router.include_router(events_router.router)
+api_router.include_router(search_router.router)
+api_router.include_router(public_share_router.router)
+api_router.include_router(blog_router.public_router)
+api_router.include_router(blog_router.admin_router)
+api_router.include_router(swaps_router.router)
+api_router.include_router(referral_router.router)
+api_router.include_router(referral_router.community_router)
+api_router.include_router(referral_router.admin_referral_router)
+api_router.include_router(gdpr_router.router)
+api_router.include_router(admin_security_router.router)
+api_router.include_router(admin_security_router.health_router)
+api_router.include_router(timeline_router.router)
+# Iter 53: Stripe + B2B + waitlist
+api_router.include_router(payments_router.router)
+api_router.include_router(business_router.router)
+api_router.include_router(waitlist_router.router)
+
+app.include_router(api_router)
+
+# ---- CORS configuration (production-ready) ----
+# Iter 28: sharago.pl is the sole production domain. vehiq.pl removed —
+# it lives only as a 301 redirect at the Vercel layer for legacy URLs.
+# Override at runtime via `CORS_ORIGINS=...` (comma-separated or `*`).
+DEFAULT_ALLOWED_ORIGINS = [
+    "https://sharago.pl",
+    "https://www.sharago.pl",
+    "https://sharago.com",
+    "https://www.sharago.com",
+    "http://localhost:3000",
+    "http://localhost:5173",  # Vite dev (in case)
+]
+DEFAULT_ALLOWED_ORIGIN_REGEX = (
+    r"https://(.*\.)?vercel\.app|"
+    r"https://.*\.preview\.emergentagent\.com|"
+    r"https://(.*\.)?onrender\.com"
+)
+_cors_env = os.environ.get("CORS_ORIGINS", "").strip()
+if _cors_env == "*":
+    cors_origins = ["*"]
+    cors_regex = None
+elif _cors_env:
+    cors_origins = [o.strip() for o in _cors_env.split(",") if o.strip()]
+    cors_regex = os.environ.get("CORS_ORIGIN_REGEX") or None
+else:
+    cors_origins = DEFAULT_ALLOWED_ORIGINS
+    cors_regex = os.environ.get("CORS_ORIGIN_REGEX") or DEFAULT_ALLOWED_ORIGIN_REGEX
+
+logger.info(f"CORS origins: {cors_origins} regex={cors_regex}")
+app.add_middleware(
+    CORSMiddleware,
+    allow_credentials=True,
+    allow_origins=cors_origins,
+    allow_origin_regex=cors_regex,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+app.add_middleware(VisitTrackingMiddleware)
+
+# ---------------- Iter 48: Security ----------------
+from security import (
+    limiter as _rl_limiter,
+    SecurityHeadersMiddleware,
+    is_ip_blocked as _is_ip_blocked,
+    log_security_event as _log_sec,
+    EVENT_RATE_LIMITED,
+)
+from slowapi.errors import RateLimitExceeded as _RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
+from db_helper import get_db as _get_db_for_sec
+
+# Rate limiter setup — decorators on individual routes control the actual
+# limits. This wires the middleware + exception handler.
+app.state.limiter = _rl_limiter
+app.add_middleware(SlowAPIMiddleware)
+app.add_middleware(SecurityHeadersMiddleware)
+
+
+@app.exception_handler(_RateLimitExceeded)
+async def _rate_limit_handler(request: Request, exc: _RateLimitExceeded):
+    # Log for the admin security dashboard. Fail-open on DB errors.
+    try:
+        ip = request.headers.get("x-forwarded-for", "").split(",")[0].strip() or (request.client.host if request.client else "")
+        await _log_sec(_get_db_for_sec(), EVENT_RATE_LIMITED, ip_address=ip, endpoint=str(request.url.path))
+    except Exception:
+        pass
+    return JSONResponse(
+        status_code=429,
+        content={"detail": f"Za dużo żądań — spróbuj ponownie za chwilę. ({exc.detail})"},
+        headers={"Retry-After": "60"},
+    )
+
+
+class IPBlockMiddleware(BaseHTTPMiddleware):
+    """Blocks requests from IPs in the auto-block table. Skips /api/health so
+    Kubernetes probes never trip the block, and static/OPTIONS traffic."""
+    async def dispatch(self, request, call_next):
+        path = request.url.path
+        if request.method == "OPTIONS" or path in ("/api/health", "/health") or not path.startswith("/api/"):
+            return await call_next(request)
+        db_local = _get_db_for_sec()
+        if db_local is not None:
+            ip = request.headers.get("x-forwarded-for", "").split(",")[0].strip() or (request.client.host if request.client else "")
+            if ip and await _is_ip_blocked(db_local, ip):
+                return JSONResponse(
+                    status_code=429,
+                    content={"detail": "IP tymczasowo zablokowane z powodu podejrzanej aktywności."},
+                    headers={"Retry-After": "3600"},
+                )
+        return await call_next(request)
+
+
+app.add_middleware(IPBlockMiddleware)
+
+
+# ---------------- Iter 42: DocumentTooLarge safety net ----------------
+# Even with per-router guards, a rogue write path (or legacy code we haven't
+# audited yet) could still bump into pymongo.errors.DocumentTooLarge and
+# leak an ugly 500. Convert to a friendly 413 with a hint so the frontend
+# can surface a useful toast + logs stay clean in production.
+from pymongo.errors import DocumentTooLarge as _MongoDocTooLarge
+from fastapi import Request as _FastAPIRequest
+
+
+@app.exception_handler(_MongoDocTooLarge)
+async def _handle_doc_too_large(request: _FastAPIRequest, exc: _MongoDocTooLarge):
+    logger.error(f"DocumentTooLarge on {request.method} {request.url.path}: {exc}")
+    return JSONResponse(
+        status_code=413,
+        content={
+            "detail": {
+                "code": "mongo_doc_too_large",
+                "message": (
+                    "Dokument przekracza limit 16MB MongoDB. Prawdopodobnie próbujesz zapisać "
+                    "zbyt duże zdjęcia inline — użyj /api/vehicles/{id}/photos (R2)."
+                ),
+            }
+        },
+    )
+
+
+@app.on_event("startup")
+async def on_startup():
+    if db is not None:
+        # Force-create critical listings indexes BEFORE seed (so even if seed fails,
+        # production marketplace sort never blows up with "Sort exceeded memory limit").
+        try:
+            await db.listings.create_index([("created_at", -1)])
+            await db.listings.create_index([("featured", -1), ("created_at", -1)])
+            await db.listings.create_index([("price", 1)])
+            await db.listings.create_index([("user_id", 1), ("created_at", -1)])
+            await db.listings.create_index([("type", 1), ("status", 1)])
+            await db.listings.create_index([("make", 1), ("model", 1)])
+            logger.info("Listings indexes created.")
+        except Exception as e:
+            logger.warning(f"listings index creation failed (non-fatal): {e}")
+        # Iter 41: vehicles / service_entries indexes — speeds up garage load
+        # (was doing full COLLSCAN on user_id for every /vehicles GET). Also
+        # covers common sort keys so we don't run into 32MB in-memory limits
+        # when a user has hundreds of vehicles or service entries.
+        # Each create_index is wrapped individually so ONE conflict (e.g.
+        # legacy non-sparse `slug_1` already exists) doesn't skip the rest.
+        for spec in [
+            ("vehicles",         [("user_id", 1)], {}),
+            ("vehicles",         [("user_id", 1), ("created_at", -1)], {}),
+            ("vehicles",         [("open_to_offers", 1), ("searchable", 1)], {"sparse": True}),
+            ("service_entries",  [("vehicle_id", 1), ("date", -1)], {}),
+            ("swap_listings",    [("active", 1), ("created_at", -1)], {}),
+            ("swap_interactions",[("from_user_id", 1), ("to_vehicle_id", 1)], {}),
+            # Iter 48: security & rate-limit hot paths. record_failed_login
+            # scans security_logs by ip+event+timestamp on every login miss
+            # → this index turns the scan into a bounded index range read.
+            ("security_logs",    [("event_type", 1), ("ip_address", 1), ("timestamp", -1)], {}),
+            ("security_logs",    [("timestamp", -1)], {}),
+            ("ip_blocks",        [("ip_address", 1)], {"unique": True}),
+            ("ip_blocks",        [("blocked_until", 1)], {}),
+            # Iter 48: soft-delete lookup on login (`$or: email OR deleted_email`).
+            ("profiles",         [("deleted_email", 1)], {"sparse": True}),
+            # Iter 47: referral hot paths.
+            ("referrals",        [("referrer_id", 1), ("qualified", 1)], {}),
+            ("referrals",        [("referred_id", 1)], {"unique": True, "sparse": True}),
+            ("profiles",         [("referral_code", 1)], {"sparse": True, "unique": True}),
+        ]:
+            coll, keys, opts = spec
+            try:
+                await db[coll].create_index(keys, **opts)
+            except Exception as e:
+                logger.warning(f"index create ({coll} {keys}) failed (non-fatal): {e}")
+        logger.info("Iter 41 vehicles / service / swap indexes ensured.")
+        try:
+            await seed_database(db)
+            logger.info("seed_database completed.")
+        except Exception as e:
+            logger.error(f"seed_database failed (Atlas unreachable?): {e}")
+            logger.error("Backend will continue starting; DB-backed endpoints may return errors until DB is reachable.")
+    else:
+        logger.warning("Skipping seed_database — db is None.")
+    # Background retention scheduler (D+1, D+7, monthly)
+    try:
+        from retention import scheduler_loop
+        asyncio.create_task(scheduler_loop())
+    except Exception as e:
+        logger.warning(f"retention scheduler failed to start: {e}")
+    # Backfill missing slugs on services & events (fixes map-marker 404 for legacy data)
+    if db is not None:
+        try:
+            from routers.services import _slug, _unique_slug
+            async for s in db.services.find({"$or": [{"slug": {"$exists": False}}, {"slug": None}, {"slug": ""}]}, {"_id": 0, "id": 1, "name": 1, "location": 1}):
+                base = _slug(f"{s.get('name','')}-{(s.get('location') or {}).get('city','')}")
+                new_slug = await _unique_slug(db, "services", base)
+                await db.services.update_one({"id": s["id"]}, {"$set": {"slug": new_slug}})
+            async for e_doc in db.events.find({"$or": [{"slug": {"$exists": False}}, {"slug": None}, {"slug": ""}]}, {"_id": 0, "id": 1, "name": 1, "location": 1}):
+                base = _slug(f"{e_doc.get('name','')}-{(e_doc.get('location') or {}).get('city','')}")
+                new_slug = await _unique_slug(db, "events", base)
+                await db.events.update_one({"id": e_doc["id"]}, {"$set": {"slug": new_slug}})
+        except Exception as e:
+            logger.warning(f"slug backfill failed: {e}")
+        # Migrate Brevo SMTP port 587 → 465 (Render Free blocks 587 outbound)
+        try:
+            res = await db.api_keys.update_one(
+                {"id": "default", "smtp_port": {"$in": ["587", 587]}},
+                {"$set": {"smtp_port": "465"}},
+            )
+            if res.modified_count:
+                logger.info("SMTP migration: smtp_port 587 → 465 (Render Free compat)")
+        except Exception as e:
+            logger.warning(f"smtp_port migration failed: {e}")
+        # Iter 34: rebrand legal_pages docs (VEHIQ → Sharago) so production legal/
+        # privacy/terms pages stop showing the old brand. Idempotent — no-op if
+        # already clean.
+        try:
+            import re as _re
+            now_iso = datetime.now(timezone.utc).isoformat()
+            patterns = [
+                (_re.compile(r"\bVEHIQ\b"), "Sharago"),
+                (_re.compile(r"\bVehiq\b"), "Sharago"),
+                (_re.compile(r"\bvehiq\.pl\b"), "sharago.pl"),
+                (_re.compile(r"kontakt@vehiq\.pl"), "kontakt@sharago.com"),
+                (_re.compile(r"#C9A84C", _re.I), "#2B7FE8"),
+                (_re.compile(r"#E8C96A", _re.I), "#4A95F0"),
+                (_re.compile(r"#0D0F1A", _re.I), "#0D1626"),
+            ]
+            patched = 0
+            async for doc in db.legal_pages.find({}):
+                updates = {}
+                for field in ("title", "title_pl", "title_en", "content",
+                              "content_pl", "content_en", "body", "html",
+                              "meta_description"):
+                    v = doc.get(field)
+                    if not isinstance(v, str):
+                        continue
+                    new_v = v
+                    for pat, rep in patterns:
+                        new_v = pat.sub(rep, new_v)
+                    if new_v != v:
+                        updates[field] = new_v
+                if updates:
+                    updates["updated_at"] = now_iso
+                    await db.legal_pages.update_one({"_id": doc["_id"]}, {"$set": updates})
+                    patched += 1
+            if patched:
+                logger.warning(f"legal_pages rebrand: patched {patched} docs (VEHIQ → Sharago)")
+        except Exception as e:
+            logger.warning(f"legal_pages rebrand migration failed: {e}")
+        # Iter 31: clean up stale VEHIQ-era SMTP sender so Brevo accepts outbound mail.
+        # Old override `kontakt@vehiq.pl` / `VEHIQ` lingers in DB and shadows the new
+        # default `kontakt@sharago.com`, causing silent password-reset failures.
+        try:
+            stale = await db.api_keys.find_one(
+                {"id": "default"},
+                {"_id": 0, "smtp_from_email": 1, "smtp_from_name": 1},
+            ) or {}
+            updates = {}
+            if (stale.get("smtp_from_email") or "").lower().endswith("@vehiq.pl"):
+                updates["smtp_from_email"] = "kontakt@sharago.com"
+            if (stale.get("smtp_from_name") or "").strip().upper() == "VEHIQ":
+                updates["smtp_from_name"] = "Sharago"
+            if updates:
+                await db.api_keys.update_one({"id": "default"}, {"$set": updates}, upsert=True)
+                logger.warning(f"SMTP sender migration: {updates}")
+        except Exception as e:
+            logger.warning(f"smtp_from migration failed: {e}")
+        # Admin singleton audit + auto-clean of stale duplicates from VEHIQ→Sharago rebrand
+        try:
+            desired = (os.environ.get("ADMIN_EMAIL") or "kontakt@sharago.com").lower()
+            admin_docs = await db.admin_account.find({}).to_list(50)
+            if len(admin_docs) > 1:
+                emails = [(d.get("email") or "").lower() for d in admin_docs]
+                logger.warning(
+                    f"admin_account audit: {len(admin_docs)} docs found "
+                    f"({emails}) — expected exactly 1 for {desired!r}."
+                )
+                keeper = next(
+                    (d for d in admin_docs
+                     if (d.get("email") or "").lower() == desired and d.get("password_hash")),
+                    None,
+                )
+                if keeper:
+                    stale_ids = [d["_id"] for d in admin_docs if d["_id"] != keeper["_id"]]
+                    res = await db.admin_account.delete_many({"_id": {"$in": stale_ids}})
+                    logger.warning(
+                        f"admin_account audit: auto-cleaned {res.deleted_count} stale doc(s); "
+                        f"kept email={desired!r}."
+                    )
+                else:
+                    logger.error(
+                        f"admin_account audit: no doc matches ADMIN_EMAIL={desired!r} with a "
+                        f"password_hash. Run scripts.cleanup_admin_duplicates or POST /api/admin/setup."
+                    )
+        except Exception as e:
+            logger.warning(f"admin_account audit failed (non-fatal): {e}")
+    logger.info(f"Sharago backend ready. version={APP_VERSION}")
+
+
+@app.on_event("shutdown")
+async def on_shutdown():
+    if client is not None:
+        client.close()

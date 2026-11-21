@@ -1,0 +1,51 @@
+{
+  "summary": "iter11 — Sharago rebrand + rental_car/rental_garage module E2E testing. BACKEND: 10/10 pytest PASS in test_iter11_rental_rebrand.py — RSS feed channel title 'Sharago Blog', robots.txt Sitemap=https://sharago.pl/sitemap.xml, sitemap has https://sharago.pl/ URLs (no vehiq.pl URLs), POST /api/marketplace/listings with category=rental_car/rental_garage persists `category` and nested `rental` object, GET ?category=rental_car / ?category=rental_garage / ?category=rental shorthand all filter correctly, invalid category → 400, Free user with 1 active rental_car → second POST returns HTTP 402 detail.code='rental_limit_free', business owner_type bypasses limit, listings with no category filter still return classic+rental (regression OK). FRONTEND: Logged in as smoke-test-vehiq, localStorage migrated to sharago_token/sharago_session/sharago_lang (no vehiq_* keys). Sidebar logo '[data-testid=sharago-logo]' renders 'Sharago' (S + gold 'ago'). /garage doc.title='Sharago — Twój wirtualny garaż', footer '2026 Sharago. Wszelkie prawa zastrzeżone.' /wynajem renders [rentals-page] + header 'Wynajmij samochód lub garaż', toggle [rentals-tab-rental_car]/[rentals-tab-rental_garage] works, [rental-card-{id}] shows 'Audi A4 do wynajęcia' '250 zł/dzień' 'Prywatny' badge, [rentals-new-btn] href='/marketplace/new?category=rental_car'. /marketplace/new?category=rental_car auto-selects type=rental and category=rental_car, renders [listing-cat-rental_car] + [listing-cat-rental_garage] + [listing-rental-fields] with all sub-fields (rental-price-day/week/month, rental-availability, rental-pickup conditional for car, rental-address conditional for garage, rental-requirements, rental-owner-private/business radios, rental-business-name conditional on business radio). Submitting at Free cap → [rental-limit-modal] visible with [rental-limit-close]='Anuluj' + [rental-limit-upgrade]='Przejdź na Premium', backend returned 402. /marketplace/<rental_id> renders [listing-rental-block] with prices/availability/pickup/requirements AND [listing-rental-disclaimer] with text 'Sharago jest platformą ogłoszeniową...'. /marketplace/mine renders [my-listings-filter] with 3 buttons [my-listings-filter-{all,classic,rental}] — selecting 'Wynajem' filters to only the Audi A4 rental.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "/api/blog/feed.xml", "issue": "Blog item author still says 'Zespół VEHIQ' / 'noreply@vehiq.pl' in the existing seeded blog post. Per spec the email sender intentionally stays vehiq.pl (Brevo not yet verified for sharago.pl), but the author label 'Zespół VEHIQ' is content-level and could be updated to 'Zespół Sharago' via /api/admin/blog if desired (not a code bug — DB content)."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "ListingDetail rental private badge wording", "issue": "Spec said the badge should read 'Prywatny' for owner_type='private'. Actual UI renders 'Osoba prywatna' instead. Cosmetic / wording deviation only. [listing-business-badge] is correctly omitted for private listings.", "selector": "[data-testid='listing-rental-block']", "priority": "LOW"},
+      {"component": "react-helmet-async title override", "issue": "Intermittent: visiting /blog and /blog/<slug> sometimes shows document.title='Sharago — Twój wirtualny garaż' (the static index.html title) instead of the spec'd 'Blog Sharago — porady, historie i nowości' / '{title} — Blog Sharago'. Same root cause as iter10's canonical override bug — react-helmet-async appends/replaces head tags but the static <title> from /app/frontend/index.html persists when Helmet hasn't yet mounted (and our test run hit Cloudflare 429s on those navigations which may have aborted Helmet hydration). Recommend: remove the static <title>/<link rel=canonical> from index.html or set a default Helmet wrapper in App.js.", "selector": "<title>", "priority": "MEDIUM"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "/marketplace/new — Cena (PLN) field", "issues": ["The top-level 'Cena (PLN)' input is HTML5 `required` even when type='rental' / category=rental_car (where CreateListing.js overrides payload.price = rental.price_per_day on submit). User MUST also fill the top Cena field even though it's auto-overridden — confusing UX. Consider hiding the top-level Cena field (or removing `required`) when category∈{rental_car, rental_garage}."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter11_rental_rebrand.py",
+    "/app/test_reports/pytest/iter11_results.xml"
+  ],
+  "action_items": [
+    "(LOW) Optionally update Polish badge text 'Osoba prywatna' → 'Prywatny' to match spec wording in ListingDetail.js for the owner_type='private' badge.",
+    "(MEDIUM) Hide or remove `required` from the top-level 'Cena (PLN)' input on CreateListing.js when category∈{rental_car, rental_garage} — the rental-price-day already drives payload.price, so the legacy Cena field forces an extra dummy entry.",
+    "(MEDIUM) Carry-over from iter10: remove static <title> + <link rel=canonical> from /app/frontend/index.html (or wrap App.js in a default Helmet) so per-route Helmet titles like 'Blog Sharago — ...' actually override. Currently intermittent.",
+    "(LOW) Update the blog post 'Zespół VEHIQ' author label → 'Zespół Sharago' via admin API for full content-level rebrand consistency."
+  ],
+  "critical_code_review_comments": [
+    "marketplace.py — RentalDetails Pydantic model + RENTAL_CATEGORIES whitelist + 402 detail.code='rental_limit_free' is well-structured. ALL_CATEGORIES = RENTAL_CATEGORIES is a forward-looking alias — fine.",
+    "marketplace.py line 219 `is_rental = payload.category in RENTAL_CATEGORIES` — correct. Limit-check correctly excludes business plans, owner_type=business, and counts only category∈{rental_car,rental_garage} with status=active. Good.",
+    "marketplace.py — category=rental shorthand correctly maps to $in: [rental_car, rental_garage]; multi-cat comma-split also supported.",
+    "CreateListing.js — listing-price input remains `required` even for rentals; payload.price is overridden to rental.price_per_day on submit but HTML5 validation forces the user to enter a dummy value. UX gap noted in design_issues.",
+    "Sharago logo SVG (Logo.js) — 'S' + 'ago' gold split renders correctly and has data-testid='sharago-logo'. Good.",
+    "storageMigration.js — runs on boot, copies vehiq_* → sharago_* before render. Verified: post-login localStorage contains only sharago_token / sharago_session / sharago_lang.",
+    "Listing detail rental block ([listing-rental-block]) correctly conditional on category∈{rental_car,rental_garage}. Disclaimer mentions Sharago verbatim. Good.",
+    "MyListings filter [my-listings-filter-{all,classic,rental}] — clean 3-button tab, fires client-side category filter. Good."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter11_rental_rebrand.py (NEW — 10 tests, all pass)",
+    "/app/test_reports/pytest/iter11_results.xml (NEW)",
+    "/app/test_reports/iteration_11.json (NEW)"
+  ],
+  "success_rate": {"backend": "100% (10/10)", "frontend": "~95% — all required testids + flows confirmed; 1 cosmetic wording + 1 UX deviation (top-level Cena required for rentals) + 1 carry-over Helmet/title issue from iter10"},
+  "test_credentials": "User: smoke-test-vehiq@example.com / SmokePass123! (verified). Admin: kontakt@vehiq.pl / VehiqAdmin2026#Temp! (not used this run).",
+  "seed_data_creation": "Backend pytest created TEST_iter11 Garaż firma rental_garage as business owner — cleaned up via DELETE in fixture teardown (verified: /api/marketplace/listings?category=rental_garage returns 0 items after run). Frontend submit attempt that triggered 402 did NOT create a listing (transaction rolled back by 402). Existing seed Audi A4 rental_car listing (id=e6054cf1-be10-4584-824e-05393a4d2ba3) preserved as the user's 1 active rental for limit testing.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Sharago rebrand + rental module fully validated. Existing rental_car listing id=e6054cf1-be10-4584-824e-05393a4d2ba3 ('Audi A4 do wynajęcia', 250 PLN/day, private owner, pickup='Warszawa Centrum'). RENTAL_CATEGORIES={'rental_car','rental_garage'}. Free user limit=1 active rental combined; business/premium bypass. All confirmed data-testids: [sharago-logo, sidebar-rentals, rentals-page, rentals-tab-rental_car, rentals-tab-rental_garage, rentals-new-btn, rental-card-<id>, listing-type (select), listing-rental-category, listing-cat-rental_car, listing-cat-rental_garage, listing-rental-fields, rental-price-day/week/month, rental-availability, rental-pickup, rental-address, rental-requirements, rental-owner-private/business, rental-business-name, rental-limit-modal, rental-limit-upgrade, rental-limit-close, listing-rental-block, listing-rental-disclaimer, listing-business-badge (only for business), my-listings-filter, my-listings-filter-{all,classic,rental}]. Cloudflare may rate-limit (429s) under heavy testing — slow nav down if encountered.",
+  "rca of the issue": "Rebrand/rental implementation is solid. The only functional gap is the legacy top-level 'Cena (PLN)' field being `required` on /marketplace/new for type='rental' — the user has to enter a redundant value because payload.price is overridden server-side to rental.price_per_day. Recommend conditional `required={form.category !== 'rental_car' && form.category !== 'rental_garage'}` in CreateListing.js or hide the field entirely for rentals."
+}

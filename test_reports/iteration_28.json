@@ -1,0 +1,22 @@
+{
+  "summary": "Iter 52a fully verified. Backend 4/4 pytest pass (test_iter52a.py): (1) rental_car POST persists deposit/min_days/max_days/delivery/delivery_radius_km/min_driver_age/min_license_years verified via GET; (2) rental_garage POST persists garage_type/area_m2/height_m/deposit/monitoring/access_24h/electricity/heating verified via GET; (3) POST /vehicles/{id}/service with dates 2020-01-01, 2024-06-15, 2026-07-01 → GET /timeline returns DESC (2026-07-01 first); (4) timeline share full lifecycle (POST create, PATCH disable/enable preserves token, public /historia/{token} returns 404 disabled + mode='service-history' enabled). Frontend E2E: Sidebar renders 4 groups (sidebar-group-garage/marketplace/community/account); legacy sidebar-open-to-offers and sidebar-search absent; sidebar-swaps text='Zamiana'. VehicleProfile header now only has breadcrumb+title (no actions); vehicle-actions-row rendered on Overview containing vehicle-sell-btn, vehicle-open-to-offers-btn, vehicle-share-btn, vehicle-print-qr-btn, vehicle-edit-btn, vehicle-delete-btn; legacy vehicle-service-book-btn removed from header. HistoryTab: NO filter chips, history-add-entry-btn + history-share-btn present, timeline uses history-event-service containers (9 shown), clicking history-share-btn opens service-book-modal. Change 16: after clicking a tab from scrolled position, window.scrollY=0 (tabsRef.scrollIntoView smooth works). Change 20: /garage/new does NOT render vehicle-photo-upload; /garage/{id} → Edit does render it. Change 27: /marketplace/new type=Wynajem+category=rental_car exposes rental-deposit/min-days/max-days/min-age/min-license/delivery + delivery-radius after toggle; category=rental_garage exposes rental-garage-type (4 options: closed/parking/canopy/workshop) + rental-area + rental-height + rental-deposit-garage + rental-garage-monitoring/access-24h/electricity/heating.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": ["/app/backend/tests/test_iter52a.py", "/app/test_reports/pytest/iter52a.xml"],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "RentalDetails BaseModel cleanly extended with new fields; all Optional with sensible defaults. category-specific validation is enforced client-side (nulls sent for irrelevant fields) which is acceptable.",
+    "HistoryTab defensive client-side DESC sort (backend also sorts) — good redundancy for Bug 24c.",
+    "VehicleActionsRow uses correct guards (isActive && !hasActiveListing for sell) — matches spec.",
+    "PlateBlurDialog: canvas.getContext('2d') at end of upload() only to appease linter is a smell — could be removed or replaced with `void canvas;` to make intent explicit.",
+    "Sidebar GROUPS array uses `group.key.split('.').pop()` for testids — works but tightly couples i18n key structure to testid. Consider adding explicit `slug` per group.",
+    "CreateListing.js is ~1048 lines — approaching the 700-line refactor threshold. Consider splitting rental-car / rental-garage / service sections into subcomponents next iteration."
+  ],
+  "updated_files": ["/app/backend/tests/test_iter52a.py"],
+  "success_rate": {"backend": "100% (4/4)", "frontend": "100% (all Iter 52a testids verified)"},
+  "test_credentials": "smoke-test-vehiq@example.com / SmokePass123! (vehicle f9d17048-1142-4fd3-ad2f-1f9bd9746d39)",
+  "seed_data_creation": "Rental listings TEST_iter52a created + deleted per-test. Service entries TEST_iter52a sort created; per-entry DELETE attempted (may leave entries if endpoint uses different id shape — inspect if noise builds up).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Iter 52a passes end-to-end. In CreateListing the category is chosen by clicking a CARD (text='Wynajmę samochód' / 'Wynajmę garaż / miejsce parkingowe'), NOT a <select>. Type is a <select> with values car|parts|swap|full_parts|project|rental|service. Rental free-tier limit is 1 active — tests self-clean before creating (via GET /marketplace/listings/mine + DELETE)."
+}

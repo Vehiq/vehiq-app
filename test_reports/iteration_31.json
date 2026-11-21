@@ -1,0 +1,37 @@
+{
+  "summary": "Iter 54b full backend + frontend regression. Backend pytest 17/17 PASS (0 skipped). Frontend Playwright: /warsztaty list + workshop-search-{q,city,type,submit} + workshop cards render; /warsztaty/{slug} shows workshop-header + workshop-description + workshop-specializations + workshop-history + workshop-back (verified showing our TEST service entry pushed via /api/business/service-entry — end-to-end owner→workshop approval flow proven). Admin panel (/gv91-admin) sidebar has 'Firmy' + 'Waitlist Premium'; Firmy table has filter buttons (Wszystkie/Oczekujące/Aktywne/Pro), Aktywuj + Zweryfikuj (or Cofnij weryfikację) actions; Waitlist has admin-waitlist-export CSV button (5 rows visible). /marketplace/new type=parts renders all 8 requested testids (listing-part-cond-new/used/refurbished, listing-part-make, listing-part-model, listing-part-oem, listing-part-price-type, listing-part-shipping). type=service renders all 8 service categories (listing-service-cat-{mechanic,body,detailing,tires,electric,tuning,towing,other}). /business/dashboard for user without business_account correctly renders empty-account state with 'Załóż konto firmowe' CTA→/register/business. QR-scan flow verified end-to-end at API level: workshop user scanning owner's vehicle short-URL triggered activated_and_requested + workshop_vehicle_access record; 403 for non-owner responding; owner-approve unlocks POST /business/service-entry.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "GET /api/business/vehicle-hub-301", "issue": "Slug 'vehicle-hub-301' referenced in the review request does NOT exist in the DB (only 4 activated businesses present: test-ws-*, test-admin-*, test-qa-*). Tests were adapted to pick the first activated slug dynamically. If E1 intended to seed a fixture workshop with this slug, that seed is missing. Projection logic itself works correctly (verified against real activated slugs — email/nip/owner_user_id all hidden, is_owner=false)."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "/business/dashboard (initial load)", "issues": ["Under rapid page loads a Brevo/limiter 429 flood was observed on unrelated polling endpoints; not tied to Iter 54b logic, cleared after 3-second cooldown. Cosmetic — page still renders empty state correctly."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter54b.py",
+    "/app/test_reports/pytest/iter54b.xml"
+  ],
+  "action_items": [
+    "OPTIONAL: seed a demo business_account with slug='vehicle-hub-301' if the review request literally expects that URL to resolve (currently 404). All logic works — this is only a seed-data gap."
+  ],
+  "critical_code_review_comments": [
+    "public_share.get_public_vehicle_short catches ALL exceptions in the B2B side-effect block silently (workshop_action=None). Good for isolating the public path from B2B failures, but consider logging the exception so QR-scan errors don't disappear silently in prod.",
+    "business.request_vehicle_access sends owner notification email via fire_and_forget — good. But the last_scanned_at update on existing rows does NOT re-notify — correct anti-spam behavior; worth a code comment.",
+    "marketplace._notify_part_alerts is fired via asyncio.create_task inside the listing-create request; ensure the FastAPI event-loop task reference is retained somewhere or use a bounded background pool for production scale (currently fire-and-forget can be GC'd on very high concurrency).",
+    "business.py file grew to 460 lines mixing register + list + history + access + service-entry — consider splitting into business_public.py + business_access.py near 700-line threshold.",
+    "BusinessDashboard.js: toast.error('Brak konta firmowego') fires on every visit for users without a business_account. Consider silencing this specific 403 since the empty-state UI already communicates it."
+  ],
+  "updated_files": ["/app/backend/tests/test_iter54b.py"],
+  "success_rate": {"backend": "100% (17/17)", "frontend": "100% of tested flows"},
+  "test_credentials": "smoke-test-vehiq@example.com / SmokePass123! (regular user); kontakt@sharago.com / VehiqAdmin2026! (admin, first_login=false in this env — went directly to /gv91-admin/change-password; skipped for panel test by using pre-existing admin session via direct nav).",
+  "seed_data_creation": "Test users TEST_owner_* and TEST_ws_* + one workshop business_account per run + one owned vehicle + several parts listings + one part_alert (auto-deleted) + one service_entry for the workshop history feed. Safe to leave in preview DB — all TEST_-prefixed for future cleanup.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Regression suite for Iter 54b is /app/backend/tests/test_iter54b.py (17 tests, all green). Key gotchas: (1) slug 'vehicle-hub-301' does NOT exist in DB — use TestBusinessPublic._pick_activated_slug() helper; (2) /register/auth returns token under key 'token' or 'access_token' — always try both; (3) LISTING_TYPES is a <select> not buttons — use page.select_option, not clicks."
+}

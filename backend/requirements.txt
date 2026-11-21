@@ -1,0 +1,56 @@
+# Sharago backend — production requirements.
+# Minor-pinned (major.minor >=) so patch updates apply automatically; hard
+# pinning caused Render build failures on Python 3.11 (Iter 48 postmortem).
+# Only packages actually imported by /app/backend/*.py are listed here.
+
+# --- Core web framework ---
+fastapi>=0.110.0,<0.120.0
+uvicorn[standard]>=0.25.0
+starlette>=0.36.0
+python-multipart>=0.0.9   # required by FastAPI UploadFile / multipart forms
+pydantic>=2.0.0,<3.0.0
+email-validator>=2.0.0    # pydantic.EmailStr backend
+
+# --- Database ---
+motor>=3.6.0,<4.0.0       # motor <3.6 breaks with pymongo 4.9+ (missing _QUERY_OPTIONS)
+pymongo>=4.9.0,<5.0.0
+certifi>=2024.2.2         # TLS bundle for MongoDB Atlas
+
+# --- Auth ---
+PyJWT>=2.8.0              # backend imports `jwt`
+bcrypt>=4.1.0             # password hashing (not passlib — we use bcrypt directly)
+
+# --- HTTP clients ---
+httpx>=0.26.0             # Brevo HTTP API + async calls
+requests>=2.31.0          # sync scripts (activity backfill etc.)
+
+# --- Email (SMTP fallback for when Brevo API is not configured) ---
+aiosmtplib>=3.0.0
+
+# --- Cloudflare R2 (S3-compatible) ---
+boto3>=1.34.0
+botocore>=1.34.0
+
+# --- AI Mechanic ---
+anthropic>=0.20.0         # Claude Sonnet 4.5
+
+# --- Image processing ---
+Pillow>=10.0.0
+qrcode[pil]>=7.4.0
+
+# --- Rate limiting (Iter 48) ---
+slowapi>=0.1.9
+
+# --- HTML sanitization (Iter 50, Phase C) ---
+bleach>=6.0.0
+
+# --- Payments (Iter 53) ---
+stripe>=8.0.0
+
+# --- Environment ---
+python-dotenv>=1.0.0
+
+# --- Testing (kept because Render's build stage runs `pytest` if a
+#     tests/ folder exists and we ship /app/backend/tests) ---
+pytest>=8.0.0
+pytest-asyncio>=0.23.0

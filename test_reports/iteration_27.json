@@ -1,0 +1,23 @@
+{
+  "summary": "Iter 51 fully verified. Backend 6/6 pytest pass: email templates (welcome/password_reset/swap_match/account_deleted/service_reminder/new_message/forum_reply — all PL & EN with sharago.pl + Wypisz się z powiadomień/Unsubscribe + Polityka prywatności/Privacy + background:#0D1626 navy; correct PL subjects); timeline no fuel/mileage (only source in {service,project}); public/by-slug omits purchase_price/current_value/project_budget/sale_price and strips cost/workshop/notes from service_entries for non-owner (is_owner=false); timeline-share full lifecycle (POST creates token+enabled=true, GET returns state, PATCH{enabled:false} preserves same token and returns share_url:null, public GET /vehicles/historia/{token} returns 404 when disabled and mode='service-history' + active_listing:null + purchase_price:null + no cost/workshop/notes when enabled, PATCH{enabled:true} returns SAME token); marketplace listing PUT /marketplace/listings/{id} updates title/price and persists; i18n pl.nav.swaps='Zamiana', en.nav.swaps='Swap'. Frontend E2E: sidebar-swaps='Zamiana', SwapPage H1='Zamiana', swap-card-placeholder rendered with Car icon when cover missing, vehicle-service-book-btn opens service-book-modal with service-book-generate → service-book-url + service-book-copy + service-book-toggle + service-book-close all present and functional; /historia/{token} renders service-history-badge and does NOT render public-vehicle-stats or public-active-listing; HistoryTab filter chips are only Wszystkie/Serwis/Projekt (Paliwo/Przebieg removed — confirmed via screenshot); /marketplace/{id}/edit route loads CreateListing prefilled with existing title (e.g. 'Audi A4 do wynajęcia').",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": ["/app/backend/tests/test_iter51.py", "/app/test_reports/pytest/iter51.xml"],
+  "action_items": [
+    "MINOR (non-blocking): backend `_app_url()` returns stale preview host `664209d9-6e3c-4ef6-8f37-0a095b3360d3.preview.emergentagent.com` in share_url response instead of the current `vehicle-hub-301` host. Frontend already falls back to `window.location.origin` in the URL input, so users copy the correct URL; but any email/notification that uses the returned share_url would send an outdated link. Consider computing _app_url() from request.base_url or env FRONTEND_URL that tracks the current preview."
+  ],
+  "critical_code_review_comments": [
+    "vehicles.py::/historia/{share_token} correctly length-gates token (16-64) before DB hit and returns 404 for both unknown and disabled shares — good defense against token enumeration.",
+    "PATCH toggle_timeline_share preserves share_token across disable→enable cycles as required; also handles first-time enable when no token exists.",
+    "timeline.py: fuel and mileage aggregation removed; only service_entries and project_items(status=done) are surfaced. Matches HistoryTab FILTERS constant.",
+    "email_service.py: _wrap_html centralises footer + navy body — all 7 templates inherit sharago.pl + unsubscribe + privacy + background:#0D1626. DRY, good.",
+    "public/by-slug: `public` response dict does NOT include purchase_price/current_value/project_budget/sale_price at all (whitelist pattern rather than blacklist). Correct."
+  ],
+  "updated_files": ["/app/backend/tests/test_iter51.py"],
+  "success_rate": {"backend": "100% (6/6)", "frontend": "100% (all Iter 51 testids + behaviour verified)"},
+  "test_credentials": "smoke-test-vehiq@example.com / SmokePass123! (vehicle f9d17048-1142-4fd3-ad2f-1f9bd9746d39)",
+  "seed_data_creation": "test_marketplace_listing_edit_put creates+PUT-updates+DELETE a TEST_iter51 listing (cleaned up in test).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Iter 51 (email templates, timeline no-fuel, public privacy, timeline share, PublicVehicle service-history mode, Bug 21 swap placeholder, Bug 23 marketplace PUT edit, 'Zamiana' rename) fully passes. Auth returns `token` key (not `access_token`). Marketplace listing types: car|full_parts|parts|project|rental|service|swap (no 'sell'). Share URL host is stale — see action_items."
+}

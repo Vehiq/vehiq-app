@@ -1,0 +1,38 @@
+{
+  "summary": "Iter 42 verification — DocumentTooLarge photo guard + Iter 41 loop fix code presence. Backend pytest 9/9 PASS. Playwright: garbage JWT on /garage → 60s window, /marketplace/messages/threads=0 calls, /auth/refresh=1 call. Loop fix confirmed live on preview URL.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "verified_features": [
+    "BUG 1a PASS — POST /api/vehicles with single ~400KB base64 photo → 413 detail.code='photo_too_large_inline', message contains KB value + /api/vehicles/{id}/photos hint.",
+    "BUG 1b PASS — POST /api/vehicles with 5 short photos → 413 detail.code='photos_too_many_inline'.",
+    "BUG 1c NOT DIRECTLY TESTABLE — with count cap at 3 and per-photo cap at 220KB, max total inline is 660KB < 900KB total cap; the 'photos_total_too_large' branch is unreachable via public API (defense-in-depth). Code path exists in vehicles.py line 62-73.",
+    "BUG 1d PASS — POST /api/marketplace/listings with 400KB base64 photo → 413 detail.code='photo_too_large_inline'. _guard_inline_photos correctly imported from routers.vehicles and applied in create_listing (marketplace.py:351-352).",
+    "BUG 1e PASS (code inspection) — server.py:341-355 imports pymongo.errors.DocumentTooLarge as _MongoDocTooLarge and registers @app.exception_handler returning JSONResponse 413 with code='mongo_doc_too_large'.",
+    "BUG 1f PASS — POST /api/vehicles with 32B base64 PNG → 200, GET returns cover_photo populated. Happy path preserved.",
+    "BUG 1g PASS — POST /api/vehicles/{id}/photos multipart with 1x1 PNG → 200 or 503 (R2 unconfigured) but NOT 413/400. Base64 guard does not affect the R2 upload endpoint.",
+    "BUG 2 PASS (code) — /app/frontend/src/lib/api.js contains `_retried` flag (line 67-74), `_refreshInFlight` single-flight promise (line 27), `_runRefresh` helper (line 29-44). Interceptor retries at most once then rejects.",
+    "BUG 2 PASS (runtime) — Garbage JWT injected via add_init_script + navigation to /garage on preview URL. 60s observation window: 0 requests to /api/marketplace/messages/threads (well under limit of 4) and exactly 1 request to /api/auth/refresh (single-flight enforced). Loop is dead.",
+    "REGRESSION Cache-Control on GET /api/vehicles — code sets 'private, max-age=30, stale-while-revalidate=120' (vehicles.py:228); ingress may strip in preview but code correct.",
+    "REGRESSION GET /api/vehicles/open-to-offers still 200 with list body."
+  ],
+  "test_report_links": [
+    "/app/backend/tests/test_iter42.py",
+    "/app/test_reports/pytest/iter42.xml"
+  ],
+  "action_items": [
+    "USER ACTION: click 'Save to GitHub' — user reported that Iter 41 api.js loop fix did not reach main branch. Sandbox code is verified CORRECT (both by grep and by live 60s network test). Preview URL (which runs from sandbox) shows fix working; production must deploy the same api.js to benefit."
+  ],
+  "critical_code_review_comments": [
+    "_guard_inline_photos correctly handles dict R2 descriptors (isinstance str check on line 46) so mixing legacy base64 + new R2 photos in the same array won't false-trigger the count cap on the dict entries.",
+    "vehicles.py update_vehicle (PUT) also guards payload.photos on line 464-465 — good, symmetrical with create.",
+    "Consider adding _guard_inline_photos to any other endpoints that accept photos[] in body (e.g. service_entries if they have photos, garage import) — current audit covers only vehicles create/update and marketplace listing create.",
+    "The 'photos_total_too_large' branch is currently unreachable given tighter count+per-photo caps; either raise per-photo cap to make it reachable or document as pure defense-in-depth."
+  ],
+  "updated_files": ["/app/backend/tests/test_iter42.py (new)"],
+  "success_rate": {"backend": "100% (9/9)", "frontend": "loop-fix verified via 60s Playwright network trace"},
+  "test_credentials": "POST /api/auth/demo — fresh demo user per run.",
+  "seed_data_creation": "Test creates TEST_1d/TEST_1f/TEST_1g vehicles under fresh demo user; auto-expires with 24h demo TTL.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "For photo-guard: send exactly 400_000 'A' chars in a base64 data URL to POST /api/vehicles to reliably trip the 220KB per-photo cap. For loop test: use page.add_init_script BEFORE goto to inject garbage sharago_token; observe page.on('request') for 60s; threads endpoint should be 0 (Sidebar only mounts when authed) and /auth/refresh should be exactly 1 (single-flight + _retried guard). Marketplace listing type must be one of ['car','full_parts','parts','project','rental','service','swap'] — 'sale' returns 400 before hitting the guard."
+}

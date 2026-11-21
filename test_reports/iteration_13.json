@@ -1,0 +1,22 @@
+{
+  "summary": "Iter 37 tested end-to-end. Backend: 8/8 pytest passed (empty-string validation regression fixed, robots.txt sitemap, service listing create+filter, QR print auth gate 403 no-auth + wrong-user, QR print 900x900 dark/light, QR default unchanged). Frontend: MyListings 4-tab filter (all/vehicles/rental/service) works and filters correctly; CreateListing service type toggle hides make/model + top-level price and shows service fields; VehicleProfile 'Drukuj QR' button opens PrintQrDialog modal with image, dark/light toggle switches blob src, download+print buttons present.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_iter37.py",
+    "/app/test_reports/pytest/iter37.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Demo endpoint rate-limits aggressively during automated UI runs — testing agents should reuse tokens where possible to avoid 429 cascades.",
+    "PrintQrDialog uses window.localStorage.getItem('sharago_token') directly instead of the shared api client; acceptable since it needs blob response, but consider abstracting to lib/api for consistency."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "test_credentials": "POST /api/auth/demo (no creds) — returns {token, user, is_demo:true, plan:premium}. LocalStorage key: sharago_token.",
+  "seed_data_creation": "Each test run creates a fresh demo user via POST /api/auth/demo; TTL 24h so no manual cleanup needed. Backend tests create 1 car + 1 service listing per demo user.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "test_iter37.py verifies all Iter 37 changes. Note free-tier service_limit_free (HTTP 402) is not directly exercised because demo users have plan=premium — soft assertion per spec.",
+  "rca of the issue": "N/A — no bugs found in this iteration."
+}
