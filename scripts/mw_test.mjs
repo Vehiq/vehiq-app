@@ -10,5 +10,5 @@ for (const full of paths) {
   if (!r) { console.log(`\n### ${full} -> passthrough (index.html z SPA, status 200)`); continue; }
   const html = await r.text();
   console.log(`\n### ${full} -> HTTP ${r.status}`);
-  console.log(html.split("\n").filter(l => /og:|canonical|<title|<html|robots|twitter:|name="description"/.test(l)).map(l => l.trim()).join("\n"));
+  console.log(html.split("\n").filter(l => /og:|canonical|hreflang|<title|<html|robots|twitter:|name="description"/.test(l)).map(l => l.trim()).join("\n"));
 }

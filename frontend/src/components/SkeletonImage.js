@@ -1,4 +1,5 @@
 import { useState } from "react";
+import i18n from "@/i18n";
 
 /**
  * Image with skeleton (shimmer) placeholder while loading + fallback on error.
@@ -18,7 +19,7 @@ export default function SkeletonImage({
   src,
   alt = "",
   className = "",
-  fallback = "Brak zdjęcia",
+  fallback,
   eager = false,
   ...imgProps
 }) {
@@ -45,7 +46,7 @@ export default function SkeletonImage({
       )}
       {(error || !hasSrc) && (
         <div className="absolute inset-0 flex items-center justify-center bg-[#162035] text-vehiq-muted text-xs">
-          {fallback}
+          {fallback ?? i18n.t("ui.noPhoto")}
         </div>
       )}
     </div>

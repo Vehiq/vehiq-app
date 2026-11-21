@@ -215,18 +215,18 @@ function VehicleActionsRow({ vehicle, isActive, hasActiveListing, onSell, onMark
                   trackEvent("open_to_offers");
                 } catch { /* noop */ }
               }
-              toast.success(next ? "Auto otwarte na oferty" : "Wyłączone");
+              toast.success(next ? t("ui.openToOffersOn") : t("ui.openToOffersOff"));
               reload && reload();
             } catch (e) {
-              toast.error("Nie udało się zmienić statusu");
+              toast.error(t("ui.statusChangeFailed"));
             }
           }}
           className={`inline-flex items-center gap-2 ${vehicle.open_to_offers ? "vehiq-btn-primary" : "vehiq-btn-secondary"}`}
           data-testid="vehicle-open-to-offers-btn"
-          title="Pokazuje auto w sekcji 'Chętnie odkupię' na giełdzie"
+          title={t("ui.openToOffersHint")}
         >
           <HandCoins size={14} />
-          {vehicle.open_to_offers ? "Otwarty na oferty ✓" : "Otwórz na oferty"}
+          {vehicle.open_to_offers ? t("ui.openToOffersActive") : t("ui.openToOffersBtn")}
         </button>
       )}
       {isActive && hasActiveListing && (
@@ -235,7 +235,7 @@ function VehicleActionsRow({ vehicle, isActive, hasActiveListing, onSell, onMark
         </button>
       )}
       <ShareMenu vehicle={vehicle} reload={reload} />
-      <button onClick={onPrintQr} className="vehiq-btn-secondary inline-flex items-center gap-2" data-testid="vehicle-print-qr-btn" title="Kod QR do naklejenia na szybę">
+      <button onClick={onPrintQr} className="vehiq-btn-secondary inline-flex items-center gap-2" data-testid="vehicle-print-qr-btn" title={t("ui.printQrHint")}>
         <QrCode size={14} /> Drukuj QR
       </button>
       <button onClick={onEdit} className="vehiq-btn-secondary inline-flex items-center gap-2" data-testid="vehicle-edit-btn"><Edit2 size={14} /> {t("common.edit")}</button>

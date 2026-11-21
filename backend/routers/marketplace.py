@@ -689,12 +689,14 @@ async def _notify_part_alerts(listing: dict):
             if not user_doc or not user_doc.get("email"):
                 continue
             from email_service import _wrap_html, _H2, _P, _btn, APP_URL
-            subj = f"Nowa część pasująca do Twojego alertu: {listing.get('title','')}"
-            body = f"""<h2 style="{_H2}">Znaleźliśmy pasującą część</h2>
+            is_en = user_doc.get("language") == "en"
+            subj = (f"New part matching your alert: {listing.get('title','')}" if is_en
+                    else f"Nowa część pasująca do Twojego alertu: {listing.get('title','')}")
+            body = f"""<h2 style="{_H2}">{"We found a matching part" if is_en else "Znaleźliśmy pasującą część"}</h2>
 <p style="{_P}">{listing.get('title','')} — <strong style="color:#fff">{lprice:.0f} PLN</strong></p>
 <p style="{_P}">{(listing.get('description') or '')[:200]}</p>
-{_btn("Zobacz ogłoszenie →", f"{APP_URL}/marketplace/{listing['id']}")}"""
-            html = _wrap_html(subj, body, lang=user_doc.get("language", "pl"))
+{_btn("View listing →" if is_en else "Zobacz ogłoszenie →", f"{APP_URL}/marketplace/{listing['id']}")}"""
+            html = _wrap_html(subj, body, lang="en" if is_en else "pl")
             fire_and_forget(send_email(user_doc["email"], subj, html))
             await db.part_alerts.update_one(
                 {"id": alert["id"]},

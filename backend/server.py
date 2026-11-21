@@ -179,6 +179,7 @@ async def track_visit(payload: dict):
 # and core static routes. Boosts Google indexing of the new landing page +
 # user-generated content. Cached at the edge for 10 minutes.
 SITEMAP_BASE_URL = os.environ.get("SITEMAP_BASE_URL", "https://sharago.pl").rstrip("/")
+SITEMAP_BASE_URLS = {"pl": SITEMAP_BASE_URL, "en": "https://sharago.com"}
 SITEMAP_STATIC_ROUTES = [
     ("/",               "daily",  "1.0"),
     ("/blog",           "daily",  "0.9"),
@@ -202,8 +203,9 @@ def _w3c_date(value) -> str:
 
 
 @api_router.get("/sitemap.xml")
-async def sitemap_xml():
+async def sitemap_xml(site: str = "pl"):
     """Sitemap: public pages + published blog posts (served at sharago.pl/sitemap.xml via Vercel rewrite)."""
+    base_url = SITEMAP_BASE_URLS.get(site, SITEMAP_BASE_URL)
     now_w3c = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     urls: List[str] = []
 
@@ -211,7 +213,7 @@ async def sitemap_xml():
     for path, changefreq, priority in SITEMAP_STATIC_ROUTES:
         urls.append(
             f"  <url>\n"
-            f"    <loc>{xml_escape(SITEMAP_BASE_URL + path)}</loc>\n"
+            f"    <loc>{xml_escape(base_url + path)}</loc>\n"
             f"    <changefreq>{changefreq}</changefreq>\n"
             f"    <priority>{priority}</priority>\n"
             f"  </url>"
@@ -230,7 +232,7 @@ async def sitemap_xml():
                 lastmod = _w3c_date(p.get("updated_at") or p.get("published_at"))
                 urls.append(
                     f"  <url>\n"
-                    f"    <loc>{xml_escape(f'{SITEMAP_BASE_URL}/blog/{slug}')}</loc>\n"
+                    f"    <loc>{xml_escape(f'{base_url}/blog/{slug}')}</loc>\n"
                     f"    <lastmod>{lastmod}</lastmod>\n"
                     f"    <changefreq>weekly</changefreq>\n"
                     f"    <priority>0.7</priority>\n"
@@ -339,6 +341,7 @@ from security import (
     is_ip_blocked as _is_ip_blocked,
     log_security_event as _log_sec,
     EVENT_RATE_LIMITED,
+    client_ip,
 )
 from slowapi.errors import RateLimitExceeded as _RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
@@ -355,7 +358,7 @@ app.add_middleware(SecurityHeadersMiddleware)
 async def _rate_limit_handler(request: Request, exc: _RateLimitExceeded):
     # Log for the admin security dashboard. Fail-open on DB errors.
     try:
-        ip = request.headers.get("x-forwarded-for", "").split(",")[0].strip() or (request.client.host if request.client else "")
+        ip = client_ip(request)
         await _log_sec(_get_db_for_sec(), EVENT_RATE_LIMITED, ip_address=ip, endpoint=str(request.url.path))
     except Exception:
         pass
@@ -375,7 +378,7 @@ class IPBlockMiddleware(BaseHTTPMiddleware):
             return await call_next(request)
         db_local = _get_db_for_sec()
         if db_local is not None:
-            ip = request.headers.get("x-forwarded-for", "").split(",")[0].strip() or (request.client.host if request.client else "")
+            ip = client_ip(request)
             if ip and await _is_ip_blocked(db_local, ip):
                 return JSONResponse(
                     status_code=429,
@@ -417,6 +420,11 @@ async def _handle_doc_too_large(request: _FastAPIRequest, exc: _MongoDocTooLarge
 @app.on_event("startup")
 async def on_startup():
     if db is not None:
+        try:
+            import login_guard
+            await login_guard.ensure_indexes(db)
+        except Exception as e:
+            logger.warning(f"login_guard indexes failed: {e}")
         # Force-create critical listings indexes BEFORE seed (so even if seed fails,
         # production marketplace sort never blows up with "Sort exceeded memory limit").
         try:

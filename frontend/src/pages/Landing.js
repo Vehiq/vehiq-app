@@ -69,10 +69,7 @@ export default function Landing() {
   const navigate = useNavigate();
   const [demoBusy, setDemoBusy] = useState(false);
 
-  usePageSeo(ROUTES.home, {
-    title: "Sharago — Your Virtual Garage",
-    description: "Sharago is your virtual garage online. Manage vehicles, track service history, rent and sell. AI Mechanic and motoring forum in one place.",
-  });
+  usePageSeo(ROUTES.home);
 
   const startDemo = async () => {
     if (demoBusy) return;

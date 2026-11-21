@@ -1,3 +1,4 @@
+import i18n from "@/i18n";
 import { useState } from "react";
 import { X, Mail, CheckCircle2 } from "lucide-react";
 import api from "@/lib/api";
@@ -21,7 +22,7 @@ export default function PhotoLimitModal({ isOpen, onClose, vehicleId, prefillEma
   const submit = async (e) => {
     e.preventDefault();
     if (!email || !email.includes("@")) {
-      toast.error("Podaj poprawny e-mail");
+      toast.error(i18n.t("photoLimit.badEmail"));
       return;
     }
     setSubmitting(true);
@@ -52,7 +53,7 @@ export default function PhotoLimitModal({ isOpen, onClose, vehicleId, prefillEma
           onClick={onClose}
           className="absolute top-3 right-3 text-vehiq-muted hover:text-white"
           data-testid="photo-limit-close"
-          aria-label="Zamknij"
+          aria-label={i18n.t("photoLimit.close")}
         >
           <X size={18} />
         </button>
@@ -63,10 +64,10 @@ export default function PhotoLimitModal({ isOpen, onClose, vehicleId, prefillEma
               <div className="h-10 w-10 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
                 <CheckCircle2 size={20} />
               </div>
-              <h2 className="text-xl font-semibold">Dziękujemy!</h2>
+              <h2 className="text-xl font-semibold">{i18n.t("photoLimit.thanks")}</h2>
             </div>
             <p className="text-sm text-vehiq-muted leading-relaxed">
-              Powiadomimy Cię gdy będzie to możliwe.
+              {i18n.t("photoLimit.notify")}
             </p>
             <button
               onClick={onClose}
@@ -74,7 +75,7 @@ export default function PhotoLimitModal({ isOpen, onClose, vehicleId, prefillEma
               style={{ background: "#2B7FE8", color: "#ffffff" }}
               data-testid="photo-limit-back"
             >
-              Wróć do garażu
+              {i18n.t("photoLimit.back")}
             </button>
           </div>
         ) : (
@@ -84,20 +85,20 @@ export default function PhotoLimitModal({ isOpen, onClose, vehicleId, prefillEma
                 <Mail size={18} />
               </div>
               <div>
-                <h2 className="text-xl font-semibold text-white">Osiągnąłeś limit zdjęć</h2>
-                <p className="text-xs text-vehiq-muted mt-1">Maks. 5 zdjęć na pojazd</p>
+                <h2 className="text-xl font-semibold text-white">{i18n.t("photoLimit.title")}</h2>
+                <p className="text-xs text-vehiq-muted mt-1">{i18n.t("photoLimit.max")}</p>
               </div>
             </div>
 
             <p className="text-sm leading-relaxed" style={{ color: "#DCE5F0" }}>
-              Chcesz przechowywać więcej zdjęć swojego pojazdu? Zostaw adres e-mail — jako pierwszy dowiesz się gdy będzie to możliwe.
+              {i18n.t("photoLimit.body")}
             </p>
 
             <input
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="Twój adres e-mail"
+              placeholder={i18n.t("photoLimit.emailPh")}
               required
               className="w-full px-3 py-2.5 rounded-md text-sm"
               style={{
@@ -124,7 +125,7 @@ export default function PhotoLimitModal({ isOpen, onClose, vehicleId, prefillEma
               className="w-full text-xs text-vehiq-muted hover:text-white transition-colors"
               data-testid="photo-limit-skip"
             >
-              Wróć do garażu
+              {i18n.t("photoLimit.back")}
             </button>
           </form>
         )}

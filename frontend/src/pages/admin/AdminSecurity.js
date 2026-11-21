@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import adminApi from "@/lib/adminApi";
+import { AdminTwoFactor, AdminFailedLogins } from "@/components/admin/AdminTwoFactor";
 import { toast } from "sonner";
 import { Mail, Calendar, Clock, KeyRound } from "lucide-react";
 
@@ -109,6 +110,9 @@ export default function AdminSecurity() {
           </tbody>
         </table>
       </div>
+
+      <AdminTwoFactor />
+      <AdminFailedLogins />
     </div>
   );
 }

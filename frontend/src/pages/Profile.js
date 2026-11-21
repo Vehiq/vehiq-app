@@ -71,7 +71,7 @@ export default function Profile() {
     }
     // Guard: > 2MB → reject with hint (backend also caps at ~2MB)
     if (file.size > 2 * 1024 * 1024) {
-      toast.error("Plik jest za duży (max 2 MB)");
+      toast.error(t("ui.fileTooLarge2mb"));
       return;
     }
     setUploadingAvatar(true);
@@ -86,7 +86,7 @@ export default function Profile() {
       await refresh?.();
       toast.success("Avatar zaktualizowany");
     } catch (err) {
-      toast.error(apiErrorMessage(err, "Nie udało się przesłać zdjęcia"));
+      toast.error(apiErrorMessage(err, t("ui.photoUploadFailed")));
     } finally {
       setUploadingAvatar(false);
       if (avatarInputRef.current) avatarInputRef.current.value = "";
@@ -120,7 +120,7 @@ export default function Profile() {
             onClick={() => avatarInputRef.current?.click()}
             className="relative h-16 w-16 rounded-full overflow-hidden group border border-vehiq-border hover:border-vehiq-gold transition-colors focus:outline-none focus:ring-2 focus:ring-vehiq-gold"
             data-testid="profile-avatar-btn"
-            aria-label="Zmień zdjęcie profilowe"
+            aria-label={t("ui.changeAvatar")}
           >
             {user?.avatar ? (
               <img src={user.avatar} className="h-16 w-16 rounded-full object-cover" alt="Avatar" />
@@ -155,7 +155,7 @@ export default function Profile() {
               className="text-[11px] text-vehiq-gold hover:text-vehiq-gold-hover uppercase tracking-widest mt-1"
               data-testid="profile-avatar-change-link"
             >
-              Zmień zdjęcie profilowe
+              {t("ui.changeAvatar")}
             </button>
           </div>
         </div>
@@ -174,8 +174,8 @@ export default function Profile() {
         <div>
           <label className="vehiq-overline mb-2 block">{t("common.language")}</label>
           <select value={form.language} onChange={(e) => setForm({...form, language: e.target.value})} className="vehiq-input" data-testid="profile-language">
-            <option value="pl">🇵🇱 Polski</option>
-            <option value="en">🇬🇧 English</option>
+            <option value="pl">PL — Polski</option>
+            <option value="en">EN — English</option>
           </select>
         </div>
         <button className="vehiq-btn-primary" data-testid="profile-save">{t("common.save")}</button>
@@ -224,7 +224,7 @@ export default function Profile() {
               className="vehiq-input"
               data-testid="profile-units-currency"
             >
-              <option value="PLN">PLN — Polski złoty</option>
+              <option value="PLN">{t("ui.currencyPln")}</option>
               <option value="EUR">EUR — Euro</option>
               <option value="GBP">GBP — British pound</option>
             </select>

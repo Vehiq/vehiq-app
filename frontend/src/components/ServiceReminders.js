@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useEffect, useState } from "react";
 import { AlertTriangle, Clock, Wrench } from "lucide-react";
 import api from "@/lib/api";
@@ -44,11 +45,12 @@ export default function ServiceReminders({ vehicleId }) {
 }
 
 function ReminderItem({ r }) {
+  const { t } = useTranslation();
   const isOverdue = r.status === "overdue";
   const badgeCls = isOverdue
     ? "bg-red-500/15 text-red-400 border-red-500/30"
     : "bg-vehiq-gold-dim text-vehiq-gold border-vehiq-gold/30";
-  const badgeLabel = isOverdue ? "Zaległy" : "Wkrótce";
+  const badgeLabel = isOverdue ? t("ui.reminderOverdue") : t("ui.reminderSoon");
   const Icon = isOverdue ? AlertTriangle : Clock;
   return (
     <div
@@ -71,7 +73,7 @@ function ReminderItem({ r }) {
         )}
         {r.last_date && (
           <p className="text-[10px] text-vehiq-muted/70 mt-0.5">
-            Ostatnia usługa: {String(r.last_date).slice(0, 10)}
+            {t("ui.reminderLast")}: {String(r.last_date).slice(0, 10)}
           </p>
         )}
       </div>

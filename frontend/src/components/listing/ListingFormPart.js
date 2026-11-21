@@ -1,3 +1,4 @@
+import i18n from "@/i18n";
 /**
  * Parts-listing subform (Iter 54b).
  *
@@ -14,15 +15,15 @@ export default function ListingFormPart({ form, setForm }) {
   const patch = (obj) => setForm({ ...form, part: { ...form.part, ...obj } });
   return (
     <div className="space-y-4 pt-2 border-t border-vehiq-border" data-testid="listing-part-extras">
-      <div className="vehiq-overline">Szczegóły części</div>
+      <div className="vehiq-overline">{i18n.t("lst.partDetails")}</div>
 
       <div>
-        <label className="vehiq-overline mb-2 block">Stan</label>
+        <label className="vehiq-overline mb-2 block">{i18n.t("lst.condition")}</label>
         <div className="grid grid-cols-3 gap-2">
           {[
-            { v: "new", label: "Nowa" },
-            { v: "used", label: "Używana" },
-            { v: "refurbished", label: "Regenerowana" },
+            { v: "new", label: i18n.t("lst.condNew") },
+            { v: "used", label: i18n.t("lst.condUsed") },
+            { v: "refurbished", label: i18n.t("lst.condRefurb") },
           ].map((c) => (
             <label
               key={c.v}
@@ -49,21 +50,21 @@ export default function ListingFormPart({ form, setForm }) {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
-          <label className="vehiq-overline mb-2 block">Marka pasująca</label>
+          <label className="vehiq-overline mb-2 block">{i18n.t("lst.fitsMake")}</label>
           <input
             value={p.part_make || ""}
             onChange={(e) => patch({ part_make: e.target.value })}
-            placeholder="np. BMW"
+            placeholder={i18n.t("lst.egMake")}
             className="vehiq-input"
             data-testid="listing-part-make"
           />
         </div>
         <div>
-          <label className="vehiq-overline mb-2 block">Model pasujący</label>
+          <label className="vehiq-overline mb-2 block">{i18n.t("lst.fitsModel")}</label>
           <input
             value={p.part_model || ""}
             onChange={(e) => patch({ part_model: e.target.value })}
-            placeholder="np. E46"
+            placeholder={i18n.t("lst.egModel")}
             className="vehiq-input"
             data-testid="listing-part-model"
           />
@@ -72,7 +73,7 @@ export default function ListingFormPart({ form, setForm }) {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
-          <label className="vehiq-overline mb-2 block">Rocznik od</label>
+          <label className="vehiq-overline mb-2 block">{i18n.t("lst.yearFrom")}</label>
           <input
             type="number" min="1900" max="2035"
             value={p.part_year_from || ""}
@@ -82,7 +83,7 @@ export default function ListingFormPart({ form, setForm }) {
           />
         </div>
         <div>
-          <label className="vehiq-overline mb-2 block">Rocznik do</label>
+          <label className="vehiq-overline mb-2 block">{i18n.t("lst.yearTo")}</label>
           <input
             type="number" min="1900" max="2035"
             value={p.part_year_to || ""}
@@ -95,25 +96,25 @@ export default function ListingFormPart({ form, setForm }) {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
-          <label className="vehiq-overline mb-2 block">Numer OEM</label>
+          <label className="vehiq-overline mb-2 block">{i18n.t("lst.oem")}</label>
           <input
             value={p.part_oem || ""}
             onChange={(e) => patch({ part_oem: e.target.value })}
-            placeholder="np. 11427508969"
+            placeholder={i18n.t("lst.egOem")}
             className="vehiq-input"
             data-testid="listing-part-oem"
           />
         </div>
         <div>
-          <label className="vehiq-overline mb-2 block">Typ ceny</label>
+          <label className="vehiq-overline mb-2 block">{i18n.t("lst.priceType")}</label>
           <select
             value={p.price_type || "fixed"}
             onChange={(e) => patch({ price_type: e.target.value })}
             className="vehiq-input"
             data-testid="listing-part-price-type"
           >
-            <option value="fixed">Cena stała</option>
-            <option value="negotiable">Do negocjacji</option>
+            <option value="fixed">{i18n.t("lst.priceFixed")}</option>
+            <option value="negotiable">{i18n.t("lst.priceNegotiable")}</option>
           </select>
         </div>
       </div>
@@ -125,7 +126,7 @@ export default function ListingFormPart({ form, setForm }) {
           onChange={(e) => patch({ shipping: e.target.checked })}
           data-testid="listing-part-shipping"
         />
-        <span>Wysyłam kurierem (dodatkowo, po ustaleniu)</span>
+        <span>{i18n.t("lst.ships")}</span>
       </label>
     </div>
   );

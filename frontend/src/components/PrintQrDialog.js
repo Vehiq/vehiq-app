@@ -1,5 +1,6 @@
+import i18n from "@/i18n";
 import { useState, useEffect, useCallback } from "react";
-import { useTranslation } from "react-i18next";
+import { useTranslation, Trans } from "react-i18next";
 import { QrCode, Download, X, Printer } from "lucide-react";
 import { toast } from "sonner";
 
@@ -101,7 +102,7 @@ export default function PrintQrDialog({ vehicleId, vehicleSlug, onClose, qrKind 
       return;
     }
     const w = window.open("", "_blank", "width=800,height=800");
-    if (!w) return toast.error("Popup blocked");
+    if (!w) return toast.error(i18n.t("qr.popup"));
     w.document.write(`<!doctype html><html><head><title>QR — ${vehicleSlug || vehicleId}</title>
       <style>
         html,body{margin:0;padding:0;background:${variant === "light" ? "#fff" : "#0D1626"};display:flex;align-items:center;justify-content:center;min-height:100vh}
@@ -131,14 +132,14 @@ export default function PrintQrDialog({ vehicleId, vehicleSlug, onClose, qrKind 
             </div>
             <div>
               <h2 className="vehiq-display text-xl text-vehiq-text">{isFuel ? "Kod QR wlewu paliwa" : "Kod QR do druku"}</h2>
-              <p className="text-[11px] text-vehiq-muted">{isFuel ? "Naklej przy wlewie paliwa" : "Naklej od wewnątrz szyby"}</p>
+              <p className="text-[11px] text-vehiq-muted">{isFuel ? i18n.t("qr.stickFuel") : i18n.t("qr.stickGlass")}</p>
             </div>
           </div>
           <button
             onClick={onClose}
             className="text-vehiq-muted hover:text-vehiq-text"
             data-testid="print-qr-close"
-            aria-label="Zamknij"
+            aria-label={i18n.t("qr.close")}
           >
             <X size={18} />
           </button>
@@ -146,8 +147,8 @@ export default function PrintQrDialog({ vehicleId, vehicleSlug, onClose, qrKind 
 
         <div className="inline-flex rounded-md border border-vehiq-border bg-vehiq-card p-1" data-testid="print-qr-variant-toggle">
           {[
-            { v: "dark", label: "Ciemna szyba" },
-            { v: "light", label: "Jasna szyba" },
+            { v: "dark", label: i18n.t("qr.dark") },
+            { v: "light", label: i18n.t("qr.light") },
           ].map((opt) => (
             <button
               key={opt.v}
@@ -168,7 +169,7 @@ export default function PrintQrDialog({ vehicleId, vehicleSlug, onClose, qrKind 
           style={{ background: variant === "light" ? "#ffffff" : "repeating-conic-gradient(#1E2A42 0 25%, #0D1626 0 50%) 50%/16px 16px" }}
           data-testid="print-qr-preview-wrap"
         >
-          {loading && <div className="text-xs text-vehiq-muted">Ładowanie…</div>}
+          {loading && <div className="text-xs text-vehiq-muted">{i18n.t("qr.loading")}</div>}
           {!loading && previewError && (
             <div className="text-xs text-red-400 px-4 text-center" data-testid="print-qr-error">
               Błąd: {previewError}
@@ -186,9 +187,9 @@ export default function PrintQrDialog({ vehicleId, vehicleSlug, onClose, qrKind 
 
         <p className="text-[11px] text-vehiq-muted leading-snug">
           {isFuel ? (
-            <>Wydrukuj i naklej przy <strong>wlewie paliwa</strong>. Po zeskanowaniu otworzy się szybki formularz tankowania — wypełnisz i zapiszesz w kilka sekund.</>
+            <Trans i18nKey="qr.fuelHint" components={{ b: <strong /> }} />
           ) : (
-            <>Wydrukuj na przezroczystej folii i naklej od <strong>wewnętrznej</strong> strony szyby. Kod jest lustrzanie odbity — po naklejeniu będzie czytelny od zewnątrz.</>
+            <Trans i18nKey="qr.glassHint" components={{ b: <strong /> }} />
           )}
         </p>
 

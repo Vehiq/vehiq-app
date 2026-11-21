@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useTranslation } from "react-i18next";
+import { useTranslation, Trans } from "react-i18next";
 import {
   Plus,
   X,
@@ -270,6 +270,7 @@ function AddEntryForm({ vehicleId, lang, onDone }) {
 
 // ---------- Cyfrowa książka serwisowa share modal (moved from vehicle header) ----------
 function ServiceBookShareModal({ vehicle, onClose }) {
+  const { t } = useTranslation();
   const [status, setStatus] = useState(null);
   const [loading, setLoading] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -281,7 +282,7 @@ function ServiceBookShareModal({ vehicle, onClose }) {
     setLoading(true);
     api.get(`/vehicles/${vehicle.id}/timeline/share`)
       .then(({ data }) => setStatus(data))
-      .catch(() => toast.error("Błąd pobierania statusu"))
+      .catch(() => toast.error(t("ui.statusFetchError")))
       .finally(() => setLoading(false));
   }, [vehicle.id]);
 
@@ -293,7 +294,7 @@ function ServiceBookShareModal({ vehicle, onClose }) {
       // Paczka 2 — GA4 event (no PII).
       trackEvent("public_link_shared", { action: "generated" });
       toast.success("Link wygenerowany");
-    } catch { toast.error("Błąd generowania"); }
+    } catch { toast.error(t("ui.generateError")); }
     finally { setLoading(false); }
   };
 
@@ -303,7 +304,7 @@ function ServiceBookShareModal({ vehicle, onClose }) {
       const { data } = await api.patch(`/vehicles/${vehicle.id}/timeline/share`, { enabled });
       setStatus(data);
       toast.success(enabled ? "Link aktywny" : "Link dezaktywowany");
-    } catch { toast.error("Błąd zmiany statusu"); }
+    } catch { toast.error(t("ui.statusChangeError")); }
     finally { setLoading(false); }
   };
 
@@ -317,7 +318,7 @@ function ServiceBookShareModal({ vehicle, onClose }) {
       // Paczka 2 — GA4 event (no PII).
       trackEvent("public_link_shared", { action: "copied" });
       toast.success("Skopiowano");
-    } catch { toast.error("Nie udało się skopiować"); }
+    } catch { toast.error(t("ui.copyFailed")); }
   };
 
   return (
@@ -327,10 +328,10 @@ function ServiceBookShareModal({ vehicle, onClose }) {
           <div className="h-10 w-10 rounded-full bg-vehiq-gold-dim text-vehiq-gold flex items-center justify-center">
             <BookOpen size={18} />
           </div>
-          <h2 className="vehiq-display text-2xl text-vehiq-text">Cyfrowa książka serwisowa</h2>
+          <h2 className="vehiq-display text-2xl text-vehiq-text">{t("ui.serviceBookTitle")}</h2>
         </div>
         <p className="text-sm text-vehiq-muted leading-relaxed">
-          Udostępnij historię swojego auta przy sprzedaży. Kupujący zobaczy pełną historię serwisową <strong className="text-vehiq-text">bez Twoich danych finansowych</strong>.
+          <Trans i18nKey="ui.serviceBookIntro" components={{ b: <strong className="text-vehiq-text" /> }} />
         </p>
 
         {loading && !status ? (
@@ -342,7 +343,7 @@ function ServiceBookShareModal({ vehicle, onClose }) {
             className="vehiq-btn-primary w-full py-2.5"
             data-testid="service-book-generate"
           >
-            Wygeneruj link do udostępnienia
+            {t("ui.serviceBookGenerate")}
           </button>
         ) : (
           <>
@@ -385,7 +386,7 @@ function ServiceBookShareModal({ vehicle, onClose }) {
                   className="text-vehiq-muted hover:text-vehiq-gold underline"
                   data-testid="service-book-preview"
                 >
-                  Podgląd →
+                  {t("ui.preview")}
                 </a>
               )}
             </div>

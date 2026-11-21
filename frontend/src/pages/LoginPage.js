@@ -108,9 +108,9 @@ export default function LoginPage() {
               <Link to="/register" className="text-vehiq-gold hover:text-vehiq-gold-hover" data-testid="login-register-link">{t("auth.register")}</Link>
             </div>
             <div className="pt-2 border-t border-vehiq-border/50 mt-2">
-              Prowadzisz warsztat?{" "}
+              {t("ui.loginBusinessQ")}{" "}
               <Link to="/dla-warsztatow" className="text-[#2B7FE8] hover:underline" data-testid="login-b2b-link">
-                Zarejestruj firmę →
+                {t("ui.loginBusinessLink")}
               </Link>
             </div>
           </div>

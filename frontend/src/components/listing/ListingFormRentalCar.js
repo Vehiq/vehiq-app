@@ -1,3 +1,4 @@
+import i18n from "@/i18n";
 /**
  * Rental-car fields (Iter 52b refactor).
  *
@@ -12,11 +13,11 @@ export default function ListingFormRentalCar({ form, setForm }) {
   return (
     <>
       <div>
-        <label className="vehiq-overline mb-2 block">Miejsce odbioru</label>
+        <label className="vehiq-overline mb-2 block">{i18n.t("lst.pickup")}</label>
         <input
           value={r.pickup_location || ""}
           onChange={(e) => patch({ pickup_location: e.target.value })}
-          placeholder="np. Warszawa, Mokotów"
+          placeholder={i18n.t("lst.egPickup")}
           className="vehiq-input"
           data-testid="rental-pickup"
         />
@@ -32,11 +33,11 @@ export default function ListingFormRentalCar({ form, setForm }) {
             className="accent-vehiq-gold"
             data-testid="rental-delivery"
           />
-          <span>Możliwość dowozu</span>
+          <span>{i18n.t("lst.delivery")}</span>
         </label>
         {r.delivery && (
           <div className="col-span-2">
-            <label className="vehiq-overline mb-2 block">Promień dowozu (km)</label>
+            <label className="vehiq-overline mb-2 block">{i18n.t("lst.deliveryRadius")}</label>
             <input
               type="number" min="0" step="1"
               value={r.delivery_radius_km || ""}
@@ -51,11 +52,11 @@ export default function ListingFormRentalCar({ form, setForm }) {
       {/* Change 27 (Iter 52a): deposit + min/max days + driver requirements */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {[
-          { key: "deposit",             label: "Kaucja (PLN)",              min: 0,  testId: "rental-deposit" },
-          { key: "min_days",            label: "Min. dni",                  min: 1,  testId: "rental-min-days" },
-          { key: "max_days",            label: "Max. dni",                  min: 1,  testId: "rental-max-days" },
-          { key: "min_driver_age",      label: "Min. wiek kierowcy",        min: 18, testId: "rental-min-age" },
-          { key: "min_license_years",   label: "Min. staż prawa jazdy (lat)", min: 0, testId: "rental-min-license" },
+          { key: "deposit",             label: i18n.t("lst.deposit"),              min: 0,  testId: "rental-deposit" },
+          { key: "min_days",            label: i18n.t("lst.minDays"),                  min: 1,  testId: "rental-min-days" },
+          { key: "max_days",            label: i18n.t("lst.maxDays"),                  min: 1,  testId: "rental-max-days" },
+          { key: "min_driver_age",      label: i18n.t("lst.minAge"),        min: 18, testId: "rental-min-age" },
+          { key: "min_license_years",   label: i18n.t("lst.minLicense"), min: 0, testId: "rental-min-license" },
         ].map((f) => (
           <div key={f.key}>
             <label className="vehiq-overline mb-2 block">{f.label}</label>

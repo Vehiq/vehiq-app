@@ -1,3 +1,4 @@
+import i18n from "@/i18n";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
@@ -68,9 +69,6 @@ export default function Blog() {
   const hasMore = data && data.items.length < (data.total || 0);
 
   usePageSeo(ROUTES.blog, {
-    title: "Blog Sharago — porady, historie i nowości",
-    description: "Blog Sharago — porady dla właścicieli pojazdów, historie z garażu, nowości o platformie.",
-  }, {
     rssFeed: "https://sharago.pl/api/blog/feed.xml",
     rssTitle: "Sharago Blog",
   });
@@ -82,16 +80,16 @@ export default function Blog() {
           <Link to="/" className="flex items-center gap-2" data-testid="blog-home-link">
             <Logo size="md" />
           </Link>
-          <Link to="/register" className="vehiq-btn-secondary text-xs" data-testid="blog-cta-register">Załóż garaż</Link>
+          <Link to="/register" className="vehiq-btn-secondary text-xs" data-testid="blog-cta-register">{i18n.t("blogUi.ctaGarage")}</Link>
         </div>
       </header>
 
       <main className="max-w-5xl mx-auto px-4 md:px-6 py-10 space-y-10">
         <section className="space-y-3">
           <div className="vehiq-overline inline-flex items-center gap-2"><BookOpen size={12}/> Blog Sharago</div>
-          <h1 className="vehiq-display text-4xl sm:text-5xl lg:text-6xl">Porady, historie i nowości</h1>
+          <h1 className="vehiq-display text-4xl sm:text-5xl lg:text-6xl">{i18n.t("blogUi.h1")}</h1>
           <p className="text-vehiq-muted max-w-2xl">
-            Artykuły dla właścicieli pojazdów — serwis, ekonomia eksploatacji, kupno i sprzedaż, projekty garażowe oraz to, co dzieje się w platformie Sharago.
+            {i18n.t("blogUi.intro")}
           </p>
         </section>
 
@@ -111,9 +109,9 @@ export default function Blog() {
         ) : data.items.length === 0 ? (
           <EmptyState
             icon={BookOpen}
-            title="Wkrótce pojawią się tu artykuły"
-            description="Zespół Sharago pracuje nad pierwszymi wpisami. Zajrzyj za chwilę albo załóż garaż już teraz."
-            action={<Link to="/register" className="vehiq-btn-primary">Załóż konto</Link>}
+            title={i18n.t("blogUi.emptyTitle")}
+            description={i18n.t("blogUi.emptyDesc")}
+            action={<Link to="/register" className="vehiq-btn-primary">{i18n.t("blogUi.signUp")}</Link>}
             dataTestId="blog-empty"
           />
         ) : (
@@ -132,7 +130,7 @@ export default function Blog() {
                   className="vehiq-btn-secondary disabled:opacity-50"
                   data-testid="blog-load-more"
                 >
-                  {loadingMore ? "Ładowanie..." : "Załaduj więcej"}
+                  {loadingMore ? i18n.t("blogUi.loading") : i18n.t("blogUi.loadMore")}
                 </button>
               </div>
             )}
@@ -140,7 +138,7 @@ export default function Blog() {
         )}
 
         <footer className="text-center pt-10 pb-6 text-xs text-vehiq-muted">
-          <Link to="/" className="hover:text-vehiq-gold">Powrót do Sharago</Link>
+          <Link to="/" className="hover:text-vehiq-gold">{i18n.t("blogUi.back")}</Link>
         </footer>
       </main>
     </div>

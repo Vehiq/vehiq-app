@@ -1,0 +1,3 @@
+apply("pages/Blog.js","blogUi",[("Artykuły dla właścicieli pojazdów — serwis, ekonomia eksploatacji, kupno i sprzedaż, projekty garażowe oraz to, co dzieje się w platformie Sharago.","intro","Articles for car owners — servicing, running costs, buying and selling, garage projects and what's new on Sharago."),
+ ("Ładowanie...","loading","Loading..."),("Załaduj więcej","loadMore","Load more")])
+apply("pages/BlogPost.js","blogUi",[("Historia serwisowa, koszty, przebieg, ogłoszenia i społeczność — wszystko w jednym miejscu. Darmowa rejestracja, bez karty.","ctaDesc","Service history, costs, mileage, listings and community — all in one place. Free sign-up, no card needed.")])

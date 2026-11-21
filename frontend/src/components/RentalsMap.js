@@ -1,3 +1,4 @@
+import i18n from "@/i18n";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
@@ -139,14 +140,14 @@ export default function RentalsMap({ listings = [], selectedId = null, onSelect,
                 <div style={{ fontWeight: 600, marginBottom: 4, fontSize: 13 }}>{p.title}</div>
                 <div style={{ fontSize: 13, color: "#2B7FE8", fontWeight: 600 }}>
                   {p.rental?.price_per_day ?? p.price} PLN
-                  <span style={{ fontSize: 11, color: "#888", fontWeight: 400 }}> / doba</span>
+                  <span style={{ fontSize: 11, color: "#888", fontWeight: 400 }}> / {i18n.t("map.perDay")}</span>
                 </div>
                 <Link
                   to={`/marketplace/${p.id}`}
                   style={{ display: "inline-block", marginTop: 8, color: "#2B7FE8", fontWeight: 600, fontSize: 12, textDecoration: "none" }}
                   data-testid={`rentals-map-popup-link-${p.id}`}
                 >
-                  Zobacz ogłoszenie →
+                  {i18n.t("map.view")}
                 </Link>
               </div>
             </Popup>
@@ -160,7 +161,7 @@ export default function RentalsMap({ listings = [], selectedId = null, onSelect,
           className="absolute inset-0 flex items-center justify-center bg-vehiq-bg/60 text-xs text-vehiq-muted pointer-events-none"
           data-testid="rentals-map-geocoding"
         >
-          Geokodowanie adresów...
+          {i18n.t("map.geocoding")}
         </div>
       )}
     </div>

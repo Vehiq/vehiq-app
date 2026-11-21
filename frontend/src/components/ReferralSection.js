@@ -13,7 +13,7 @@ import { toast } from "sonner";
  */
 
 const CHANNELS = [
-  { key: "friend",    label: "Ogólny link",      Icon: Share2 },
+  { key: "friend",    labelKey: "ui.referralGeneric", Icon: Share2 },
   { key: "facebook",  label: "Facebook",         Icon: Facebook },
   { key: "whatsapp",  label: "WhatsApp",         Icon: MessageCircle },
   { key: "tiktok",    label: "TikTok",           Icon: Share2 },
@@ -99,7 +99,7 @@ export default function ReferralSection({ user }) {
 
       {/* Channel selector */}
       <div className="flex flex-wrap gap-2" data-testid="referral-channels">
-        {CHANNELS.map(({ key, label, Icon }) => (
+        {CHANNELS.map(({ key, label, labelKey, Icon }) => (
           <button
             key={key}
             type="button"
@@ -111,7 +111,7 @@ export default function ReferralSection({ user }) {
             }`}
             data-testid={`referral-channel-${key}`}
           >
-            <Icon size={12} /> {label}
+            <Icon size={12} /> {labelKey ? t(labelKey) : label}
           </button>
         ))}
       </div>

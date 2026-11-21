@@ -1,3 +1,5 @@
+import { Trans } from "react-i18next";
+import i18n from "@/i18n";
 import { useCallback, useRef, useState } from "react";
 import { Upload, X, ImagePlus } from "lucide-react";
 import { toast } from "sonner";
@@ -82,7 +84,7 @@ export default function BulkPhotoUploader({
       try { f = await compressImage(outFile); } catch { /* keep raw */ }
       const dataUrl = await fileToDataURL(f);
       onPhotosChange([...(photos || []), dataUrl]);
-    } catch { toast.error("Błąd przetwarzania zdjęcia"); }
+    } catch { toast.error(i18n.t("upl.processError")); }
     finally {
       setProcessing(false);
       setBlurQueue((q) => q.slice(1));
@@ -158,7 +160,7 @@ export default function BulkPhotoUploader({
         <div className="flex flex-col items-center gap-2 text-vehiq-muted text-sm">
           <ImagePlus size={28} className="text-vehiq-gold" />
           <div>
-            <strong className="text-vehiq-text">Przeciągnij zdjęcia tutaj</strong> lub kliknij aby wybrać
+            <Trans i18nKey="upl.drop" components={{ b: <strong className="text-vehiq-text" /> }} />
           </div>
           <div className="text-[11px]">
             {photos.length}/{maxPhotos} zdjęć · JPG/PNG do 15 MB
@@ -178,7 +180,7 @@ export default function BulkPhotoUploader({
                 disabled={disabled}
                 className="absolute top-1 right-1 bg-vehiq-bg/80 hover:bg-red-500/80 p-1 rounded transition-colors"
                 data-testid={`${testIdPrefix}-remove-${i}`}
-                aria-label="Usuń zdjęcie"
+                aria-label={i18n.t("upl.remove")}
               >
                 <X size={12} />
               </button>

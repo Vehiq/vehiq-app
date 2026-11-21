@@ -427,12 +427,22 @@ async def request_vehicle_access(db, business: dict, vehicle: dict) -> dict:
             {"_id": 0, "email": 1, "name": 1, "language": 1},
         )
         if owner and owner.get("email"):
-            subj = f"Prośba o dostęp do historii serwisowej — {business.get('name','warsztat')}"
-            body = f"""<h2 style="{_H2}">Warsztat prosi o dostęp</h2>
-<p style="{_P}">Warsztat <strong style="color:#fff">{business.get('name','')}</strong> zeskanował Twój kod QR w pojeździe {vehicle.get('make','')} {vehicle.get('model','')}.</p>
+            car = f"{vehicle.get('make','')} {vehicle.get('model','')}"
+            if owner.get("language") == "en":
+                subj = f"Service history access request — {business.get('name','workshop')}"
+                body = f"""<h2 style="{_H2}">A workshop is asking for access</h2>
+<p style="{_P}">The workshop <strong style="color:#fff">{business.get('name','')}</strong> scanned the QR code in your {car}.</p>
+<p style="{_P}">If you want them to add service records, approve access in the vehicle profile.</p>
+{_btn("Approve in Sharago →", f"{APP_URL}/garage/{vehicle['id']}")}"""
+                lang = "en"
+            else:
+                subj = f"Prośba o dostęp do historii serwisowej — {business.get('name','warsztat')}"
+                body = f"""<h2 style="{_H2}">Warsztat prosi o dostęp</h2>
+<p style="{_P}">Warsztat <strong style="color:#fff">{business.get('name','')}</strong> zeskanował Twój kod QR w pojeździe {car}.</p>
 <p style="{_P}">Jeśli chcesz, aby mógł dodawać wpisy serwisowe, zatwierdź dostęp w profilu pojazdu.</p>
 {_btn("Zatwierdź w Sharago →", f"{APP_URL}/garage/{vehicle['id']}")}"""
-            html = _wrap_html(subj, body, lang="pl")
+                lang = "pl"
+            html = _wrap_html(subj, body, lang=lang)
             fire_and_forget(send_email(owner["email"], subj, html))
     except Exception:
         pass

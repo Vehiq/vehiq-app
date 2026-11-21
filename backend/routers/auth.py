@@ -23,7 +23,8 @@ from email_service import (
     send_email, fire_and_forget,
     tpl_welcome, tpl_password_reset
 )
-from security import limiter, record_failed_login, log_security_event, EVENT_FAILED_LOGIN
+from security import limiter, record_failed_login, log_security_event, EVENT_FAILED_LOGIN, client_ip
+import login_guard
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 APP_URL = os.environ.get("APP_URL", "https://sharago.pl")
@@ -188,6 +189,9 @@ class PasswordResetConfirmIn(BaseModel):
 async def password_reset_request(payload: PasswordResetRequestIn, request: Request):
     """Always returns 200 to avoid leaking which emails exist."""
     db = get_db()
+    await login_guard.assert_not_locked(db, "password_reset", payload.email, request)
+    # Every request counts toward the per-email / per-IP limit (3 / 10 per 15 min).
+    await login_guard.record_failure(db, "password_reset", payload.email, request, reason="reset_requested")
     user = await db.profiles.find_one({"email": payload.email.lower()})
     if user:
         token = create_access_token({"sub": user["id"], "type": "password_reset"}, expires_hours=1)
@@ -207,10 +211,16 @@ async def password_reset_request(payload: PasswordResetRequestIn, request: Reque
 
 
 @router.post("/password-reset/confirm")
-async def password_reset_confirm(payload: PasswordResetConfirmIn):
+async def password_reset_confirm(payload: PasswordResetConfirmIn, request: Request):
     db = get_db()
-    data = decode_token(payload.token)
+    await login_guard.assert_not_locked(db, "password_reset", "", request)
+    try:
+        data = decode_token(payload.token)
+    except HTTPException:
+        await login_guard.record_failure(db, "password_reset", "", request, reason="invalid_reset_token")
+        raise
     if data.get("type") != "password_reset":
+        await login_guard.record_failure(db, "password_reset", "", request, reason="invalid_reset_token")
         raise HTTPException(status_code=400, detail="Invalid token")
     user_id = data.get("sub")
     res = await db.profiles.update_one(
@@ -230,10 +240,8 @@ async def login(payload: LoginIn, request: Request):
     if settings and settings["value"] != "true":
         raise HTTPException(status_code=403, detail="Email login is disabled")
 
-    # Iter 48: source IP for brute-force tracking (trusts X-Forwarded-For
-    # because Render/Cloudflare terminate TLS in front of the app).
-    _client_ip = (request.headers.get("x-forwarded-for", "").split(",")[0].strip()
-                  or (request.client.host if request.client else ""))
+    _client_ip = client_ip(request)
+    await login_guard.assert_not_locked(db, "user", payload.email, request)
 
     user = await db.profiles.find_one({
         "$or": [
@@ -247,6 +255,7 @@ async def login(payload: LoginIn, request: Request):
     })
     if not user or not verify_password(payload.password, user.get("password_hash") or ""):
         await record_failed_login(db, _client_ip, email=payload.email)
+        await login_guard.record_failure(db, "user", payload.email, request)
         raise HTTPException(status_code=401, detail="Invalid email or password")
     if user.get("suspended"):
         raise HTTPException(status_code=403, detail=f"Account suspended: {user.get('suspend_reason') or ''}")
@@ -255,6 +264,7 @@ async def login(payload: LoginIn, request: Request):
     if user.get("deleted_at"):
         raise HTTPException(status_code=410, detail="Account has been deleted. Restore within 30 days by contacting support.")
 
+    await login_guard.clear_failures(db, "user", payload.email)
     await db.profiles.update_one({"id": user["id"]}, {"$set": {"last_active": datetime.now(timezone.utc).isoformat()}})
     token = create_access_token({"sub": user["id"], "type": "user"})
     return {"token": token, "user": _public_user(user)}

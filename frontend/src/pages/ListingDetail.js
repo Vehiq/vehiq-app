@@ -86,19 +86,19 @@ export default function ListingDetail() {
               <div className="vehiq-overline inline-flex items-center gap-2">Warunki wynajmu</div>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3" data-testid="listing-rental-prices">
                 {listing.rental.price_per_day != null && (
-                  <RentalPrice label="Doba" amount={listing.rental.price_per_day} highlight />
+                  <RentalPrice label={t("ui.rentDay")} amount={listing.rental.price_per_day} highlight />
                 )}
                 {listing.rental.price_per_week != null && (
-                  <RentalPrice label="Tydzień" amount={listing.rental.price_per_week} />
+                  <RentalPrice label={t("ui.rentWeek")} amount={listing.rental.price_per_week} />
                 )}
                 {listing.rental.price_per_month != null && (
-                  <RentalPrice label="Miesiąc" amount={listing.rental.price_per_month} />
+                  <RentalPrice label={t("ui.rentMonth")} amount={listing.rental.price_per_month} />
                 )}
               </div>
               {listing.rental.availability_text && (
                 <div className="text-sm">
                   <div className="text-[10px] uppercase tracking-widest text-vehiq-muted mb-1 inline-flex items-center gap-1">
-                    <Calendar size={11} /> Dostępność
+                    <Calendar size={11} /> {t("ui.availability")}
                   </div>
                   <div className="text-vehiq-text">{listing.rental.availability_text}</div>
                 </div>
@@ -107,7 +107,7 @@ export default function ListingDetail() {
                 <div className="text-sm">
                   <div className="text-[10px] uppercase tracking-widest text-vehiq-muted mb-1 inline-flex items-center gap-1">
                     <MapPin size={11} />
-                    {listing.category === "rental_car" ? "Miejsce odbioru" : "Adres garażu"}
+                    {listing.category === "rental_car" ? t("ui.pickupPlace") : t("ui.garageAddress")}
                   </div>
                   <div className="text-vehiq-text">
                     {listing.rental.pickup_location || listing.rental.garage_address}
@@ -142,7 +142,7 @@ export default function ListingDetail() {
               >
                 <ShieldAlert size={12} className="text-vehiq-gold mt-0.5 shrink-0" />
                 <span>
-                  Sharago jest platformą ogłoszeniową. Transakcje i umowy najmu zawierane są bezpośrednio między użytkownikami. Platforma nie ponosi odpowiedzialności za przebieg transakcji.
+                  {t("ui.platformDisclaimer")}
                 </span>
               </div>
             </div>

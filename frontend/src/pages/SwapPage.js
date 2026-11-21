@@ -1,3 +1,4 @@
+import i18n from "@/i18n";
 import { useEffect, useState, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { Heart, X, Repeat, Trash2, MessageCircle, Plus, Car } from "lucide-react";
@@ -73,7 +74,7 @@ export default function SwapPage() {
   const react = async (action) => {
     if (!currentCard) return;
     if (!myVehicles.length) {
-      toast.error("Najpierw wystaw swoje auto do zamiany");
+      toast.error(i18n.t("swap.listFirst"));
       setTab("mine");
       return;
     }
@@ -94,10 +95,10 @@ export default function SwapPage() {
         } catch { /* noop */ }
       }
       if (data.match) {
-        toast.success("Znalazłeś partnera do zamiany! 🚗↔🚗", { duration: 5000 });
+        toast.success(i18n.t("swap.matched"), { duration: 5000 });
         loadMatches();
       } else if (action === "interested") {
-        toast.success("Zapisano — czekamy na drugą stronę");
+        toast.success(i18n.t("swap.saved"));
       }
       // Remove the card from the deck
       setDeck((d) => (d ? d.slice(1) : d));
@@ -110,7 +111,7 @@ export default function SwapPage() {
 
   const listVehicle = async () => {
     if (!selectedVehicleId) {
-      toast.error("Wybierz pojazd");
+      toast.error(i18n.t("swap.pickVehicle"));
       return;
     }
     setBusy(true);
@@ -120,7 +121,7 @@ export default function SwapPage() {
         vehicle_id: selectedVehicleId,
         looking_for,
       });
-      toast.success("Auto wystawione do zamiany");
+      toast.success(i18n.t("swap.listed"));
       setShowAddForm(false);
       setLookingFor("");
       loadMine();
@@ -128,7 +129,7 @@ export default function SwapPage() {
     } catch (e) {
       const detail = e?.response?.data?.detail;
       if (e?.response?.status === 402 && detail?.code === "swap_limit_free") {
-        toast.error("Możesz mieć 1 aktywne auto na giełdzie. Wkrótce zdejmiemy ten limit.");
+        toast.error(i18n.t("swap.limit"));
       } else {
         toast.error(detail?.message || detail || "Błąd");
       }
@@ -140,9 +141,9 @@ export default function SwapPage() {
   const removeListing = async (id) => {
     try {
       await api.delete(`/swaps/listing/${id}`);
-      toast.success("Wycofano z giełdy");
+      toast.success(i18n.t("swap.withdrawn"));
       loadMine();
-    } catch { toast.error("Błąd"); }
+    } catch { toast.error(i18n.t("swap.error")); }
   };
 
   return (
@@ -152,18 +153,18 @@ export default function SwapPage() {
           <Repeat size={20} />
         </div>
         <div>
-          <h1 className="vehiq-display text-3xl text-vehiq-text">Zamiana</h1>
+          <h1 className="vehiq-display text-3xl text-vehiq-text">{i18n.t("swap.title")}</h1>
           <p className="text-sm text-vehiq-muted mt-1">
-            Zamień swoje auto na inne. Gdy obie strony klikną "Pogadajmy" — łączymy Was.
+            {i18n.t("swap.subtitle")}
           </p>
         </div>
       </div>
 
       <div className="inline-flex rounded-md border border-vehiq-border bg-vehiq-card p-1" data-testid="swap-tabs">
         {[
-          { v: "deck", label: "Do przejrzenia" },
-          { v: "matches", label: `Dopasowania${matches ? ` (${matches.length})` : ""}` },
-          { v: "mine", label: "Moje wystawione" },
+          { v: "deck", label: i18n.t("swap.deck") },
+          { v: "matches", label: `${i18n.t("swap.matches")}${matches ? ` (${matches.length})` : ""}` },
+          { v: "mine", label: i18n.t("swap.mine") },
         ].map((opt) => (
           <button
             key={opt.v}
@@ -186,9 +187,9 @@ export default function SwapPage() {
           ) : deck.length === 0 ? (
             <EmptyState
               icon={Repeat}
-              title="Brak nowych kart"
-              description="Wróć później albo wystaw swoje auto — zwiększysz szansę na dopasowanie."
-              action={<button onClick={() => setTab("mine")} className="vehiq-btn-primary">Moje wystawione</button>}
+              title={i18n.t("swap.noCards")}
+              description={i18n.t("swap.noCardsDesc")}
+              action={<button onClick={() => setTab("mine")} className="vehiq-btn-primary">{i18n.t("swap.mine")}</button>}
               dataTestId="swap-deck-empty"
             />
           ) : (
@@ -212,8 +213,8 @@ export default function SwapPage() {
           ) : matches.length === 0 ? (
             <EmptyState
               icon={MessageCircle}
-              title="Brak dopasowań"
-              description="Gdy druga strona też cię wybierze, pojawi się tutaj."
+              title={i18n.t("swap.noMatches")}
+              description={i18n.t("swap.noMatchesDesc")}
               dataTestId="swap-matches-empty"
             />
           ) : (
@@ -261,7 +262,7 @@ export default function SwapPage() {
           {showAddForm && (
             <div className="vehiq-card p-4 space-y-3" data-testid="swap-add-form">
               <div>
-                <label className="vehiq-overline mb-2 block">Pojazd</label>
+                <label className="vehiq-overline mb-2 block">{i18n.t("swap.vehicle")}</label>
                 <select
                   value={selectedVehicleId}
                   onChange={(e) => setSelectedVehicleId(e.target.value)}
@@ -274,20 +275,20 @@ export default function SwapPage() {
                 </select>
               </div>
               <div>
-                <label className="vehiq-overline mb-2 block">Czego szukasz w zamian</label>
+                <label className="vehiq-overline mb-2 block">{i18n.t("swap.lookingFor")}</label>
                 <input
                   value={lookingFor}
                   onChange={(e) => setLookingFor(e.target.value)}
-                  placeholder="np. BMW M3, Porsche Boxster, Mercedes C63"
+                  placeholder={i18n.t("swap.egLooking")}
                   className="vehiq-input"
                   data-testid="swap-looking-for"
                 />
                 <div className="text-[11px] text-vehiq-muted mt-1">
-                  Rozdzielaj przecinkami. Max 20 pozycji.
+                  {i18n.t("swap.commaHint")}
                 </div>
               </div>
               <div className="flex gap-2 justify-end">
-                <button onClick={() => setShowAddForm(false)} className="vehiq-btn-secondary">Anuluj</button>
+                <button onClick={() => setShowAddForm(false)} className="vehiq-btn-secondary">{i18n.t("swap.cancel")}</button>
                 <button onClick={listVehicle} disabled={busy} className="vehiq-btn-primary" data-testid="swap-submit">
                   {busy ? "..." : "Wystaw"}
                 </button>
@@ -303,8 +304,8 @@ export default function SwapPage() {
           ) : mine.length === 0 ? (
             <EmptyState
               icon={Repeat}
-              title="Brak aktywnych ofert"
-              description="Wystaw swoje auto, żeby zwiększyć szansę na dopasowanie."
+              title={i18n.t("swap.noOffers")}
+              description={i18n.t("swap.noOffersDesc")}
               dataTestId="swap-mine-empty"
             />
           ) : (
@@ -367,7 +368,7 @@ function SwapCard({ card, onReact, busy }) {
         </div>
         {card.looking_for?.length > 0 && (
           <div className="pt-3 border-t border-vehiq-border">
-            <div className="vehiq-overline mb-2">Szuka w zamian</div>
+            <div className="vehiq-overline mb-2">{i18n.t("swap.seeks")}</div>
             <div className="flex flex-wrap gap-1.5">
               {card.looking_for.map((tag, i) => (
                 <span key={i} className="inline-flex px-2 py-0.5 rounded-full text-[11px] bg-vehiq-gold-dim text-vehiq-gold border border-vehiq-gold/30">

@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import i18n from "@/i18n";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
@@ -32,11 +33,11 @@ export default function AuthCallback() {
     if (token) {
       adoptToken(token)
         .then(() => {
-          toast.success("Zalogowano przez Google");
+          toast.success(i18n.t("ui.googleSignedIn"));
           navigate(next.startsWith("/") ? next : "/garage", { replace: true });
         })
         .catch(() => {
-          toast.error("Nie udało się zakończyć logowania");
+          toast.error(i18n.t("ui.loginFinishFailed"));
           navigate("/login?error=adopt_failed", { replace: true });
         });
       return;

@@ -90,7 +90,7 @@ function PageTracker() {
   // Reset per-page head before the new page's effects set their own (no stale title/canonical).
   useLayoutEffect(() => {
     document.title = "Sharago — Wirtualny Garaż";
-    document.head.querySelectorAll('link[rel="canonical"], meta[data-admin-robots]').forEach((el) => el.remove());
+    document.head.querySelectorAll('link[rel="canonical"], link[rel="alternate"][hreflang], meta[data-admin-robots]').forEach((el) => el.remove());
     if (pathname.toLowerCase().startsWith(ADMIN_PREFIX)) {
       const meta = document.createElement("meta");
       meta.setAttribute("name", "robots");

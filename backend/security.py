@@ -9,9 +9,8 @@ Includes:
     auto-block (20 fails / 30 min → block 2h).
   - `mask_email()` / `mask_phone()` : conservative masking for public payloads.
 
-The Limiter uses `get_remote_address` respecting `X-Forwarded-For` if the
-`RATE_LIMIT_TRUST_XFF` env is set (Cloudflare / Render terminate TLS in front
-of the app, so the direct peer is always the proxy).
+The Limiter keys on `client_ip()` (Cloudflare True-Client-IP / CF-Connecting-IP,
+never the client-controlled left side of X-Forwarded-For).
 """
 from __future__ import annotations
 from datetime import datetime, timezone, timedelta
@@ -29,23 +28,25 @@ logger = logging.getLogger(__name__)
 
 # ---------------- rate limiter ----------------
 
-def _client_ip(request: Request) -> str:
-    """Extract client IP respecting X-Forwarded-For when we're behind a proxy.
+def client_ip(request: Request) -> str:
+    """Client IP that the client cannot spoof.
 
-    Only the LEFTMOST public IP in the chain is trusted (that's the real
-    client per RFC 7239 semantics). If the trust flag isn't set we fall back
-    to the direct peer to avoid header-spoofed rate-limit evasion in dev.
+    Render sits behind Cloudflare, which overwrites True-Client-IP / CF-Connecting-IP
+    with the real visitor IP (client-supplied copies are stripped). Render APPENDS to
+    X-Forwarded-For, so the leftmost entry is attacker-controlled; we only use the
+    RIGHTMOST entry (added by the last trusted proxy) as a fallback, then the peer.
     """
-    trust_xff = os.environ.get("RATE_LIMIT_TRUST_XFF", "1") == "1"
-    if trust_xff:
-        xff = request.headers.get("x-forwarded-for") or request.headers.get("cf-connecting-ip")
-        if xff:
-            first = xff.split(",")[0].strip()
-            if first:
-                return first
+    for h in ("true-client-ip", "cf-connecting-ip"):
+        v = (request.headers.get(h) or "").strip()
+        if v:
+            return v[:64]
+    xff = [p.strip() for p in (request.headers.get("x-forwarded-for") or "").split(",") if p.strip()]
+    if xff:
+        return xff[-1][:64]
     return get_remote_address(request)
 
-limiter = Limiter(key_func=_client_ip)
+
+limiter = Limiter(key_func=client_ip)
 
 
 # ---------------- security headers ----------------

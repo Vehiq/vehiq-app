@@ -1,6 +1,7 @@
+import i18n from "@/i18n";
 import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams, useParams } from "react-router-dom";
-import { useTranslation } from "react-i18next";
+import { useTranslation, Trans } from "react-i18next";
 import api, { apiErrorMessage } from "@/lib/api";
 import { toast } from "sonner";
 import { ArrowLeft, Plus, X } from "lucide-react";
@@ -86,7 +87,7 @@ export default function CreateListing() {
         }));
       })
       .catch(() => {
-        toast.error("Ogłoszenie nie znalezione");
+        toast.error(i18n.t("lst.notFound"));
         navigate("/marketplace/mine");
       });
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -223,7 +224,7 @@ export default function CreateListing() {
       if (isRental) {
         const r = form.rental || {};
         if (!r.price_per_day) {
-          toast.error("Cena za dobę jest wymagana");
+          toast.error(i18n.t("lst.dayPriceRequired"));
           return;
         }
         payload.rental = {
@@ -364,8 +365,8 @@ export default function CreateListing() {
       {vehicles.length > 0 && (
         <div className="vehiq-card p-5 space-y-3" data-testid="listing-from-garage">
           <div>
-            <div className="vehiq-display text-lg text-vehiq-text">Masz to auto w garażu?</div>
-            <p className="text-xs text-vehiq-muted mt-1">Wybierz pojazd — dane uzupełnią się automatycznie. Możesz je potem edytować.</p>
+            <div className="vehiq-display text-lg text-vehiq-text">{i18n.t("lst.haveInGarage")}</div>
+            <p className="text-xs text-vehiq-muted mt-1">{i18n.t("lst.pickVehicleHint")}</p>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {vehicles.map((v) => {
@@ -414,7 +415,7 @@ export default function CreateListing() {
               className="text-xs text-vehiq-muted hover:text-vehiq-gold underline"
               data-testid="listing-clear-vehicle"
             >
-              Wyczyść wybór — dodam ręcznie
+              {i18n.t("lst.clearPick")}
             </button>
           )}
         </div>
@@ -439,11 +440,11 @@ export default function CreateListing() {
 
         {form.type === "rental" && (
           <div data-testid="listing-rental-category">
-            <label className="vehiq-overline mb-2 block">Co wynajmujesz?</label>
+            <label className="vehiq-overline mb-2 block">{i18n.t("lst.whatRent")}</label>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {[
-                { value: "rental_car", label: "Wynajmę samochód" },
-                { value: "rental_garage", label: "Wynajmę garaż / miejsce parkingowe" },
+                { value: "rental_car", label: i18n.t("lst.rentCar") },
+                { value: "rental_garage", label: i18n.t("lst.rentGarage") },
               ].map((opt) => (
                 <button
                   key={opt.value}
@@ -635,10 +636,10 @@ export default function CreateListing() {
 
       {(form.category === "rental_car" || form.category === "rental_garage") && (
         <div className="vehiq-card p-6 space-y-4" data-testid="listing-rental-fields">
-          <div className="vehiq-overline">Warunki wynajmu</div>
+          <div className="vehiq-overline">{i18n.t("lst.rentTerms")}</div>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
-              <label className="vehiq-overline mb-2 block">Cena za dobę (PLN) *</label>
+              <label className="vehiq-overline mb-2 block">{i18n.t("lst.priceDay")}</label>
               <input
                 type="number" min="0" step="1" required
                 value={form.rental.price_per_day}
@@ -648,7 +649,7 @@ export default function CreateListing() {
               />
             </div>
             <div>
-              <label className="vehiq-overline mb-2 block">Cena za tydzień (PLN)</label>
+              <label className="vehiq-overline mb-2 block">{i18n.t("lst.priceWeek")}</label>
               <input
                 type="number" min="0" step="1"
                 value={form.rental.price_per_week}
@@ -658,7 +659,7 @@ export default function CreateListing() {
               />
             </div>
             <div>
-              <label className="vehiq-overline mb-2 block">Cena za miesiąc (PLN)</label>
+              <label className="vehiq-overline mb-2 block">{i18n.t("lst.priceMonth")}</label>
               <input
                 type="number" min="0" step="1"
                 value={form.rental.price_per_month}
@@ -670,11 +671,11 @@ export default function CreateListing() {
           </div>
 
           <div>
-            <label className="vehiq-overline mb-2 block">Dostępność</label>
+            <label className="vehiq-overline mb-2 block">{i18n.t("lst.availability")}</label>
             <input
               value={form.rental.availability_text}
               onChange={(e) => setForm({ ...form, rental: { ...form.rental, availability_text: e.target.value } })}
-              placeholder="np. Dostępne od 1 lipca"
+              placeholder={i18n.t("lst.egAvailability")}
               className="vehiq-input"
               data-testid="rental-availability"
             />
@@ -689,23 +690,23 @@ export default function CreateListing() {
           )}
 
           <div>
-            <label className="vehiq-overline mb-2 block">Wymagania od najemcy</label>
+            <label className="vehiq-overline mb-2 block">{i18n.t("lst.renterReq")}</label>
             <textarea
               rows={2}
               value={form.rental.requirements}
               onChange={(e) => setForm({ ...form, rental: { ...form.rental, requirements: e.target.value } })}
-              placeholder="np. Kaucja 500 PLN, prawo jazdy min. 3 lata"
+              placeholder={i18n.t("lst.egRenterReq")}
               className="vehiq-input"
               data-testid="rental-requirements"
             />
           </div>
 
           <div>
-            <label className="vehiq-overline mb-2 block">Typ ogłoszeniodawcy</label>
+            <label className="vehiq-overline mb-2 block">{i18n.t("lst.sellerType")}</label>
             <div className="flex gap-4">
               {[
-                { v: "private", label: "Osoba prywatna" },
-                { v: "business", label: "Firma" },
+                { v: "private", label: i18n.t("lst.private") },
+                { v: "business", label: i18n.t("lst.business") },
               ].map((opt) => (
                 <label key={opt.v} className="inline-flex items-center gap-2 text-sm cursor-pointer">
                   <input
@@ -724,7 +725,7 @@ export default function CreateListing() {
 
           {form.rental.owner_type === "business" && (
             <div data-testid="rental-business-name-wrap">
-              <label className="vehiq-overline mb-2 block">Nazwa firmy</label>
+              <label className="vehiq-overline mb-2 block">{i18n.t("lst.companyName")}</label>
               <input
                 value={form.rental.business_name}
                 onChange={(e) => setForm({ ...form, rental: { ...form.rental, business_name: e.target.value } })}
@@ -738,48 +739,48 @@ export default function CreateListing() {
 
       {isServiceType && (
         <div className="vehiq-card p-6 space-y-4" data-testid="listing-service-fields">
-          <div className="vehiq-overline">Szczegóły usługi</div>
+          <div className="vehiq-overline">{i18n.t("lst.serviceDetails")}</div>
           {/* Iter 54b — category selector */}
           <ListingFormService form={form} setForm={setForm} />
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="vehiq-overline mb-2 block">Rodzaj wyceny</label>
+              <label className="vehiq-overline mb-2 block">{i18n.t("lst.pricingType")}</label>
               <select
                 value={form.service.pricing_type}
                 onChange={(e) => setForm({ ...form, service: { ...form.service, pricing_type: e.target.value } })}
                 className="vehiq-input"
                 data-testid="service-pricing-type"
               >
-                <option value="hourly">Za godzinę</option>
-                <option value="fixed">Za usługę</option>
-                <option value="negotiable">Do uzgodnienia</option>
+                <option value="hourly">{i18n.t("lst.perHour")}</option>
+                <option value="fixed">{i18n.t("lst.perJob")}</option>
+                <option value="negotiable">{i18n.t("lst.byArrangement")}</option>
               </select>
             </div>
             <div>
-              <label className="vehiq-overline mb-2 block">Cena od (PLN)</label>
+              <label className="vehiq-overline mb-2 block">{i18n.t("lst.priceFrom")}</label>
               <input
                 type="number" min="0" step="1"
                 value={form.service.price_from}
                 onChange={(e) => setForm({ ...form, service: { ...form.service, price_from: e.target.value } })}
                 className="vehiq-input"
                 data-testid="service-price-from"
-                placeholder="np. 150"
+                placeholder={i18n.t("lst.eg150")}
               />
             </div>
           </div>
           <div>
-            <label className="vehiq-overline mb-2 block">Lokalizacja / zasięg</label>
+            <label className="vehiq-overline mb-2 block">{i18n.t("lst.area")}</label>
             <input
               value={form.service.coverage_area}
               onChange={(e) => setForm({ ...form, service: { ...form.service, coverage_area: e.target.value } })}
-              placeholder='np. Warszawa lub "cała Polska"'
+              placeholder={i18n.t("lst.egCoverage")}
               className="vehiq-input"
               data-testid="service-coverage"
             />
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="vehiq-overline mb-2 block">Telefon kontaktowy</label>
+              <label className="vehiq-overline mb-2 block">{i18n.t("lst.phone")}</label>
               <input
                 type="tel"
                 value={form.service.contact_phone}
@@ -790,7 +791,7 @@ export default function CreateListing() {
               />
             </div>
             <div>
-              <label className="vehiq-overline mb-2 block">E-mail kontaktowy</label>
+              <label className="vehiq-overline mb-2 block">{i18n.t("lst.email")}</label>
               <input
                 type="email"
                 value={form.service.contact_email}
@@ -801,7 +802,7 @@ export default function CreateListing() {
             </div>
           </div>
           <div className="text-[11px] text-vehiq-muted">
-            W planie Free możesz mieć 1 aktywne ogłoszenie usługi. Premium — bez limitu.
+            {i18n.t("lst.freeServiceNote")}
           </div>
         </div>
       )}
@@ -811,12 +812,12 @@ export default function CreateListing() {
       {limitModal && (
         <div className="fixed inset-0 z-50 bg-vehiq-bg/80 backdrop-blur-sm flex items-center justify-center p-4" data-testid="rental-limit-modal">
           <div className="vehiq-card p-8 max-w-md w-full space-y-4 border-vehiq-gold/40">
-            <h2 className="vehiq-display text-2xl text-vehiq-text">Limit darmowego konta</h2>
+            <h2 className="vehiq-display text-2xl text-vehiq-text">{i18n.t("lst.freeLimit")}</h2>
             <p className="text-sm text-vehiq-muted">
               {limitModal === "service" ? (
-                <>W darmowym planie możesz mieć <strong className="text-vehiq-text">1 aktywne ogłoszenie usługi</strong>. Wkrótce zdejmiemy ten limit.</>
+                <Trans i18nKey="lst.limitService" components={{ b: <strong className="text-vehiq-text" /> }} />
               ) : (
-                <>W darmowym planie możesz mieć <strong className="text-vehiq-text">1 aktywne ogłoszenie wynajmu</strong>. Wkrótce zdejmiemy ten limit.</>
+                <Trans i18nKey="lst.limitRental" components={{ b: <strong className="text-vehiq-text" /> }} />
               )}
             </p>
             <div className="flex gap-2 pt-2">
@@ -826,7 +827,7 @@ export default function CreateListing() {
                 className="vehiq-btn-secondary flex-1"
                 data-testid="rental-limit-close"
               >
-                Zamknij
+                {i18n.t("lst.close")}
               </button>
               {/* Paczka 1 P4: płatności wyłączone — "Przejdź na Premium"
                  zastąpione nieklikalną etykietą "Wkrótce". */}
@@ -835,7 +836,7 @@ export default function CreateListing() {
                 aria-disabled="true"
                 data-testid="rental-limit-upgrade-soon"
               >
-                Wkrótce
+                {i18n.t("lst.soon")}
               </div>
             </div>
           </div>

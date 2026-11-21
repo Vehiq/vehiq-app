@@ -1,3 +1,5 @@
+import { Trans } from "react-i18next";
+import i18n from "@/i18n";
 import { useEffect, useRef, useState, useCallback } from "react";
 import { X, Move, Loader2, Upload } from "lucide-react";
 
@@ -221,7 +223,7 @@ export default function PlateBlurDialog({ file, onCancel, onConfirm }) {
         <div className="flex items-center justify-between px-4 py-3 border-b border-vehiq-border">
           <div className="flex items-center gap-2 text-vehiq-text">
             <Move size={16} className="text-vehiq-gold" />
-            <h3 className="font-medium">Zamaż tablicę</h3>
+            <h3 className="font-medium">{i18n.t("blur.title")}</h3>
           </div>
           <button onClick={onCancel} className="text-vehiq-muted hover:text-vehiq-text" data-testid="blur-close">
             <X size={18} />
@@ -230,7 +232,7 @@ export default function PlateBlurDialog({ file, onCancel, onConfirm }) {
 
         <div className="p-4 space-y-3">
           <p className="text-xs text-vehiq-muted">
-            Przeciągnij biały prostokąt na tablicę rejestracyjną. Rogi pozwalają zmienić rozmiar. Kliknij <strong className="text-vehiq-text">Prześlij zdjęcie</strong> gdy jest gotowe.
+            <Trans i18nKey="blur.hint" components={{ b: <strong className="text-vehiq-text" /> }} />
           </p>
 
           <div ref={previewRef} className="bg-black/40 rounded overflow-hidden relative">
@@ -274,7 +276,7 @@ export default function PlateBlurDialog({ file, onCancel, onConfirm }) {
               data-testid="blur-confirm"
             >
               {busy ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}
-              Prześlij zdjęcie →
+              {i18n.t("blur.upload")}
             </button>
             <button
               type="button"
@@ -283,7 +285,7 @@ export default function PlateBlurDialog({ file, onCancel, onConfirm }) {
               className="text-xs text-vehiq-muted hover:text-vehiq-text underline"
               data-testid="blur-skip"
             >
-              Pomiń i prześlij bez zasłaniania
+              {i18n.t("blur.skip")}
             </button>
           </div>
         </div>

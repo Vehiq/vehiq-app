@@ -1,3 +1,4 @@
+import i18n from "@/i18n";
 /**
  * Service-listing subform (Iter 54b — extended).
  *
@@ -6,14 +7,14 @@
  * CreateListing.js). Fields live under `form.service`.
  */
 const SERVICE_CATEGORIES = [
-  { id: "mechanic",  label: "Mechanika" },
-  { id: "body",      label: "Blacharstwo / lakiernictwo" },
-  { id: "detailing", label: "Detailing" },
-  { id: "tires",     label: "Opony / wulkanizacja" },
-  { id: "electric",  label: "Elektryka / diagnostyka" },
-  { id: "tuning",    label: "Tuning / mapowanie" },
-  { id: "towing",    label: "Pomoc drogowa / laweta" },
-  { id: "other",     label: "Inne" },
+  { id: "mechanic",  get label() { return i18n.t("lst.sMechanic"); } },
+  { id: "body",      get label() { return i18n.t("lst.sBody"); } },
+  { id: "detailing", get label() { return i18n.t("lst.sDetailing"); } },
+  { id: "tires",     get label() { return i18n.t("lst.sTyres"); } },
+  { id: "electric",  get label() { return i18n.t("lst.sElectric"); } },
+  { id: "tuning",    get label() { return i18n.t("lst.sTuning"); } },
+  { id: "towing",    get label() { return i18n.t("lst.sTowing"); } },
+  { id: "other",     get label() { return i18n.t("lst.sOther"); } },
 ];
 
 export default function ListingFormService({ form, setForm }) {
@@ -22,7 +23,7 @@ export default function ListingFormService({ form, setForm }) {
   return (
     <div className="space-y-4 pt-2 border-t border-vehiq-border" data-testid="listing-service-extras">
       <div>
-        <label className="vehiq-overline mb-2 block">Kategoria usługi</label>
+        <label className="vehiq-overline mb-2 block">{i18n.t("lst.serviceCategory")}</label>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
           {SERVICE_CATEGORIES.map((c) => (
             <label

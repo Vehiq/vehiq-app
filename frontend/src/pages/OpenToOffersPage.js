@@ -1,3 +1,4 @@
+import i18n from "@/i18n";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { HandCoins, Mail, Repeat } from "lucide-react";
@@ -37,9 +38,9 @@ export default function OpenToOffersPage() {
           <HandCoins size={20} />
         </div>
         <div>
-          <h1 className="vehiq-display text-3xl text-vehiq-text">Chętnie odkupię</h1>
+          <h1 className="vehiq-display text-3xl text-vehiq-text">{i18n.t("offers.title")}</h1>
           <p className="text-sm text-vehiq-muted mt-1">
-            Auta których właściciele są otwarci na oferty kupna — nawet gdy nie są aktywnie wystawione na sprzedaż.
+            {i18n.t("offers.subtitle")}
           </p>
         </div>
       </div>
@@ -49,8 +50,8 @@ export default function OpenToOffersPage() {
       ) : items.length === 0 ? (
         <EmptyState
           icon={HandCoins}
-          title="Brak aut otwartych na oferty"
-          description="Jeszcze nikt nie zaznaczył swojego auta jako otwarte na oferty."
+          title={i18n.t("offers.empty")}
+          description={i18n.t("offers.emptyDesc")}
           dataTestId="open-to-offers-empty"
         />
       ) : (

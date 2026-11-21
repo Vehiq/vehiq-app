@@ -27,6 +27,16 @@
       "destination": "https://api.sharago.pl/api/sitemap.xml"
     },
     {
+      "source": "/sitemap.xml",
+      "has": [
+        {
+          "type": "host",
+          "value": "sharago.com"
+        }
+      ],
+      "destination": "https://api.sharago.pl/api/sitemap.xml?site=en"
+    },
+    {
       "source": "/((?!api/|robots\\.txt|sitemap\\.xml|favicon\\.ico|manifest\\.json|assets/|.*\\.[A-Za-z0-9]{1,5}$).*)",
       "destination": "/index.html"
     }

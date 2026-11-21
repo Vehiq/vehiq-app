@@ -87,7 +87,7 @@ export default function PublicVehicle() {
     };
     const desc = (lang === "en"
       ? `Check out this ${v.make} ${v.model} on Sharago — virtual garage with service history and listings.`
-      : `Zobacz ${v.make} ${v.model} na Sharago — wirtualny garaż z historią serwisową i ogłoszeniem.`);
+      : t("ui.publicVehicleDesc", { make: v.make, model: v.model }));
     setMeta("og:title", title);
     setMeta("og:description", desc);
     setMeta("og:type", "website");
@@ -117,7 +117,7 @@ export default function PublicVehicle() {
       setTimeout(() => setCopied(false), 1500);
       toast.success(t("share.copied"));
     } catch {
-      toast.error(t("share.copyFailed") || "Nie udało się skopiować linku");
+      toast.error(t("share.copyFailed"));
     }
   };
 
@@ -218,7 +218,7 @@ export default function PublicVehicle() {
                   <div className="text-[11px] text-vehiq-gold mt-2" data-testid="public-vehicle-owner-stats">
                     {lang === "en"
                       ? `Your vehicle was viewed by ${viewCount.toLocaleString("en-US")} people`
-                      : `Twój pojazd zobaczyło ${viewCount.toLocaleString("pl-PL")} osób`}
+                      : t("ui.viewCountOwner", { count: viewCount.toLocaleString(lang === "en" ? "en-GB" : "pl-PL") })}
                   </div>
                 )}
               </>

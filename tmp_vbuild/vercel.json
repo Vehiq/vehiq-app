@@ -1,0 +1,90 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "vite",
+  "buildCommand": "yarn build",
+  "outputDirectory": "build",
+  "redirects": [
+    {
+      "source": "/legal/polityka-cookies",
+      "destination": "/legal/cookie-policy",
+      "permanent": true
+    },
+    {
+      "source": "/pl/polityka-cookies",
+      "destination": "/legal/cookie-policy",
+      "permanent": true
+    }
+  ],
+  "rewrites": [
+    {
+      "source": "/sitemap.xml",
+      "has": [
+        {
+          "type": "host",
+          "value": "sharago.pl"
+        }
+      ],
+      "destination": "https://api.sharago.pl/api/sitemap.xml"
+    },
+    {
+      "source": "/sitemap.xml",
+      "has": [
+        {
+          "type": "host",
+          "value": "sharago.com"
+        }
+      ],
+      "destination": "https://api.sharago.pl/api/sitemap.xml?site=en"
+    },
+    {
+      "source": "/((?!api/|robots\\.txt|sitemap\\.xml|favicon\\.ico|manifest\\.json|assets/|.*\\.[A-Za-z0-9]{1,5}$).*)",
+      "destination": "/index.html"
+    }
+  ],
+  "headers": [
+    {
+      "source": "/robots.txt",
+      "headers": [
+        {
+          "key": "Content-Type",
+          "value": "text/plain; charset=utf-8"
+        },
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=3600, must-revalidate"
+        }
+      ]
+    },
+    {
+      "source": "/sitemap.xml",
+      "headers": [
+        {
+          "key": "Content-Type",
+          "value": "application/xml; charset=utf-8"
+        },
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=3600, must-revalidate"
+        }
+      ]
+    },
+    {
+      "source": "/gv91-admin/:path*",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow"
+        }
+      ]
+    },
+    {
+      "source": "/gv91-admin",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow"
+        }
+      ]
+    }
+  ]
+}

@@ -15,7 +15,7 @@ function formatLastUpdated(iso, lang) {
   const d = new Date(iso);
   if (isNaN(d)) return iso.slice(0, 10);
   if (lang === "en") {
-    return `Last updated: ${d.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}`;
+    return `Last updated: ${d.toLocaleDateString("en-GB", { year: "numeric", month: "long", day: "numeric" })}`;
   }
   return `Ostatnia aktualizacja: ${d.getDate()} ${PL_MONTHS[d.getMonth()]} ${d.getFullYear()}`;
 }
@@ -69,7 +69,15 @@ export default function LegalPage() {
         .legal-content h3 { font-family: "Cormorant Garamond", serif; font-size: 1.375rem; color: #2B7FE8; margin: 1.5rem 0 0.75rem; }
         .legal-content p { color: #FFFFFF; line-height: 1.7; margin: 0.75rem 0; }
         .legal-content ul { color: #FFFFFF; padding-left: 1.5rem; list-style: disc; margin: 0.75rem 0; }
-        .legal-content li { margin: 0.5rem 0; }
+        .legal-content ol { color: #FFFFFF; padding-left: 1.5rem; list-style: decimal; margin: 0.75rem 0; }
+        .legal-content li { margin: 0.5rem 0; line-height: 1.6; }
+        .legal-content li > ul, .legal-content li > ol { margin: 0.25rem 0; }
+        .legal-content table { display: block; width: 100%; overflow-x: auto; border-collapse: collapse; margin: 1rem 0; font-size: 0.875rem; }
+        .legal-content th, .legal-content td { border: 1px solid #1E2A42; padding: 0.5rem 0.75rem; text-align: left; vertical-align: top; color: #FFFFFF; min-width: 8rem; }
+        .legal-content th { background: #162035; font-weight: 600; }
+        .legal-content h1 { font-family: "Cormorant Garamond", serif; font-size: 2.25rem; color: #FFFFFF; margin: 0 0 1rem; }
+        .legal-content em { color: #9CA1C2; }
+        .legal-content { overflow-wrap: anywhere; }
         .legal-content a { color: #2B7FE8; text-decoration: underline; }
         .legal-content strong { color: #FFFFFF; }
       `}</style>

@@ -7,6 +7,9 @@ from datetime import datetime, timezone, timedelta
 import uuid
 
 from db_helper import get_db
+from security import client_ip
+import login_guard
+import totp_2fa
 from auth_utils import (
     hash_password, verify_password,
     create_access_token, get_admin,
@@ -16,14 +19,21 @@ from auth_utils import (
 router = APIRouter(prefix="/admin", tags=["admin"])
 
 ADMIN_EMAIL = os.environ.get("ADMIN_EMAIL", "kontakt@sharago.com").lower()
-# Track failed logins per IP in memory (resets on backend restart).
-_failed_attempts = {}
-_lockouts = {}
 
 
 class AdminLoginIn(BaseModel):
     email: EmailStr
     password: str
+    otp: Optional[str] = None  # TOTP or backup code, required once 2FA is enabled
+
+
+class TotpCodeIn(BaseModel):
+    code: str
+
+
+class TotpDisableIn(BaseModel):
+    password: str
+    code: str
 
 
 class SetupAdminIn(BaseModel):
@@ -49,25 +59,8 @@ class ChangeEmailIn(BaseModel):
     current_password: str
 
 
-def _is_locked(ip: str) -> bool:
-    until = _lockouts.get(ip)
-    if not until:
-        return False
-    if datetime.now(timezone.utc) > until:
-        _lockouts.pop(ip, None)
-        _failed_attempts.pop(ip, None)
-        return False
-    return True
-
-
-def _record_failure(ip: str):
-    _failed_attempts[ip] = _failed_attempts.get(ip, 0) + 1
-    if _failed_attempts[ip] >= 5:
-        _lockouts[ip] = datetime.now(timezone.utc) + timedelta(minutes=15)
-
-
 def _get_ip(request: Request) -> str:
-    return request.headers.get("x-forwarded-for", "").split(",")[0].strip() or (request.client.host if request.client else "unknown")
+    return client_ip(request)
 
 
 @router.get("/setup-status")
@@ -124,16 +117,29 @@ async def initial_setup(payload: SetupAdminIn, request: Request):
 async def admin_login(payload: AdminLoginIn, request: Request):
     db = get_db()
     ip = _get_ip(request)
-    if _is_locked(ip):
-        raise HTTPException(status_code=429, detail="Too many attempts. Try again in 15 minutes.")
+    await login_guard.assert_not_locked(db, "admin", payload.email, request)
     if payload.email.lower() != ADMIN_EMAIL:
-        _record_failure(ip)
+        await login_guard.record_failure(db, "admin", payload.email, request)
         raise HTTPException(status_code=401, detail="Invalid credentials")
     admin = await db.admin_account.find_one({"email": ADMIN_EMAIL})
     if not admin or not verify_password(payload.password, admin.get("password_hash") or ""):
-        _record_failure(ip)
+        await login_guard.record_failure(db, "admin", payload.email, request)
         raise HTTPException(status_code=401, detail="Invalid credentials")
-    _failed_attempts.pop(ip, None)
+    if admin.get("totp_enabled"):
+        if not payload.otp:
+            raise HTTPException(status_code=401, detail="otp_required")
+        secret = totp_2fa.decrypt_secret(admin["totp_secret_enc"])
+        otp_clean = payload.otp.replace(" ", "")
+        replay = otp_clean == admin.get("totp_last_code") and (admin.get("totp_last_at") or "") > (datetime.now(timezone.utc) - timedelta(seconds=90)).isoformat()
+        if not replay and totp_2fa.verify_totp(secret, otp_clean):
+            await db.admin_account.update_one({"email": ADMIN_EMAIL}, {"$set": {"totp_last_code": otp_clean, "totp_last_at": datetime.now(timezone.utc).isoformat()}})
+        else:
+            used = totp_2fa.match_backup_code(payload.otp, admin.get("totp_backup_hashes"))
+            if not used:
+                await login_guard.record_failure(db, "admin", payload.email, request, reason="invalid_otp")
+                raise HTTPException(status_code=401, detail="invalid_otp")
+            await db.admin_account.update_one({"email": ADMIN_EMAIL}, {"$pull": {"totp_backup_hashes": used}})
+    await login_guard.clear_failures(db, "admin", payload.email)
     token = create_access_token({"sub": ADMIN_EMAIL, "type": "admin"}, expires_hours=ADMIN_TOKEN_EXPIRE_HOURS)
     now_iso = datetime.now(timezone.utc).isoformat()
     # log
@@ -156,7 +162,7 @@ async def admin_login(payload: AdminLoginIn, request: Request):
 async def admin_profile(admin=Depends(get_admin)):
     """Returns admin account details: email, registration date, last login, password change history."""
     db = get_db()
-    rec = await db.admin_account.find_one({"email": ADMIN_EMAIL}, {"_id": 0, "password_hash": 0}) or {}
+    rec = await db.admin_account.find_one({"email": ADMIN_EMAIL}, {"_id": 0, "password_hash": 0, "totp_secret_enc": 0, "totp_pending_enc": 0, "totp_backup_hashes": 0}) or {}
     pwd_history = rec.get("password_changes") or []
     # Most recent first
     pwd_history = sorted(pwd_history, key=lambda x: x.get("ts", ""), reverse=True)[:10]
@@ -175,6 +181,67 @@ async def login_history(admin=Depends(get_admin)):
     db = get_db()
     items = await db.admin_login_history.find({}, {"_id": 0}).sort("ts", -1).limit(20).to_list(20)
     return items
+
+
+@router.get("/failed-logins")
+async def failed_logins(admin=Depends(get_admin)):
+    """Last 50 failed admin login attempts (time, IP, browser, login — never passwords)."""
+    return await login_guard.recent_failures(get_db(), "admin")
+
+
+@router.get("/2fa/status")
+async def totp_status(admin=Depends(get_admin)):
+    rec = await get_db().admin_account.find_one({"email": ADMIN_EMAIL}) or {}
+    return {"enabled": bool(rec.get("totp_enabled")), "backup_codes_left": len(rec.get("totp_backup_hashes") or [])}
+
+
+@router.post("/2fa/setup")
+async def totp_setup(admin=Depends(get_admin)):
+    """Start enrollment: new secret kept as pending until confirmed with a valid code."""
+    db = get_db()
+    rec = await db.admin_account.find_one({"email": ADMIN_EMAIL}) or {}
+    if rec.get("totp_enabled"):
+        raise HTTPException(status_code=400, detail="2FA already enabled")
+    secret = totp_2fa.new_secret()
+    await db.admin_account.update_one({"email": ADMIN_EMAIL}, {"$set": {"totp_pending_enc": totp_2fa.encrypt_secret(secret)}})
+    return totp_2fa.provisioning(secret, ADMIN_EMAIL)
+
+
+@router.post("/2fa/enable")
+async def totp_enable(payload: TotpCodeIn, admin=Depends(get_admin)):
+    db = get_db()
+    rec = await db.admin_account.find_one({"email": ADMIN_EMAIL}) or {}
+    if not rec.get("totp_pending_enc"):
+        raise HTTPException(status_code=400, detail="Run setup first")
+    secret = totp_2fa.decrypt_secret(rec["totp_pending_enc"])
+    if not totp_2fa.verify_totp(secret, payload.code):
+        raise HTTPException(status_code=400, detail="Invalid code")
+    codes, hashes = totp_2fa.new_backup_codes()
+    await db.admin_account.update_one(
+        {"email": ADMIN_EMAIL},
+        {"$set": {"totp_enabled": True, "totp_secret_enc": rec["totp_pending_enc"], "totp_backup_hashes": hashes,
+                  "totp_enabled_at": datetime.now(timezone.utc).isoformat()},
+         "$unset": {"totp_pending_enc": ""}},
+    )
+    return {"ok": True, "backup_codes": codes}
+
+
+@router.post("/2fa/disable")
+async def totp_disable(payload: TotpDisableIn, admin=Depends(get_admin)):
+    db = get_db()
+    rec = await db.admin_account.find_one({"email": ADMIN_EMAIL}) or {}
+    if not rec.get("totp_enabled"):
+        raise HTTPException(status_code=400, detail="2FA not enabled")
+    if not verify_password(payload.password, rec.get("password_hash") or ""):
+        raise HTTPException(status_code=400, detail="Current password is incorrect")
+    secret = totp_2fa.decrypt_secret(rec["totp_secret_enc"])
+    if not totp_2fa.verify_totp(secret, payload.code):
+        raise HTTPException(status_code=400, detail="Invalid code")
+    await db.admin_account.update_one(
+        {"email": ADMIN_EMAIL},
+        {"$set": {"totp_enabled": False}, "$unset": {"totp_secret_enc": "", "totp_backup_hashes": ""}},
+    )
+    return {"ok": True}
 
 
 @router.post("/change-password")
@@ -273,8 +340,7 @@ async def admin_reset_password(payload: ResetPasswordIn, request: Request):
     )
     await db.admin_password_resets.update_one({"token": payload.token}, {"$set": {"used": True, "used_at": now_iso}})
     # Reset failed-login lockouts so admin can log in immediately
-    _failed_attempts.clear()
-    _lockouts.clear()
+    await login_guard.clear_failures(db, "admin", ADMIN_EMAIL)
     return {"ok": True}
 
 

@@ -20,7 +20,7 @@ import logging
 
 from db_helper import get_db
 from auth_utils import get_current_user, verify_password
-from security import log_security_event, EVENT_DATA_EXPORT, EVENT_ACCOUNT_DELETED, EVENT_ACCOUNT_RESTORED, limiter
+from security import client_ip, log_security_event, EVENT_DATA_EXPORT, EVENT_ACCOUNT_DELETED, EVENT_ACCOUNT_RESTORED, limiter
 
 router = APIRouter(prefix="/auth", tags=["gdpr"])
 logger = logging.getLogger(__name__)
@@ -80,8 +80,7 @@ async def export_data(request: Request, user=Depends(get_current_user)):
         "ai_chats": ai_chats,
     }
 
-    ip = (request.headers.get("x-forwarded-for", "").split(",")[0].strip()
-          or (request.client.host if request.client else ""))
+    ip = client_ip(request)
     await log_security_event(db, EVENT_DATA_EXPORT, ip_address=ip, user_id=uid,
                              endpoint="/api/auth/export-data",
                              details={"vehicles": len(vehicles), "listings": len(listings)})
@@ -160,8 +159,7 @@ async def delete_account(payload: DeleteAccountIn, request: Request, user=Depend
     await db.vehicles.update_many({"user_id": user["id"]}, {"$set": {"status": "archived"}})
     await db.swap_listings.update_many({"user_id": user["id"]}, {"$set": {"active": False}})
 
-    ip = (request.headers.get("x-forwarded-for", "").split(",")[0].strip()
-          or (request.client.host if request.client else ""))
+    ip = client_ip(request)
     await log_security_event(db, EVENT_ACCOUNT_DELETED, ip_address=ip, user_id=user["id"],
                              endpoint="/api/auth/account/delete",
                              details={"email": original_email})
@@ -212,8 +210,7 @@ async def undelete_account(payload: DeleteAccountIn, request: Request):
     # entries stay hidden forever).
     await db.swap_listings.update_many({"user_id": full["id"], "active": False}, {"$set": {"active": True}})
 
-    ip = (request.headers.get("x-forwarded-for", "").split(",")[0].strip()
-          or (request.client.host if request.client else ""))
+    ip = client_ip(request)
     await log_security_event(db, EVENT_ACCOUNT_RESTORED, ip_address=ip, user_id=full["id"],
                              endpoint="/api/auth/account/undelete")
     return {"ok": True, "message": "Account restored. Please log in with your original credentials."}

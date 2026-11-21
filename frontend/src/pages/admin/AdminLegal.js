@@ -44,8 +44,8 @@ export default function AdminLegal() {
         ))}
       </div>
       <div className="flex gap-2">
-        <button onClick={() => setTab("pl")} className={`px-3 py-1 text-xs rounded ${tab === "pl" ? "bg-[#2B7FE8] text-[#0D1626]" : "bg-[#162035] text-[#9CA1C2]"}`}>🇵🇱 Polish</button>
-        <button onClick={() => setTab("en")} className={`px-3 py-1 text-xs rounded ${tab === "en" ? "bg-[#2B7FE8] text-[#0D1626]" : "bg-[#162035] text-[#9CA1C2]"}`}>🇬🇧 English</button>
+        <button onClick={() => setTab("pl")} className={`px-3 py-1 text-xs rounded ${tab === "pl" ? "bg-[#2B7FE8] text-[#0D1626]" : "bg-[#162035] text-[#9CA1C2]"}`}>PL — Polish</button>
+        <button onClick={() => setTab("en")} className={`px-3 py-1 text-xs rounded ${tab === "en" ? "bg-[#2B7FE8] text-[#0D1626]" : "bg-[#162035] text-[#9CA1C2]"}`}>EN — English</button>
         <a href={`/legal/${active}`} target="_blank" rel="noreferrer" className="ml-auto text-xs text-[#2B7FE8] hover:underline">Preview →</a>
       </div>
       <div className="bg-[#162035] border border-[#1E2A42] rounded p-5 space-y-3">

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { useTranslation } from "react-i18next";
+import { useTranslation, Trans } from "react-i18next";
+import { Link } from "react-router-dom";
 import api from "@/lib/api";
 import { grantAnalyticsConsent, denyAnalyticsConsent } from "@/lib/analytics";
 
@@ -73,7 +74,7 @@ export default function CookieBanner() {
         <div className="flex flex-col md:flex-row md:items-start gap-4">
           <div className="flex-1">
             <div className="vehiq-display text-2xl text-vehiq-text mb-1">{t("cookies.title")}</div>
-            <p className="text-sm text-vehiq-muted">{t("cookies.message")}</p>
+            <p className="text-sm text-vehiq-muted" data-testid="cookie-message"><Trans i18nKey="cookies.message" components={{ cp: <Link to="/legal/cookie-policy" className="text-vehiq-gold underline" /> }} /></p>
             {showSettings && (
               <div className="mt-4 space-y-2 text-sm">
                 <label className="flex items-center justify-between gap-3 p-2 rounded bg-vehiq-bg/40">

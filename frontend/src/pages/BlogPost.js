@@ -1,3 +1,4 @@
+import i18n from "@/i18n";
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import ReactMarkdown from "react-markdown";
@@ -15,6 +16,8 @@ import {
 import api from "@/lib/api";
 import useDocumentHead from "@/lib/useDocumentHead";
 import { blogPostSeo } from "@/seo/pages";
+import { useTranslation } from "react-i18next";
+import { useHreflang } from "@/hooks/usePageSeo";
 import NotFound from "@/pages/NotFound";
 import Logo from "@/components/Logo";
 
@@ -74,12 +77,14 @@ export default function BlogPost() {
       setTimeout(() => setCopied(false), 1800);
       toast.success("Link skopiowany!");
     } catch {
-      toast.error("Nie udało się skopiować linku");
+      toast.error(i18n.t("blogUi.copyFailed"));
     }
   };
 
   // Build head metadata (safe when post is null — hook is always called).
-  const seo = blogPostSeo(slug, post);
+  const { i18n } = useTranslation();
+  const seo = blogPostSeo(slug, post, i18n.language?.startsWith("en") ? "en" : "pl");
+  useHreflang(seo.alternates);
   useDocumentHead({
     title: seo.title,
     description: seo.description,
@@ -95,7 +100,7 @@ export default function BlogPost() {
   if (!post) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-vehiq-bg text-vehiq-muted" data-testid="blog-post-loading">
-        Ładowanie...
+        {i18n.t("blogUi.loading")}
       </div>
     );
   }
@@ -112,7 +117,7 @@ export default function BlogPost() {
             className="text-sm text-vehiq-muted hover:text-vehiq-gold inline-flex items-center gap-1"
             data-testid="blog-post-back"
           >
-            <ArrowLeft size={14} /> Wróć
+            <ArrowLeft size={14} /> {i18n.t("blogUi.backShort")}
           </button>
           <Link to="/" className="flex items-center gap-2">
             <Logo size="md" />
@@ -122,7 +127,7 @@ export default function BlogPost() {
             className="vehiq-btn-secondary inline-flex items-center gap-2 text-xs"
             data-testid="blog-post-share"
           >
-            {copied ? <Check size={14} /> : <Share2 size={14} />} Udostępnij
+            {copied ? <Check size={14} /> : <Share2 size={14} />} {i18n.t("blogUi.share")}
           </button>
         </div>
       </header>
@@ -170,20 +175,20 @@ export default function BlogPost() {
           className="vehiq-card p-8 border-vehiq-gold/40 text-center space-y-3 mt-10"
           data-testid="blog-post-cta"
         >
-          <div className="vehiq-overline">Sharago — Twój wirtualny garaż</div>
+          <div className="vehiq-overline">{i18n.t("blogUi.ctaOverline")}</div>
           <h3 className="vehiq-display text-2xl text-vehiq-text">
-            Zarządzaj swoim autem w Sharago
+            {i18n.t("blogUi.ctaTitle")}
           </h3>
           <p className="text-sm text-vehiq-muted max-w-md mx-auto">
-            Historia serwisowa, koszty, przebieg, ogłoszenia i społeczność — wszystko w jednym miejscu. Darmowa rejestracja, bez karty.
+            {i18n.t("blogUi.ctaDesc")}
           </p>
           <Link to="/register" className="vehiq-btn-primary inline-block mt-2" data-testid="blog-post-cta-register">
-            Załóż darmowe konto
+            {i18n.t("blogUi.ctaBtn")}
           </Link>
         </aside>
 
         <footer className="text-center pt-6 text-xs text-vehiq-muted">
-          <Link to="/blog" className="hover:text-vehiq-gold">Więcej wpisów na blogu</Link>
+          <Link to="/blog" className="hover:text-vehiq-gold">{i18n.t("blogUi.more")}</Link>
         </footer>
       </article>
     </div>

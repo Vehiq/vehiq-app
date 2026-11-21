@@ -8,6 +8,8 @@ export default function AdminLogin() {
   const [adminEmail, setAdminEmail] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
+  const [otp, setOtp] = useState("");
+  const [needOtp, setNeedOtp] = useState(false);
   const [forgotMode, setForgotMode] = useState(false);
 
   useEffect(() => {
@@ -20,7 +22,7 @@ export default function AdminLogin() {
     e.preventDefault();
     setBusy(true);
     try {
-      const { data } = await adminApi.post("/admin/login", { email: adminEmail, password });
+      const { data } = await adminApi.post("/admin/login", { email: adminEmail, password, otp: needOtp ? otp : undefined });
       localStorage.setItem("sharago_admin_token", data.token);
       if (data.first_login) {
         navigate("/gv91-admin/change-password");
@@ -29,7 +31,10 @@ export default function AdminLogin() {
       }
     } catch (e) {
       const status = e?.response?.status;
+      const detail = e?.response?.data?.detail;
       if (status === 429) toast.error("Too many attempts. Try again in 15 minutes.");
+      else if (detail === "otp_required") { setNeedOtp(true); toast.message("Enter the code from your authenticator app"); }
+      else if (detail === "invalid_otp") toast.error("Invalid authentication code");
       else toast.error(e?.response?.data?.detail || "Invalid credentials");
     } finally { setBusy(false); }
   };
@@ -73,6 +78,11 @@ export default function AdminLogin() {
             <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Password" autoComplete="current-password" required
               className="w-full bg-[#0A1220] border border-[#1E2A42] text-[#FFFFFF] rounded px-3 py-2 text-sm"
               data-testid="admin-login-password" />
+            {needOtp && (
+              <input value={otp} onChange={(e) => setOtp(e.target.value)} placeholder="6-digit code or backup code" autoComplete="one-time-code" required autoFocus
+                className="w-full bg-[#0A1220] border border-[#1E2A42] text-[#FFFFFF] rounded px-3 py-2 text-sm"
+                data-testid="admin-login-otp" />
+            )}
             <button type="submit" disabled={busy} className="w-full bg-[#2B7FE8] text-[#0D1626] font-medium py-2 rounded hover:bg-[#4A95F0]" data-testid="admin-login-submit">
               {busy ? "..." : "Login"}
             </button>
