@@ -2300,3 +2300,7 @@ Backend curl E2E — wszystkie zielone (slugify PL, business register, GET/{slug
 - B: EN zgoda rejestracji, cookie banner EN + link, footer „Cookie settings” (też landing), brak emoji flag, ~150 nowych kluczy i18n (ui, lst, swap, blogUi, photoLimit, upl, blur, qr, offers, map), e-maile EN (alert części, prośba warsztatu o dostęp), middleware EN dla sharago.com (+hreflang obu domen, og:locale en_GB, og-image-en.jpg – placeholder wygenerowany), sitemap ?site=en, robots EN przez middleware, style stron prawnych (table/ol, data en-GB), LanguageSwitcher zapisuje język w profilu.
 - Pozostało (EN): strony B2B (DlaWarsztatow, DlaDealerow, Business*, WorkshopProfile/List), ProjectTab, pdfExport, Rentals JSON-LD, e-maile B2B/waitlist PL-only; tpl_service_reminder nie jest nigdzie wywoływany.
 - Audyt C: SEC-001 publiczne wyszukiwanie/short-link pokazuje pojazdy nie-public; SEC-002 brak unieważniania tokenów; SEC-003 /business/{id}/activate bez auth; SEC-004 SVG avatar; SEC-005 zależności (starlette, pymongo, zod).
+
+## Hotfix Render requirements — 2026-11-21
+- requirements.txt zredukowany do 25 bezpośrednich zależności (bez emergentintegrations, litellm, python-jose itd.). Test: czysty venv Python 3.11.9 (runtime.txt), pip tylko z PyPI → OK, uvicorn main:app → /api/health 200.
+- UWAGA dla agentów: NIE robić 'pip freeze > requirements.txt' (wrzuca emergentintegrations z prywatnego indeksu) — dopisywać pakiety ręcznie.
