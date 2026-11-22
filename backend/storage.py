@@ -155,7 +155,8 @@ async def load_r2_config() -> Optional[dict]:
     db = get_db()
     keys = _expected_keys()
     cfg = {}
-    rec = await db.api_keys.find_one({"id": "default"}, {"_id": 0}) or {}
+    from secrets_crypto import decrypt_doc
+    rec = decrypt_doc(await db.api_keys.find_one({"id": "default"}, {"_id": 0}) or {})
     for k in keys:
         if rec.get(k):
             cfg[k] = rec[k]

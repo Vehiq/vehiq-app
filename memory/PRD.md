@@ -2304,3 +2304,13 @@ Backend curl E2E — wszystkie zielone (slugify PL, business register, GET/{slug
 ## Hotfix Render requirements — 2026-11-21
 - requirements.txt zredukowany do 25 bezpośrednich zależności (bez emergentintegrations, litellm, python-jose itd.). Test: czysty venv Python 3.11.9 (runtime.txt), pip tylko z PyPI → OK, uvicorn main:app → /api/health 200.
 - UWAGA dla agentów: NIE robić 'pip freeze > requirements.txt' (wrzuca emergentintegrations z prywatnego indeksu) — dopisywać pakiety ręcznie.
+
+
+## 2026-06 — Paczka 6 finalizacja
+- CookieBanner: wrapper pointer-events-none (nie blokuje dolnych przycisków).
+- rate_guard: atomowy (insert→count→rollback), usunięty LIMITS_DOC.
+- /vehicles/search: `public:true` tylko gdy brak pola `visibility` (zgodne z /search).
+- D1: secrets_crypto.py — szyfrowanie Fernet pól sekretnych w `api_keys` (env SETTINGS_ENCRYPTION_KEY, prefiks `enc:v1:`), idempotentna migracja przy starcie, bez klucza = plaintext + warning.
+- Legal pages: migracja kontakt@sharago.pl → kontakt@sharago.com (przy starcie, idempotentna).
+- D2 (obowiązkowe 2FA admin) — tylko opis, nie wdrożone.
+- Backlog: AdminLegal dynamiczne slugi (P2), alerty części (P1), GPS (P1), push (P1), FB OAuth (P2), slow-queries (P2).

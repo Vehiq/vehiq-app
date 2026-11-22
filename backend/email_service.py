@@ -24,7 +24,8 @@ BREVO_API_URL = "https://api.brevo.com/v3/smtp/email"
 async def _get_smtp_config():
     """Load email config (Brevo HTTP API key + SMTP fallback) from MongoDB."""
     db = get_db()
-    cfg = await db.api_keys.find_one({"id": "default"}, {"_id": 0}) or {}
+    from secrets_crypto import decrypt_doc
+    cfg = decrypt_doc(await db.api_keys.find_one({"id": "default"}, {"_id": 0}) or {})
     # BREVO_API_KEY from env takes priority over DB (12-factor)
     brevo_api_key = os.environ.get("BREVO_API_KEY") or cfg.get("brevo_api_key")
     return {

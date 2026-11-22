@@ -519,6 +519,7 @@ async def on_startup():
                 (_re.compile(r"\bVehiq\b"), "Sharago"),
                 (_re.compile(r"\bvehiq\.pl\b"), "sharago.pl"),
                 (_re.compile(r"kontakt@vehiq\.pl"), "kontakt@sharago.com"),
+                (_re.compile(r"kontakt@sharago\.pl"), "kontakt@sharago.com"),
                 (_re.compile(r"#C9A84C", _re.I), "#2B7FE8"),
                 (_re.compile(r"#E8C96A", _re.I), "#4A95F0"),
                 (_re.compile(r"#0D0F1A", _re.I), "#0D1626"),
@@ -545,6 +546,11 @@ async def on_startup():
                 logger.warning(f"legal_pages rebrand: patched {patched} docs (VEHIQ → Sharago)")
         except Exception as e:
             logger.warning(f"legal_pages rebrand migration failed: {e}")
+        try:
+            from secrets_crypto import migrate_api_keys
+            await migrate_api_keys(db)
+        except Exception as e:
+            logger.warning(f"api_keys encryption migration failed: {e}")
         # Iter 31: clean up stale VEHIQ-era SMTP sender so Brevo accepts outbound mail.
         # Old override `kontakt@vehiq.pl` / `VEHIQ` lingers in DB and shadows the new
         # default `kontakt@sharago.com`, causing silent password-reset failures.

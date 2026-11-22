@@ -69,8 +69,8 @@ export default function CookieBanner() {
   if (!show) return null;
 
   return (
-    <div className="fixed inset-x-0 bottom-0 z-50 px-4 pb-4 animate-fade-in" data-testid="cookie-banner">
-      <div className="max-w-5xl mx-auto vehiq-card p-5 md:p-6 backdrop-blur-md border-vehiq-gold/30">
+    <div className="fixed inset-x-0 bottom-0 z-50 px-4 pb-4 animate-fade-in pointer-events-none" data-testid="cookie-banner">
+      <div className="pointer-events-auto max-w-5xl mx-auto vehiq-card p-5 md:p-6 backdrop-blur-md border-vehiq-gold/30">
         <div className="flex flex-col md:flex-row md:items-start gap-4">
           <div className="flex-1">
             <div className="vehiq-display text-2xl text-vehiq-text mb-1">{t("cookies.title")}</div>

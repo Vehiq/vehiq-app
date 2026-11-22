@@ -392,7 +392,7 @@ async def search_vehicles(
     # privacy.profile_visible must be truthy — treat missing as True by default
     f["$or"] = [{"privacy.profile_visible": {"$ne": False}}, {"privacy": {"$exists": False}}]
     # Only cars the owner made public, never sold/archived ones.
-    f["$and"] = [{"$or": [{"visibility": "public"}, {"public": True}]}, {"status": {"$nin": ["sold", "archived"]}}]
+    f["$and"] = [{"$or": [{"visibility": "public"}, {"public": True, "visibility": {"$exists": False}}]}, {"status": {"$nin": ["sold", "archived"]}}]
     if make:
         f["make"] = {"$regex": f"^{re.escape(make)}$", "$options": "i"}
     if model:

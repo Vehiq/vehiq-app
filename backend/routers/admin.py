@@ -646,7 +646,8 @@ async def update_setting(key: str, payload: SettingIn, admin=Depends(get_admin))
 @router.get("/api-keys")
 async def get_api_keys(admin=Depends(get_admin)):
     db = get_db()
-    keys = await db.api_keys.find_one({"id": "default"}, {"_id": 0}) or {}
+    from secrets_crypto import decrypt_doc
+    keys = decrypt_doc(await db.api_keys.find_one({"id": "default"}, {"_id": 0}) or {})
     masked = {}
     for k, v in keys.items():
         if k == "id":
@@ -681,7 +682,8 @@ class ApiKeysIn(BaseModel):
 @router.put("/api-keys")
 async def update_api_keys(payload: ApiKeysIn, admin=Depends(get_admin)):
     db = get_db()
-    update = {k: v for k, v in payload.model_dump().items() if v is not None}
+    from secrets_crypto import encrypt_doc
+    update = encrypt_doc({k: v for k, v in payload.model_dump().items() if v is not None})
     update["updated_at"] = datetime.now(timezone.utc).isoformat()
     await db.api_keys.update_one({"id": "default"}, {"$set": {"id": "default", **update}}, upsert=True)
     return {"ok": True}

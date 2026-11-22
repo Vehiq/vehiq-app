@@ -1,0 +1,38 @@
+{
+  "summary": "Paczka 6 tested end-to-end. Backend: 13/13 pytest pass (/app/backend/tests/test_iter56_paczka6.py), public URL. Covered: logout bumps token_version (old token 401), smoke login, privileged-field mass assignment ignored on register and PUT /auth/me (email unchanged), SVG avatar → 415 (also an SVG sent with a fake image/png mime type), PNG accepted and served with nosniff + image/png, business activate (no auth 401 / non-owner 403 / owner 200), unverified workshop service-entry 403, PUT /service/{id} on an entry with business_id 403 (DB unchanged), register limit (persistent Mongo 5/h verified with pre-seeded rate_hits → 429), forum thread 11th → 429, CORS (evil.example has no ACAO header, sharago.com allowed), /vehicles/search and /search hide private and sold vehicles, reminders admin/run dry_run 200 (user token 401/403), internal/run without or with a wrong secret 403, unsubscribe with a bad token or a normal user token 400/401, AI ask with 1001 chars → 400, admin ai-usage returns today/month (user token rejected). Frontend: register via UI → /onboarding; login → /garage; sidebar logout → /login, and the old token then gets 401 from /api/auth/me; re-login works; admin login (first_login → change-password page; password NOT changed) → Security page shows 2FA card, failed logins table and 'AI Mechanic usage' card (today/month); /legal/privacy-policy renders in EN (DOMPurify OK); landing, garage, marketplace and forum load in PL and EN with 0 console errors when using in-app navigation.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/auth/register", "issue": "slowapi @limiter.limit('3/minute') fires before the Mongo 5/hour limit, so the 4th request in a minute is already 429. Also the Mongo rate_limit dependency records a hit before the slowapi/validation/duplicate checks, so rejected or failed attempts still use up the hourly quota."},
+      {"endpoint": "rate_guard.rate_limit", "issue": "count_documents then insert_one is not atomic. Parallel bursts can slightly go over the limit. LIMITS_DOC dict is unused."},
+      {"endpoint": "GET /api/vehicles/search", "issue": "Filter accepts {public: True} without visibility:{$exists:false} (unlike /api/search). A legacy doc with public:true + visibility:'private' would leak. Low risk because set_visibility writes both fields."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "CookieBanner", "issue": "Wrapper 'fixed inset-x-0 bottom-0 z-50' covers the whole bottom strip and blocks clicks (Playwright: 'cookie-banner intercepts pointer events') on the sidebar Logout button and anything else at the bottom of the viewport until the user accepts or rejects cookies. Fix: pointer-events-none on the wrapper and pointer-events-auto on the inner card.", "selector": "[data-testid='cookie-banner'] / [data-testid='sidebar-logout']", "priority": "MEDIUM"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "/legal/privacy-policy (EN)", "issues": ["Content lists kontakt@sharago.pl / https://sharago.pl while the mail sender and admin are kontakt@sharago.com. Check whether that is intended."]},
+      {"screen": "Admin panel", "issues": ["Public cookie banner also shows inside /gv91-admin"]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_iter56_paczka6.py", "/app/test_reports/pytest/pytest_iter56.xml"],
+  "action_items": [
+    "CookieBanner: make the wrapper pointer-events-none so the sidebar logout and bottom elements stay clickable",
+    "Register limits: decide whether 3/minute slowapi plus 5/hour Mongo is intended; consider counting only successful attempts (insert the hit after validation)",
+    "Optional: make rate_guard atomic; align the /vehicles/search public filter with /search"
+  ],
+  "critical_code_review_comments": [
+    "rate_guard counts a hit before the endpoint's own checks run (422/400/slowapi 429 still consume quota)",
+    "routers/business.py is 590 lines, close to the 700-line split threshold",
+    "Preview env: Vite dev server serves hundreds of unbundled modules; quick full reloads trigger Cloudflare 429 on /src and /node_modules/.vite assets and a bot challenge page. This is an environment problem, not app code. Use SPA navigation in UI tests."
+  ],
+  "updated_files": ["/app/backend/tests/test_iter56_paczka6.py"],
+  "success_rate": {"backend": "100% (13/13)", "frontend": "95% (all flows pass; cookie banner blocks bottom clicks until consent)"},
+  "seed_data_creation": "None. All TEST_ users, vehicles, business, threads, service entries and rate_hits/login_failures for test IPs were deleted by id/IP. The UI-registered test user was deleted. Admin 2FA left disabled, admin password unchanged. The smoke user's token_version was bumped by the logout tests (harmless).",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Use True-Client-IP random headers for backend tests (client_ip trusts it). Register has slowapi 3/min plus Mongo 5/h; test the Mongo limit by pre-seeding db.rate_hits. In the browser, avoid many full page reloads (Cloudflare 429 on Vite modules); use history.pushState navigation. Accept cookies ([data-testid=cookie-accept-all]) before clicking bottom elements. After login, the UI language follows the user's profile language."
+}
