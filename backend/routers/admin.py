@@ -1091,6 +1091,7 @@ async def email_preview(name: str, lang: str = "pl", admin=Depends(get_admin)):
 @router.post("/emails/test/{name}")
 async def email_send_test(name: str, lang: str = "pl", admin=Depends(get_admin)):
     subject, html, text = _render_sample(name, lang)
+    from email_service import send_email
     ok, err = await send_email(admin["email"], "[TEST] " + subject, html, text=text)
     return {"success": ok, "error": err or None, "to": admin["email"]}
 

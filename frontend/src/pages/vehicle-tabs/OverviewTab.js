@@ -141,7 +141,7 @@ export default function OverviewTab({ vehicle, reload, actions = null }) {
         )}
         <div className="p-3 border-t border-vehiq-border">
           <label className="vehiq-btn-secondary cursor-pointer inline-flex items-center gap-2 text-xs" data-testid="overview-upload-label">
-            <Upload size={12}/> {uploading ? t("common.loading") : "Upload photos (R2)"}
+            <Upload size={12}/> {uploading ? t("common.loading") : t("vis.uploadPhotos")}
             <input type="file" multiple accept="image/*" className="hidden" onChange={handleUpload} disabled={uploading} data-testid="overview-upload-input" />
           </label>
           <p className="text-[10px] text-vehiq-muted mt-2">JPG/PNG/WebP/HEIC, max 10MB each, max 20 per vehicle. Auto-converted to WebP.</p>
@@ -150,7 +150,7 @@ export default function OverviewTab({ vehicle, reload, actions = null }) {
 
       <div className="space-y-4">
         <div className="vehiq-card p-6">
-          <div className="vehiq-overline mb-4">Specifications</div>
+          <div className="vehiq-overline mb-4">{t("vis.specs")}</div>
           <Spec label={t("vehicle.make")} value={vehicle.make} />
           <Spec label={t("vehicle.model")} value={vehicle.model} />
           <Spec label={t("vehicle.year")} value={vehicle.year} />

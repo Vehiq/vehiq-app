@@ -28,7 +28,7 @@ export default function VehicleTerms({ vehicleId }) {
         {items.map((r) => (
           <li key={r.id} className="flex items-center justify-between text-sm bg-vehiq-bg/50 border border-vehiq-border rounded p-2" data-testid={`term-${r.id}`}>
             <span className="text-vehiq-text">{t(`terms.types.${r.type}`, { defaultValue: r.type })}</span>
-            <span className="text-vehiq-muted text-xs ml-auto mr-3">{r.due_date}</span>
+            <span className="text-vehiq-muted text-xs ml-auto mr-3">{String(r.due_date).split("-").reverse().join(".")}</span>
             <button onClick={() => del(r.id)} className="text-vehiq-muted hover:text-red-400" data-testid={`term-delete-${r.id}`}><Trash2 size={14} /></button>
           </li>
         ))}

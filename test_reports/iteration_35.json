@@ -1,0 +1,55 @@
+{
+  "summary": "Paczka 7 (privacy/sharing/limits/reminders/e-mail templates) tested end-to-end. Backend: new pytest suite test_iter57_paczka7.py, 25/25 passing (visibility, anon profile, 403 vehicle_private, owner as_public preview, stranger blocked, 7-car/7-photo limits (402), AI weekly quota, listing-draft w/o VIN/plate, reminders CRUD + invalid date 400, cron 403 without/with wrong secret, admin dry run, 8 templates x PL/EN preview 200, unknown template 404, waitlist stats). Frontend (Playwright, desktop + mobile EN): all 12 requested flows verified. Found & fixed 1 HIGH frontend bug (public profile name/avatar empty). Found 1 backend logic bug (legacy privacy.profile_visible overrides new visibility toggle).",
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "POST /api/vehicles/{id}/visibility", "issue": "If vehicle has legacy privacy.profile_visible=false (still toggleable in Overview 'Prywatność' panel → 'Profil widoczny publicznie'), toggling to public via share menu / garage badge returns visibility:'public' and toast 'Profil pojazdu jest teraz publiczny', but vehicle_visibility() still forces private → anon /vehicles/{slug} returns 403 'To auto jest prywatne' and share link is dead. Reproduced via /tmp/p7_conflict.py. Fix: set privacy.profile_visible = (vis=='public') in set_visibility (and return vehicle_visibility(fresh)), or remove/rewire the legacy profile_visible toggle in OverviewTab.js:170.", "priority": "HIGH"}
+    ],
+    "minor": [
+      {"endpoint": "GET /api/vehicles/{id}/listing-draft", "issue": "EN uses hardcoded 'https://sharago.com' while PL uses _app_url(); in preview process env APP_URL=https://664209d9-...preview.emergentagent.com (stale host injected by env, overrides .env sharago.pl) so draft 'Pełna historia' link points to another preview host. Use one env-driven site URL per lang."},
+      {"endpoint": "GET /api/vehicles/{id}/listing-draft", "issue": "Polish plural: 'N wpisów' wrong for 2-4 (wpisy) and 1 (wpis)."},
+      {"endpoint": "email templates logo_url", "issue": "logo_url = {SITES[lang]}/email/logo.png → https://sharago.pl/email/logo.png currently 404 (file exists only in frontend/public/email/logo.png on preview); admin preview shows broken image. OK after prod deploy, but verify sharago.com (EN) also serves it."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "PublicProfile.js", "issue": "FIXED by tester: name (pp-name) and avatar initial were empty ('?') because code read card.name/card.avatar while API returns card.user.{name,avatar,created_at}. Now merges card.user into card.", "selector": "[data-testid='pp-name']", "priority": "HIGH"},
+      {"component": "VehicleForm.js mileage", "issue": "vf-mileage-current has HTML `required`, so the browser-native English tooltip 'Please fill out this field.' appears and the PL toast forms.mileageRequired is never reached. Remove `required` (or add noValidate on form) to get the intended PL toast.", "selector": "[data-testid='vf-mileage-current']", "priority": "LOW"},
+      {"component": "Garage archive card", "issue": "Sold card shows two badges 'SPRZEDANE' and 'SPRZEDANY' (duplicate).", "selector": "[data-testid^='vehicle-card-']", "priority": "LOW"}
+    ],
+    "integration_issues": [
+      {"flow": "Share menu / visibility badge vs Overview Prywatność panel", "issue": "See backend critical issue – toggle shows 'public' but car stays private if legacy profile_visible toggle was turned off.", "affected_selectors": ["share-toggle-public", "visibility-badge-{id}"]}
+    ],
+    "design_issues": [
+      {"screen": "Public profile", "issues": ["'W Sharago od listopad 2026' – wrong case; should be 'listopada 2026' (use month genitive / format 'LLLL' vs 'MMMM')."]},
+      {"screen": "Vehicle Terms card / Add vehicle 'Data zakupu'", "issues": ["Native browser <input type=date> (shows mm/dd/yyyy US format in PL UI) instead of shadcn calendar; term list shows ISO '2026-12-15' rather than PL date format."]},
+      {"screen": "Anonymous /marketplace/{id}", "issues": ["No header/logo/login CTA; 'No photo' and 'SELLER' untranslated in PL."]},
+      {"screen": "Vehicle profile (PL)", "issues": ["'SPECIFICATIONS' heading and 'Upload photos (0/7)' untranslated."]},
+      {"screen": "App footer (desktop 1920)", "issues": ["Footer logo 'Sharago' overlaps 'Blog'/'Polityka cookies' links."]},
+      {"screen": "Add vehicle", "issues": ["User fills whole form before learning about 7-car limit; consider showing limit modal on /garage/new open when at limit."]},
+      {"screen": "Garage badge", "issues": ["Badge labels are 'PRYWATNY/PUBLICZNY' while form radios say 'Prywatne/Publiczne' – inconsistent wording."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_iter57_paczka7.py", "/app/test_reports/pytest/iter57.xml"],
+  "action_items": [
+    "HIGH: Make POST /vehicles/{id}/visibility also set privacy.profile_visible to match (or drop the legacy 'Profil widoczny publicznie' toggle in OverviewTab) so share/badge toggles actually publish the car",
+    "Remove `required` from vf-mileage-current (or noValidate) so the PL toast shows",
+    "Fix 'od listopad' → 'od listopada' month case on public profile",
+    "Remove duplicate SPRZEDANE/SPRZEDANY badge on sold cards",
+    "Unify listing-draft site URL (no hardcoded sharago.com) and Polish plural for 'wpisów'",
+    "Translate 'No photo', 'SELLER', 'SPECIFICATIONS', 'Upload photos' in PL; add header to anonymous listing page",
+    "Replace native date inputs in VehicleTerms with shadcn date picker; show PL date format",
+    "Fix footer logo overlap"
+  ],
+  "critical_code_review_comments": [
+    "visibility.py has two sources of truth (visibility and privacy.profile_visible) – the new toggle endpoints write only one; consolidate.",
+    "set_visibility response returns raw stored 'visibility' instead of effective vehicle_visibility(fresh) – UI can show a state that is not effective.",
+    "PublicProfile.js expected flat card shape; backend _build_card nests under card.user – keep a single contract (fixed on frontend).",
+    "routers/vehicles.py is 1343 lines and admin.py 1103 lines – exceed 700-line guideline; split."
+  ],
+  "updated_files": ["/app/frontend/src/pages/PublicProfile.js", "/app/backend/tests/test_iter57_paczka7.py"],
+  "success_rate": {"backend": "96% (25/25 tests pass; 1 logic bug found outside requested scenarios)", "frontend": "92% (all 12 requested flows work after tester fix; minor UI issues)"},
+  "seed_data_creation": "Temporary TEST_P7 users/vehicles created via /tmp/p7_seed.py and deleted by id (/tmp/p7_cleanup.py). Pytest module cleans its own users by id. One dry-run job_runs entry (dry_run:true) added by admin dry run. No real reminders/emails sent, admin password unchanged.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Use test_iter57_paczka7.py (run with -p no:xdist). Login in UI by setting localStorage sharago_token (user) / sharago_admin_token (admin, get via POST /api/admin/login with random True-Client-IP). Dismiss first-use tooltips by clicking [data-testid=first-use-tooltips-overlay] (it intercepts clicks on garage). Retest: profile_visible conflict (/tmp/p7_conflict.py approach), mileage toast, month case."
+}

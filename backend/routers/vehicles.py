@@ -734,6 +734,12 @@ async def update_vehicle(vehicle_id: str, payload: VehicleUpdateIn, user=Depends
     elif "public" in update:
         update["visibility"] = "public" if update["public"] else "private"
         update["searchable"] = bool(update["public"])
+    elif isinstance(update.get("privacy"), dict) and "profile_visible" in update["privacy"]:
+        # Legacy "Profil widoczny publicznie" toggle drives the same single visibility flag.
+        update["visibility"] = "public" if update["privacy"]["profile_visible"] else "private"
+        update["public"] = update["searchable"] = update["visibility"] == "public"
+    if "visibility" in update:
+        update["privacy"] = {**(v.get("privacy") or {}), **(update.get("privacy") or {}), "profile_visible": update["visibility"] == "public"}
     if update.get("status") not in (None, "active", "sold", "archived", "for_sale"):
         raise HTTPException(status_code=400, detail="Invalid status")
     # Iter 42: guard against document-too-large writes from base64 photo array
@@ -987,6 +993,8 @@ async def set_visibility(vehicle_id: str, payload: VisibilityIn, user=Depends(ge
         update["public"] = bool(dumped["public"])
         update["visibility"] = "public" if dumped["public"] else "private"
         update["searchable"] = bool(dumped["public"])
+    if "visibility" in update:
+        update["privacy"] = {**(v.get("privacy") or {}), "profile_visible": update["visibility"] == "public"}
     if "public_show_service" in dumped:
         update["public_show_service"] = bool(dumped["public_show_service"])
     # Ensure slug exists when going public
@@ -1000,7 +1008,7 @@ async def set_visibility(vehicle_id: str, payload: VisibilityIn, user=Depends(ge
         "ok": True,
         "slug": fresh.get("slug"),
         "public": bool(fresh.get("public")),
-        "visibility": fresh.get("visibility") or ("public" if fresh.get("public") else "private"),
+        "visibility": vehicle_visibility(fresh),
         "public_show_service": bool(fresh.get("public_show_service")),
     }
 
@@ -1331,10 +1339,12 @@ async def listing_draft(vehicle_id: str, lang: str = "pl", user=Depends(get_curr
         last = entries[0]
         what = last.get("title") or last.get("service_type") or last.get("type") or ""
         bits = ", ".join(x for x in [str(last.get("date") or "")[:10], f"{last['mileage']} km" if last.get("mileage") else "", what] if x)
-        lines.append((f"Service history on Sharago: {len(entries)} entries, last service: {bits}." if en
-                      else f"Historia serwisowa w Sharago: {len(entries)} wpisów, ostatni serwis: {bits}."))
+        n = len(entries)
+        pl_word = "wpis" if n == 1 else "wpisy" if n % 10 in (2, 3, 4) and n % 100 not in (12, 13, 14) else "wpisów"
+        lines.append((f"Service history on Sharago: {n} {'entry' if n == 1 else 'entries'}, last service: {bits}." if en
+                      else f"Historia serwisowa w Sharago: {n} {pl_word}, ostatni serwis: {bits}."))
     if is_vehicle_public(v) and v.get("slug"):
-        site = "https://sharago.com" if en else _app_url()
+        site = "https://sharago.com" if en else "https://sharago.pl"
         lines.append(("Full history: " if en else "Pełna historia: ") + f"{site}/vehicles/{v['slug']}")
     lines.append("")
     hint = "Add 2–3 sentences: condition, damage, reason for selling" if en else "Dopisz 2–3 zdania: stan, uszkodzenia, powód sprzedaży"

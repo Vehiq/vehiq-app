@@ -199,7 +199,8 @@ function VisibilityBadge({ v, t }) {
       toast.success(next === "public" ? t("share.madePublic") : t("share.madePrivate"));
     } catch { toast.error(t("common.error")); }
   };
-  const label = sold ? t("pp.sold") : vis === "public" ? t("share.public") : t("share.private");
+  if (sold) return null;
+  const label = vis === "public" ? t("vis.badgePublic") : t("vis.badgePrivate");
   return (
     <button type="button" onClick={toggle} title={sold ? "" : t("vis.toggleHint")}
       className={`text-[10px] uppercase tracking-widest px-2 py-1 rounded border inline-flex items-center gap-1 ${vis === "public" && !sold ? "bg-vehiq-gold-dim text-vehiq-gold border-vehiq-gold/40" : "bg-vehiq-bg/80 text-vehiq-muted border-vehiq-border"}`}

@@ -2315,3 +2315,11 @@ Backend curl E2E — wszystkie zielone (slugify PL, business register, GET/{slug
 - D2 (obowiązkowe 2FA admin) — tylko opis, nie wdrożone.
 - Backlog: AdminLegal dynamiczne slugi (P2), alerty części (P1), GPS (P1), push (P1), FB OAuth (P2), slow-queries (P2).
 - 2026-06: startup NIE modyfikuje legal_pages (usunięta migracja regex z server.py); ręczny skrypt backend/scripts/legal_pages_contact_email.py (dry-run / --apply). Czysty build FE (npm) i BE (venv, PyPI) OK; npm audit prod 0, pip-audit 0.
+
+## 2026-06 — Paczka 7
+- A: visibility.py (single source: vehicle.visibility public/private + not sold/archived; profile privacy_settings.profile_public). Profile/vehicle/short/og/search/open-to-offers use it. by-slug accepts slug or id, 403 vehicle_private. Profile: as_public preview, report endpoint, no location. Share menu simplified, form visibility radio, garage badge toggle. Listing route public. Vercel middleware OG for /vehicles, /u, /marketplace/:id. Migration script scripts/migrate_visibility.py (applied in preview only).
+- B: reminder_job rewritten (Europe/Warsaw, window [today, today+7], date parsing, admin_account fallback, rejection reasons, manual run never locked, test-to-me), "Terminy" UI (VehicleTerms), scheduler start/disabled log.
+- C: plan_limits.py (app_settings 7/7, admin bypass, 402 codes), AI 1/week (/ai/quota), PremiumLimitModal + waitlist stats.
+- E: Jinja2 templates backend/email_templates + email_render.py, text part + List-Unsubscribe, sender SMTP_FROM_EMAIL→noreply@sharago.com, retention e-mails off, admin E-maile tab.
+- D/F/G: numeric fields, listing-draft endpoint, polling 60s visible-only, React.lazy (main JS 2274→1301 kB), package-lock removed (Vercel uses yarn).
+- Backlog: shadcn date picker in Terminy, translate ListingDetail 'SELLER', footer logo overlap, real logo PNG (attachment was masked).

@@ -251,7 +251,7 @@ export default function VehicleForm({ initial, onSaved }) {
             </select>
           </Field>
           <Field label={t("vehicle.mileage")}>
-            <input type="text" inputMode="numeric" pattern="[0-9 ]*" required value={form.mileage_current ?? ""} placeholder={t("forms.mileagePh")} onChange={(e) => setForm({ ...form, mileage_current: e.target.value.replace(/[^0-9]/g, "") })} className="vehiq-input" data-testid="vf-mileage-current" />
+            <input type="text" inputMode="numeric" pattern="[0-9 ]*" value={form.mileage_current ?? ""} placeholder={t("forms.mileagePh")} onChange={(e) => setForm({ ...form, mileage_current: e.target.value.replace(/[^0-9]/g, "") })} className="vehiq-input" data-testid="vf-mileage-current" />
           </Field>
           <Field label={t("vehicle.mileageAtPurchase")}>
             <input type="number" inputMode="numeric" value={form.mileage_at_purchase ?? ""} onChange={(e) => setForm({ ...form, mileage_at_purchase: e.target.value })} className="vehiq-input" placeholder={t("forms.mileagePh")} data-testid="vf-mileage-at-purchase" />

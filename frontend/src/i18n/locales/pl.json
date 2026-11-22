@@ -1058,7 +1058,11 @@
     "private": "Prywatne – widzisz tylko Ty",
     "public": "Publiczne – widoczne na Twoim profilu",
     "note": "Numer rejestracyjny i VIN nigdy nie są pokazywane publicznie.",
-    "toggleHint": "Kliknij, aby zmienić widoczność"
+    "toggleHint": "Kliknij, aby zmienić widoczność",
+    "badgePublic": "Publiczne",
+    "badgePrivate": "Prywatne",
+    "uploadPhotos": "Dodaj zdjęcia",
+    "specs": "Dane techniczne"
   },
   "forms": {
     "mileagePh": "np. 245 000",

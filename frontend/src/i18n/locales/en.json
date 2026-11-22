@@ -1056,7 +1056,11 @@
     "private": "Private – only you can see it",
     "public": "Public – shown on your profile",
     "note": "Plate number and VIN are never shown publicly.",
-    "toggleHint": "Click to change visibility"
+    "toggleHint": "Click to change visibility",
+    "badgePublic": "Public",
+    "badgePrivate": "Private",
+    "uploadPhotos": "Upload photos",
+    "specs": "Specifications"
   },
   "forms": {
     "mileagePh": "e.g. 245 000",

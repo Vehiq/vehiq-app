@@ -6,6 +6,7 @@ import { Toaster } from "sonner";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { usePageTracking } from "@/hooks/usePageTracking";
 import Layout from "@/components/layout/Layout";
+import Logo from "@/components/Logo";
 import CookieBanner from "@/components/CookieBanner";
 
 import LoginPage from "@/pages/LoginPage";
@@ -133,7 +134,15 @@ function ListingRoute() {
   const { user, loading } = useAuth();
   if (loading) return null;
   if (user) return <Layout />;
-  return <div className="min-h-screen bg-vehiq-bg max-w-5xl mx-auto px-4 md:px-6 py-6"><ListingDetail /></div>;
+  return (
+    <div className="min-h-screen bg-vehiq-bg">
+      <header className="border-b border-vehiq-border"><div className="max-w-5xl mx-auto px-4 md:px-6 py-3 flex items-center justify-between">
+        <a href="/" data-testid="listing-public-logo"><Logo size="md" /></a>
+        <a href="/login" className="vehiq-btn-secondary text-xs" data-testid="listing-public-login">Zaloguj / Log in</a>
+      </div></header>
+      <div className="max-w-5xl mx-auto px-4 md:px-6 py-6"><ListingDetail /></div>
+    </div>
+  );
 }
 
 function PublicHomeRedirect() {

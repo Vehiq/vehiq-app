@@ -26,7 +26,7 @@ function PublicHeader() {
 
 function memberSince(iso, lang) {
   if (!iso) return null;
-  try { return new Date(iso).toLocaleDateString(lang === "en" ? "en-GB" : "pl-PL", { month: "long", year: "numeric" }); } catch { return null; }
+  try { return new Date(iso).toLocaleDateString(lang === "en" ? "en-GB" : "pl-PL", { day: "numeric", month: "long", year: "numeric" }).replace(/^\d+\.?\s*/, ""); } catch { return null; }
 }
 
 function Actions({ slug, isOwner, user, previewMode, setPreviewMode }) {
@@ -76,7 +76,8 @@ export default function PublicProfile() {
     </>
   );
 
-  const { card = {}, vehicles = [], active_listings = [], is_owner, joined_at } = data;
+  const { card: rawCard = {}, vehicles = [], active_listings = [], is_owner, joined_at } = data;
+  const card = { ...rawCard, ...(rawCard.user || {}) };
   const isOwner = is_owner || previewMode;
   const since = memberSince(joined_at || card.created_at, lang);
   return (
