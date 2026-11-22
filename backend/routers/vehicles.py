@@ -1,3 +1,4 @@
+from rate_guard import rate_limit
 """Vehicles router — CRUD, photos."""
 from fastapi import APIRouter, HTTPException, Depends, Body, UploadFile, File, Response
 from pydantic import BaseModel, Field, field_validator
@@ -390,6 +391,8 @@ async def search_vehicles(
     f: dict = {"searchable": {"$ne": False}}
     # privacy.profile_visible must be truthy — treat missing as True by default
     f["$or"] = [{"privacy.profile_visible": {"$ne": False}}, {"privacy": {"$exists": False}}]
+    # Only cars the owner made public, never sold/archived ones.
+    f["$and"] = [{"$or": [{"visibility": "public"}, {"public": True}]}, {"status": {"$nin": ["sold", "archived"]}}]
     if make:
         f["make"] = {"$regex": f"^{re.escape(make)}$", "$options": "i"}
     if model:
@@ -516,6 +519,8 @@ async def create_vehicle(payload: VehicleIn, user=Depends(get_current_user)):
     photo_settings = await db.app_settings.find_one({"key": "max_photos_per_vehicle"})
     max_p = int(photo_settings["value"]) if photo_settings else 20
     photos = _guard_inline_photos((payload.photos or [])[:max_p])
+    from image_safety import sanitize_data_url
+    photos = [sanitize_data_url(p) if isinstance(p, str) and p.startswith("data:") else p for p in (photos or [])]
 
     v_id = str(uuid.uuid4())
     doc = payload.model_dump()
@@ -1153,7 +1158,7 @@ async def mark_sold(vehicle_id: str, payload: MarkSoldIn, user=Depends(get_curre
 
 
 
-@router.post("/{vehicle_id}/photos")
+@router.post("/{vehicle_id}/photos", dependencies=[Depends(rate_limit("photo_upload", 60, 3600))])
 async def upload_photos(
     vehicle_id: str,
     files: List[UploadFile] = File(...),
@@ -1274,20 +1279,8 @@ def _base64_to_response(dataurl: str) -> Response:
     Response with a long cache TTL. Used to keep list-payloads lean while still
     letting the browser render legacy inline photos as <img src=...>.
     """
-    import base64
-    try:
-        header, _, payload = dataurl.partition(",")
-        mime = "image/jpeg"
-        if header.startswith("data:"):
-            mime = header[5:].split(";", 1)[0] or "image/jpeg"
-        raw = base64.b64decode(payload)
-    except Exception:
-        raise HTTPException(status_code=404, detail="Invalid photo data")
-    return Response(
-        content=raw,
-        media_type=mime,
-        headers={"Cache-Control": "public, max-age=86400, immutable"},
-    )
+    from image_safety import data_url_response
+    return data_url_response(dataurl, cache="public, max-age=86400, immutable")
 
 
 def _pick_photo_dataurl(photos: list, idx: int = 0) -> Optional[str]:

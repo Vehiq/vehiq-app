@@ -63,7 +63,7 @@ async def global_search(
         # both during the transition period so old docs still surface.
         privacy_clause = {"$or": [
             {"visibility": "public"},
-            {"searchable": {"$ne": False}, "$or": [{"privacy.profile_visible": {"$ne": False}}, {"privacy": {"$exists": False}}]},
+            {"public": True, "visibility": {"$exists": False}},
         ]}
         if viewer:
             privacy_clause["$or"].append({"user_id": viewer["id"]})

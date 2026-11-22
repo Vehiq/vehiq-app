@@ -1,3 +1,4 @@
+from rate_guard import rate_limit
 """Events router — car meets, race tracks, shows. Join/leave + Haversine geo."""
 from fastapi import APIRouter, HTTPException, Depends, UploadFile, File
 from pydantic import BaseModel, Field
@@ -85,7 +86,7 @@ async def get_event(slug_or_id: str, viewer=Depends(get_optional_user)):
     return e
 
 
-@router.post("")
+@router.post("", dependencies=[Depends(rate_limit("event", 5, 86400))])
 async def create_event(payload: EventIn, user=Depends(get_current_user)):
     db = get_db()
     if payload.type not in EVENT_TYPES:
@@ -163,7 +164,7 @@ async def leave_event(event_id: str, user=Depends(get_current_user)):
 MAX_PHOTOS_PER_EVENT = 5
 
 
-@router.post("/{event_id}/photos")
+@router.post("/{event_id}/photos", dependencies=[Depends(rate_limit("photo_upload", 60, 3600))])
 async def upload_event_photos(event_id: str, files: List[UploadFile] = File(...), user=Depends(get_current_user)):
     db = get_db()
     e = await db.events.find_one({"id": event_id})
@@ -230,7 +231,7 @@ async def list_comments(event_id: str, page: int = 1, limit: int = 20):
     return {"items": items, "total": total, "page": page, "limit": limit}
 
 
-@router.post("/{event_id}/comments")
+@router.post("/{event_id}/comments", dependencies=[Depends(rate_limit("event_comment", 30, 3600))])
 async def add_comment(event_id: str, payload: CommentIn, user=Depends(get_current_user)):
     db = get_db()
     e = await db.events.find_one({"id": event_id})

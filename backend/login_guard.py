@@ -36,6 +36,9 @@ async def assert_not_locked(db, scope: str, login: str, request: Request):
     since = datetime.now(timezone.utc) - WINDOW
     base = {"scope": scope, "cleared": False, "created_at": {"$gt": since}}
     if login and await db.login_failures.count_documents({**base, "login": _norm(login)}) >= max_login:
+        if scope == "admin":
+            from alerts import admin_alert
+            await admin_alert(db, "admin_login_lockout", "Admin login locked after repeated failed attempts. See Security → Failed login attempts.")
         raise HTTPException(status_code=429, detail=LOCK_MESSAGE)
     if client_ip_trusted(request) and await db.login_failures.count_documents({**base, "ip": client_ip(request)}) >= max_ip:
         raise HTTPException(status_code=429, detail=LOCK_MESSAGE)

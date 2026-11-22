@@ -1,3 +1,4 @@
+import adminApi from "@/lib/adminApi";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useEffect } from "react";
 import { LayoutDashboard, Users, Car, Store, MessagesSquare, FileText, Edit3, Settings, Shield, ShieldAlert, BarChart3, KeyRound, LogOut, BookOpen, Star, Share2, Building2, Mail } from "lucide-react";
@@ -29,7 +30,8 @@ export default function AdminLayout() {
     if (!localStorage.getItem("sharago_admin_token")) navigate("/gv91-admin");
   }, [navigate]);
 
-  const logout = () => {
+  const logout = async () => {
+    await adminApi.post("/admin/logout").catch(() => {});
     localStorage.removeItem("sharago_admin_token");
     navigate("/gv91-admin");
   };

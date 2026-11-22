@@ -35,7 +35,8 @@ const SERVICE_TAGS = [
 export default function BusinessOnboarding() {
   const navigate = useNavigate();
   const [params] = useSearchParams();
-  const nextUrl = params.get("next") || "/business/dashboard";
+  const rawNext = params.get("next") || "";
+  const nextUrl = rawNext.startsWith("/") && !rawNext.startsWith("//") && !rawNext.includes("\\") ? rawNext : "/business/dashboard";
   const [step, setStep] = useState(1);
   const [biz, setBiz] = useState(null);
   const [logoUrl, setLogoUrl] = useState("");

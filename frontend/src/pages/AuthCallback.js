@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import i18n from "@/i18n";
+const isSafePath = (p) => typeof p === "string" && p.startsWith("/") && !p.startsWith("//") && !p.includes("\\");
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
@@ -34,7 +35,7 @@ export default function AuthCallback() {
       adoptToken(token)
         .then(() => {
           toast.success(i18n.t("ui.googleSignedIn"));
-          navigate(next.startsWith("/") ? next : "/garage", { replace: true });
+          navigate(isSafePath(next) ? next : "/garage", { replace: true });
         })
         .catch(() => {
           toast.error(i18n.t("ui.loginFinishFailed"));

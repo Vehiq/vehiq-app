@@ -21,7 +21,7 @@ import re
 from fastapi import APIRouter, HTTPException, Request
 
 from db_helper import get_db
-from auth_utils import create_access_token
+from auth_utils import user_token
 
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -328,7 +328,7 @@ async def create_demo_account(request: Request):
     })
 
     # 7. JWT.
-    token = create_access_token({"sub": user_id, "type": "user"})
+    token = user_token({"id": user_id})
 
     return {
         "token": token,

@@ -140,7 +140,7 @@ async def admin_login(payload: AdminLoginIn, request: Request):
                 raise HTTPException(status_code=401, detail="invalid_otp")
             await db.admin_account.update_one({"email": ADMIN_EMAIL}, {"$pull": {"totp_backup_hashes": used}})
     await login_guard.clear_failures(db, "admin", payload.email)
-    token = create_access_token({"sub": ADMIN_EMAIL, "type": "admin"}, expires_hours=ADMIN_TOKEN_EXPIRE_HOURS)
+    token = create_access_token({"sub": ADMIN_EMAIL, "type": "admin", "tv": int(admin.get("token_version") or 0)}, expires_hours=ADMIN_TOKEN_EXPIRE_HOURS)
     now_iso = datetime.now(timezone.utc).isoformat()
     # log
     await db.admin_login_history.insert_one({
@@ -181,6 +181,30 @@ async def login_history(admin=Depends(get_admin)):
     db = get_db()
     items = await db.admin_login_history.find({}, {"_id": 0}).sort("ts", -1).limit(20).to_list(20)
     return items
+
+
+@router.post("/logout")
+async def admin_logout(admin=Depends(get_admin)):
+    """Invalidates all admin sessions."""
+    await get_db().admin_account.update_one({"email": ADMIN_EMAIL}, {"$inc": {"token_version": 1}})
+    return {"ok": True}
+
+
+@router.get("/ai-usage")
+async def ai_usage(admin=Depends(get_admin)):
+    """AI Mechanic: questions + estimated cost (USD) today and this month."""
+    db = get_db()
+    now = datetime.now(timezone.utc)
+    day, month = now.strftime("%Y-%m-%d"), now.strftime("%Y-%m")
+    t = await db.ai_usage_daily.find_one({"day": day}, {"_id": 0}) or {}
+    m = await db.ai_usage_daily.aggregate([
+        {"$match": {"day": {"$regex": f"^{month}"}}},
+        {"$group": {"_id": None, "count": {"$sum": "$count"}, "cost_usd": {"$sum": "$cost_usd"}}},
+    ]).to_list(1)
+    m = m[0] if m else {}
+    return {"today": {"count": t.get("count", 0), "cost_usd": round(t.get("cost_usd", 0), 4)},
+            "month": {"count": m.get("count", 0), "cost_usd": round(m.get("cost_usd", 0), 4)},
+            "daily_limit": 200, "user_monthly_limit": 3}
 
 
 @router.get("/failed-logins")
@@ -259,6 +283,7 @@ async def change_password(payload: ChangePasswordIn, request: Request, admin=Dep
         {"email": ADMIN_EMAIL},
         {
             "$set": {"password_hash": hash_password(payload.new_password), "first_login": False},
+            "$inc": {"token_version": 1},
             "$push": {"password_changes": {"ts": now_iso, "ip": _get_ip(request)}},
         },
     )
@@ -335,6 +360,7 @@ async def admin_reset_password(payload: ResetPasswordIn, request: Request):
         {"email": ADMIN_EMAIL},
         {
             "$set": {"password_hash": hash_password(pw), "first_login": False},
+            "$inc": {"token_version": 1},
             "$push": {"password_changes": {"ts": now_iso, "ip": _get_ip(request), "via": "reset"}},
         },
     )

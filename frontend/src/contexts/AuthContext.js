@@ -123,6 +123,9 @@ export const AuthProvider = ({ children }) => {
   };
 
   const logout = () => {
+    // Server-side: bumps token_version → every session of this user is invalidated.
+    const tok = localStorage.getItem("sharago_token");
+    if (tok) api.post("/auth/logout", null, { headers: { Authorization: `Bearer ${tok}` } }).catch(() => {});
     localStorage.removeItem("sharago_token");
     cacheClear(); // Iter 41: drop cached GETs from previous session
     setUser(null);

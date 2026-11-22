@@ -7,9 +7,11 @@ from fastapi import HTTPException, Header, Depends
 from typing import Optional
 from db_helper import get_db
 
-SECRET_KEY = os.environ.get("SECRET_KEY") or os.environ.get("JWT_SECRET") or "vehiq-dev-secret"
+SECRET_KEY = os.environ.get("SECRET_KEY") or os.environ.get("JWT_SECRET")
+if not SECRET_KEY:
+    raise RuntimeError("SECRET_KEY (or JWT_SECRET) environment variable is required — refusing to start without it.")
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_HOURS = 24 * 30  # 30 days — silent-refresh happens client-side after 24h
+ACCESS_TOKEN_EXPIRE_HOURS = 24 * 7  # 7 days — silent-refresh happens client-side after 24h
 ADMIN_TOKEN_EXPIRE_HOURS = 2
 # Iter 40: allow refresh with a grace period after the token expires. Users
 # returning to the app within this window get a fresh token instead of a
@@ -37,6 +39,11 @@ def create_access_token(data: dict, expires_hours: int = ACCESS_TOKEN_EXPIRE_HOU
         "iat": datetime.now(timezone.utc),
     })
     return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
+
+
+def user_token(user: dict) -> str:
+    """Access token bound to the user's token_version (bumped on logout / password reset)."""
+    return create_access_token({"sub": user["id"], "type": "user", "tv": int(user.get("token_version") or 0)})
 
 
 def decode_token(token: str) -> dict:
@@ -89,6 +96,8 @@ async def get_current_user(authorization: Optional[str] = Header(None)) -> dict:
     user = await db.profiles.find_one({"id": payload.get("sub")}, {"_id": 0, "password_hash": 0})
     if not user:
         raise HTTPException(status_code=401, detail="User not found")
+    if int(payload.get("tv") or 0) != int(user.get("token_version") or 0):
+        raise HTTPException(status_code=401, detail="Session expired")
     if user.get("suspended"):
         raise HTTPException(status_code=403, detail="Account suspended")
     return user
@@ -110,4 +119,7 @@ async def get_admin(authorization: Optional[str] = Header(None)) -> dict:
     payload = decode_token(token)
     if payload.get("type") != "admin":
         raise HTTPException(status_code=403, detail="Admin only")
+    rec = await get_db().admin_account.find_one({"email": payload.get("sub")}, {"_id": 0, "email": 1, "token_version": 1})
+    if rec is None or int(payload.get("tv") or 0) != int(rec.get("token_version") or 0):
+        raise HTTPException(status_code=401, detail="Session expired")
     return {"email": payload.get("sub"), "role": "admin"}

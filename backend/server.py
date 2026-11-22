@@ -301,27 +301,13 @@ DEFAULT_ALLOWED_ORIGINS = [
     "https://www.sharago.pl",
     "https://sharago.com",
     "https://www.sharago.com",
-    "http://localhost:3000",
-    "http://localhost:5173",  # Vite dev (in case)
 ]
-DEFAULT_ALLOWED_ORIGIN_REGEX = (
-    r"https://(.*\.)?vercel\.app|"
-    r"https://.*\.preview\.emergentagent\.com|"
-    r"https://(.*\.)?onrender\.com"
-)
+# "*" is never honoured (credentials-enabled API). Extra origins only via explicit list / regex env.
 _cors_env = os.environ.get("CORS_ORIGINS", "").strip()
-if _cors_env == "*":
-    cors_origins = ["*"]
-    cors_regex = None
-elif _cors_env:
-    cors_origins = [o.strip() for o in _cors_env.split(",") if o.strip()]
-    cors_regex = os.environ.get("CORS_ORIGIN_REGEX") or None
-else:
-    cors_origins = DEFAULT_ALLOWED_ORIGINS
-    cors_regex = os.environ.get("CORS_ORIGIN_REGEX") or DEFAULT_ALLOWED_ORIGIN_REGEX
+cors_origins = [o.strip() for o in _cors_env.split(",") if o.strip() and o.strip() != "*"]
+cors_regex = os.environ.get("CORS_ORIGIN_REGEX") or None
 # Production frontends must always pass CORS, even if CORS_ORIGINS env omits them.
-if cors_origins != ["*"]:
-    cors_origins = list(dict.fromkeys(cors_origins + DEFAULT_ALLOWED_ORIGINS[:4]))
+cors_origins = list(dict.fromkeys(cors_origins + DEFAULT_ALLOWED_ORIGINS))
 
 logger.info(f"CORS origins: {cors_origins} regex={cors_regex}")
 app.add_middleware(
@@ -478,12 +464,26 @@ async def on_startup():
             logger.error("Backend will continue starting; DB-backed endpoints may return errors until DB is reachable.")
     else:
         logger.warning("Skipping seed_database — db is None.")
-    # Background retention scheduler (D+1, D+7, monthly)
-    try:
-        from retention import scheduler_loop
-        asyncio.create_task(scheduler_loop())
-    except Exception as e:
-        logger.warning(f"retention scheduler failed to start: {e}")
+    # Activation/retention e-mails (D+1, D+7, monthly) are OFF unless RETENTION_EMAILS_ENABLED=1.
+    if os.environ.get("RETENTION_EMAILS_ENABLED") == "1":
+        try:
+            from retention import scheduler_loop
+            asyncio.create_task(scheduler_loop())
+        except Exception as e:
+            logger.warning(f"retention scheduler failed to start: {e}")
+    # Reminder e-mails: in-process daily run (Mongo lock prevents double sends across instances).
+    if db is not None and os.environ.get("REMINDERS_SCHEDULER", "1") == "1":
+        async def _reminders_loop():
+            from reminder_job import run_reminders, ensure_indexes
+            await ensure_indexes(db)
+            while True:
+                try:
+                    if datetime.now(timezone.utc).hour >= 7:
+                        await run_reminders(db)
+                except Exception as e:
+                    logger.error(f"reminders loop error: {e}")
+                await asyncio.sleep(3600)
+        asyncio.create_task(_reminders_loop())
     # Backfill missing slugs on services & events (fixes map-marker 404 for legacy data)
     if db is not None:
         try:

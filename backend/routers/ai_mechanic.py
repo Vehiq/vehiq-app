@@ -14,8 +14,37 @@ import anthropic
 router = APIRouter(prefix="/ai", tags=["ai"])
 
 ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
-MODEL_NAME = os.environ.get("ANTHROPIC_MODEL", "claude-sonnet-4-5-20250929")
-MAX_TOKENS = int(os.environ.get("ANTHROPIC_MAX_TOKENS", "1024"))
+MODEL_NAME = os.environ.get("ANTHROPIC_MODEL", "claude-haiku-4-5-20251001")
+MAX_TOKENS = int(os.environ.get("ANTHROPIC_MAX_TOKENS", "600"))
+# Hard limits (independent of LIMITS_ENABLED)
+USER_MONTHLY_LIMIT = 3
+GLOBAL_DAILY_LIMIT = 200
+MAX_QUESTION_CHARS = 1000
+HISTORY_MESSAGES = 4  # incl. the new question
+# USD per 1M tokens (input, output) for the cost estimate in the admin panel
+PRICES = {"haiku": (1.0, 5.0), "sonnet": (3.0, 15.0), "opus": (15.0, 75.0)}
+UNAVAILABLE = {"pl": "AI Mechanik chwilowo niedostępny, spróbuj jutro.", "en": "AI Mechanic is temporarily unavailable, please try again tomorrow."}
+MONTHLY_MSG = {"pl": "Wykorzystałeś 3 pytania do AI Mechanika w tym miesiącu.", "en": "You've used your 3 AI Mechanic questions for this month."}
+
+STATIC_INSTRUCTIONS = (
+    "You are Sharago AI, an expert automotive mechanic with 30 years of experience. "
+    "Be direct, practical and avoid filler.\n\n"
+    "ANSWER FORMAT (always include all four sections):\n"
+    "1. **Diagnosis** — most likely cause based on symptoms.\n"
+    "2. **Recommended action** — what the user should do.\n"
+    "3. **Classification** — exactly one of: FIX_YOURSELF, GO_TO_MECHANIC, URGENT.\n"
+    "4. **Estimated cost (PLN)** — typical range in Polish mechanic shops.\n"
+    "Use bullet points and short sentences."
+)
+
+
+def _price(model: str) -> tuple:
+    return next((v for k, v in PRICES.items() if k in model), PRICES["sonnet"])
+
+
+async def _alert_admin(db, kind: str, text: str):
+    from alerts import admin_alert
+    await admin_alert(db, kind, text)
 
 
 class AskIn(BaseModel):
@@ -34,23 +63,15 @@ def _build_system_prompt(vehicle: dict, services: list, language: str) -> str:
     services_block = "\n".join(last_services) if last_services else "(no service entries yet)"
 
     return (
-        f"You are Sharago AI, an expert automotive mechanic with 30 years of experience. "
-        f"You always respond in {lang_label}. Be direct, practical and avoid filler.\n\n"
+        f"You always respond in {lang_label}.\n\n"
         f"USER VEHICLE CONTEXT:\n"
         f"- Make: {vehicle.get('make')}\n"
         f"- Model: {vehicle.get('model')}\n"
         f"- Year: {vehicle.get('year')}\n"
         f"- Engine: {vehicle.get('engine') or 'unknown'}\n"
         f"- Fuel: {vehicle.get('fuel') or 'unknown'}\n"
-        f"- Mileage: {vehicle.get('mileage_current') or 'unknown'} km\n"
-        f"- VIN: {vehicle.get('vin') or 'unknown'}\n\n"
-        f"RECENT SERVICE HISTORY (last 5):\n{services_block}\n\n"
-        f"ANSWER FORMAT (always include all four sections):\n"
-        f"1. **Diagnosis** — most likely cause based on symptoms.\n"
-        f"2. **Recommended action** — what the user should do.\n"
-        f"3. **Classification** — exactly one of: FIX_YOURSELF, GO_TO_MECHANIC, URGENT.\n"
-        f"4. **Estimated cost (PLN)** — typical range in Polish mechanic shops.\n"
-        f"Use bullet points and short sentences."
+        f"- Mileage: {vehicle.get('mileage_current') or 'unknown'} km\n\n"
+        f"RECENT SERVICE HISTORY (last 5):\n{services_block}\n"
     )
 
 
@@ -143,18 +164,28 @@ async def ask(payload: AskIn, request: Request, user=Depends(get_current_user)):
     if not vehicle:
         raise HTTPException(status_code=404, detail="Vehicle not found")
 
-    services = await db.service_entries.find({"vehicle_id": payload.vehicle_id}, {"_id": 0}).sort("date", -1).to_list(5)
-    language = user.get("language", "pl")
-    system_prompt = _build_system_prompt(vehicle, services, language)
-
+    language = "en" if user.get("language") == "en" else "pl"
+    if len(payload.message or "") > MAX_QUESTION_CHARS:
+        raise HTTPException(status_code=400, detail=f"Max {MAX_QUESTION_CHARS} characters")
     if not ANTHROPIC_API_KEY:
         raise HTTPException(status_code=503, detail="AI Mechanic is not configured (missing ANTHROPIC_API_KEY)")
+    now_dt = datetime.now(timezone.utc)
+    day, month = now_dt.strftime("%Y-%m-%d"), now_dt.strftime("%Y-%m")
+    used = await db.ai_usage.find_one({"user_id": user["id"], "month": month}) or {}
+    if (used.get("count") or 0) >= USER_MONTHLY_LIMIT:
+        raise HTTPException(status_code=429, detail=MONTHLY_MSG[language])
+    daily = await db.ai_usage_daily.find_one({"day": day}) or {}
+    if (daily.get("count") or 0) >= GLOBAL_DAILY_LIMIT:
+        raise HTTPException(status_code=503, detail=UNAVAILABLE[language])
+
+    services = await db.service_entries.find({"vehicle_id": payload.vehicle_id}, {"_id": 0}).sort("date", -1).to_list(5)
+    system_prompt = _build_system_prompt(vehicle, services, language)
 
     # Replay last few turns for continuity (Anthropic native messages format)
     existing = await db.ai_chats.find_one({"vehicle_id": payload.vehicle_id, "user_id": user["id"]}, {"_id": 0})
     history: list[dict] = []
     if existing and existing.get("messages"):
-        for m in existing["messages"][-10:]:
+        for m in existing["messages"][-(HISTORY_MESSAGES - 1):]:
             role = m.get("role")
             if role in ("user", "assistant") and m.get("content"):
                 history.append({"role": role, "content": m["content"]})
@@ -165,14 +196,31 @@ async def ask(payload: AskIn, request: Request, user=Depends(get_current_user)):
         resp = await client.messages.create(
             model=MODEL_NAME,
             max_tokens=MAX_TOKENS,
-            system=system_prompt,
+            # Static instructions marked cacheable; vehicle context varies per request.
+            system=[
+                {"type": "text", "text": STATIC_INSTRUCTIONS, "cache_control": {"type": "ephemeral"}},
+                {"type": "text", "text": system_prompt},
+            ],
             messages=history,
         )
+        u = getattr(resp, "usage", None)
+        tin, tout = (getattr(u, "input_tokens", 0) or 0), (getattr(u, "output_tokens", 0) or 0)
+        pin, pout = _price(MODEL_NAME)
+        cost = tin / 1e6 * pin + tout / 1e6 * pout
+        inc = {"count": 1, "input_tokens": tin, "output_tokens": tout, "cost_usd": cost}
+        await db.ai_usage.update_one({"user_id": user["id"], "month": month}, {"$inc": inc}, upsert=True)
+        d = await db.ai_usage_daily.find_one_and_update({"day": day}, {"$inc": inc}, upsert=True, return_document=True)
+        if (d or {}).get("count", 0) >= int(GLOBAL_DAILY_LIMIT * 0.8):
+            await _alert_admin(db, "ai_daily_80pct", f"AI Mechanic used {d.get('count')} of {GLOBAL_DAILY_LIMIT} daily questions.")
         # Concatenate text blocks (Anthropic returns a list of content blocks)
         reply = "".join(b.text for b in resp.content if getattr(b, "type", None) == "text")
         if not reply:
             reply = "(brak odpowiedzi)"
     except anthropic.APIStatusError as e:
+        msg = str(getattr(e, "message", e)).lower()
+        if "credit" in msg or "spend" in msg or "billing" in msg or getattr(e, "status_code", 0) in (402, 429):
+            await _alert_admin(db, "ai_spend_limit", f"Anthropic returned {getattr(e, 'status_code', '?')}: spending/rate limit.")
+            raise HTTPException(status_code=503, detail=UNAVAILABLE[language])
         raise HTTPException(status_code=502, detail=f"AI error: {e.message[:200] if hasattr(e, 'message') else str(e)[:200]}")
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"AI error: {str(e)[:200]}")

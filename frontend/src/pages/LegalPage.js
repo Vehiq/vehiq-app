@@ -6,6 +6,7 @@ import LanguageSwitcher from "@/components/LanguageSwitcher";
 import Footer from "@/components/layout/Footer";
 import NotFound from "@/pages/NotFound";
 import useDocumentHead from "@/lib/useDocumentHead";
+import DOMPurify from "dompurify";
 import Logo from "@/components/Logo";
 
 const PL_MONTHS = ["stycznia","lutego","marca","kwietnia","maja","czerwca","lipca","sierpnia","września","października","listopada","grudnia"];
@@ -57,7 +58,7 @@ export default function LegalPage() {
             <div className="text-xs text-vehiq-muted mb-6" data-testid="legal-last-updated">
               {formatLastUpdated(page.last_updated, lang)}
             </div>
-            <div className="prose prose-invert max-w-none text-vehiq-text legal-content" dangerouslySetInnerHTML={{ __html: lang === "en" ? page.content_en : page.content_pl }} />
+            <div className="prose prose-invert max-w-none text-vehiq-text legal-content" dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(lang === "en" ? page.content_en : page.content_pl) }} />
           </article>
         )}
       </main>

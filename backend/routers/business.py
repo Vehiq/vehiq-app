@@ -271,15 +271,14 @@ async def get_business_stats(slug: str):
 
 
 @router.post("/business/{business_id}/activate")
-async def activate_business(business_id: str, trigger: str = "qr_scan"):
-    """Idempotent auto-activation trigger. Called by internal flows (QR scan
-    handler, first listing endpoint) — no auth check since we identify the
-    business by ID from a trusted context.
-    """
+async def activate_business(business_id: str, trigger: str = "qr_scan", user=Depends(get_current_user)):
+    """Idempotent activation — only the business owner/staff (admins use /admin/businesses/{id}/activate)."""
     db = get_db()
-    doc = await db.business_accounts.find_one({"id": business_id}, {"_id": 0, "activated": 1, "email": 1, "name": 1})
+    doc = await db.business_accounts.find_one({"id": business_id}, {"_id": 0, "activated": 1, "email": 1, "name": 1, "owner_user_id": 1, "staff_user_ids": 1})
     if not doc:
         raise HTTPException(status_code=404, detail="Nie znaleziono firmy")
+    if doc.get("owner_user_id") != user["id"] and user["id"] not in (doc.get("staff_user_ids") or []):
+        raise HTTPException(status_code=403, detail="Brak uprawnień")
     if doc.get("activated"):
         return {"ok": True, "already_activated": True}
     await db.business_accounts.update_one(
@@ -562,6 +561,8 @@ async def add_service_entry_as_business(payload: BusinessServiceEntryIn, user=De
     biz = await _get_business_for_user(user)
     if not biz:
         raise HTTPException(status_code=403, detail="Brak konta firmowego")
+    if not biz.get("verified"):
+        raise HTTPException(status_code=403, detail="Warsztat musi zostać zweryfikowany przez Sharago, zanim doda wpisy do cudzych aut")
     db = get_db()
     access = await db.workshop_vehicle_access.find_one({
         "business_id": biz["id"],

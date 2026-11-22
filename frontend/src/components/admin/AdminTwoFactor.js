@@ -99,3 +99,16 @@ export function AdminFailedLogins() {
     </div>
   );
 }
+
+export function AdminAiUsage() {
+  const [u, setU] = useState(null);
+  useEffect(() => { adminApi.get("/admin/ai-usage").then((r) => setU(r.data)).catch(() => {}); }, []);
+  if (!u) return null;
+  return (
+    <div className={box} data-testid="admin-ai-usage">
+      <div className="text-sm text-white mb-2">AI Mechanic usage</div>
+      <div className="text-xs text-[#9CA1C2]" data-testid="admin-ai-usage-today">Today: {u.today.count} / {u.daily_limit} questions · ~${u.today.cost_usd}</div>
+      <div className="text-xs text-[#9CA1C2]" data-testid="admin-ai-usage-month">This month: {u.month.count} questions · ~${u.month.cost_usd}</div>
+    </div>
+  );
+}

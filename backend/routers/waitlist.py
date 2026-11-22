@@ -6,6 +6,7 @@ collection. Non-authenticated call allowed but user_id is bound when the
 caller is logged in (get_optional_user).
 """
 from __future__ import annotations
+from rate_guard import rate_limit
 from datetime import datetime, timezone
 from typing import Optional
 import uuid
@@ -26,7 +27,7 @@ class WaitlistIn(BaseModel):
     vehicle_id: Optional[str] = None
 
 
-@router.post("/waitlist/premium")
+@router.post("/waitlist/premium", dependencies=[Depends(rate_limit("waitlist", 5, 3600))])
 async def join_waitlist(payload: WaitlistIn, user=Depends(get_optional_user)):
     db = get_db()
     # Idempotent per email — one entry per address

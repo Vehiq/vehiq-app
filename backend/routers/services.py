@@ -1,3 +1,4 @@
+from rate_guard import rate_limit
 """Services router — workshops, dealers, detailing, etc.
 Free-text + Haversine geo filtering. Nominatim geocoding handled client-side.
 """
@@ -102,7 +103,7 @@ async def get_service(slug_or_id: str):
     return s
 
 
-@router.post("")
+@router.post("", dependencies=[Depends(rate_limit("service", 5, 86400))])
 async def create_service(payload: ServiceIn, user=Depends(get_current_user)):
     db = get_db()
     if payload.category not in CATEGORIES:
@@ -157,7 +158,7 @@ async def delete_service(service_id: str, user=Depends(get_current_user)):
 MAX_PHOTOS_PER_SERVICE = 5
 
 
-@router.post("/{service_id}/photos")
+@router.post("/{service_id}/photos", dependencies=[Depends(rate_limit("photo_upload", 60, 3600))])
 async def upload_service_photos(service_id: str, files: List[UploadFile] = File(...), user=Depends(get_current_user)):
     db = get_db()
     s = await db.services.find_one({"id": service_id})
@@ -235,7 +236,7 @@ async def list_reviews(service_id: str, page: int = 1, limit: int = 20):
     return {"items": items, "total": total, "page": page, "limit": limit}
 
 
-@router.post("/{service_id}/reviews")
+@router.post("/{service_id}/reviews", dependencies=[Depends(rate_limit("review", 10, 86400))])
 async def add_review(service_id: str, payload: ReviewIn, user=Depends(get_current_user)):
     db = get_db()
     s = await db.services.find_one({"id": service_id})

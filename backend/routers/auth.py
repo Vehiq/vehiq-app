@@ -1,9 +1,10 @@
+from rate_guard import rate_limit
 """Auth router — register, login, custom Google OAuth, profile."""
 from fastapi import APIRouter, HTTPException, Header, Body, Depends, Request
 from fastapi.responses import RedirectResponse
 from pydantic import BaseModel, EmailStr, Field
 from typing import Optional
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 import uuid
 import os
 import re
@@ -17,7 +18,7 @@ import httpx
 from db_helper import get_db
 from auth_utils import (
     hash_password, verify_password,
-    create_access_token, decode_token, decode_token_allow_grace, get_current_user
+    create_access_token, decode_token, decode_token_allow_grace, get_current_user, user_token
 )
 from email_service import (
     send_email, fire_and_forget,
@@ -115,7 +116,7 @@ DEFAULT_PRIVACY = {
 }
 
 
-@router.post("/register")
+@router.post("/register", dependencies=[Depends(rate_limit("register", 5, 3600))])
 @limiter.limit("3/minute")
 async def register(payload: RegisterIn, request: Request):
     db = get_db()
@@ -128,8 +129,12 @@ async def register(payload: RegisterIn, request: Request):
 
     existing = await db.profiles.find_one({"email": payload.email.lower()})
     if existing:
-        raise HTTPException(status_code=400, detail="Email already registered")
+        raise HTTPException(status_code=400, detail="Nie można utworzyć konta z tym adresem e-mail. Jeśli masz już konto, zaloguj się lub zresetuj hasło. / We couldn't create an account with this email. If you already have one, sign in or reset your password.")
 
+    since = (datetime.now(timezone.utc) - timedelta(hours=1)).isoformat()
+    if await db.profiles.count_documents({"created_at": {"$gt": since}}) >= 30:
+        from alerts import admin_alert
+        await admin_alert(db, "registration_spike", "30+ new registrations in the last hour.")
     user_id = str(uuid.uuid4())
     # Generate user slug
     base_slug = re.sub(r"[^a-z0-9]+", "-", (payload.name or payload.email.split("@")[0]).lower()).strip("-") or "user"
@@ -170,7 +175,7 @@ async def register(payload: RegisterIn, request: Request):
     subject, html = tpl_welcome(user["name"], user.get("language", "pl"))
     fire_and_forget(send_email(user["email"], subject, html))
 
-    token = create_access_token({"sub": user_id, "type": "user"})
+    token = user_token({"id": user_id})
     return {"token": token, "user": _public_user(user)}
 
 
@@ -194,7 +199,7 @@ async def password_reset_request(payload: PasswordResetRequestIn, request: Reque
     await login_guard.record_failure(db, "password_reset", payload.email, request, reason="reset_requested")
     user = await db.profiles.find_one({"email": payload.email.lower()})
     if user:
-        token = create_access_token({"sub": user["id"], "type": "password_reset"}, expires_hours=1)
+        token = create_access_token({"sub": user["id"], "type": "password_reset", "tv": int(user.get("token_version") or 0)}, expires_hours=1)
         # Derive base URL from request Origin/Referer header so it works on preview + production domains
         origin = request.headers.get("origin") or request.headers.get("referer") or ""
         if origin:
@@ -223,12 +228,14 @@ async def password_reset_confirm(payload: PasswordResetConfirmIn, request: Reque
         await login_guard.record_failure(db, "password_reset", "", request, reason="invalid_reset_token")
         raise HTTPException(status_code=400, detail="Invalid token")
     user_id = data.get("sub")
+    # One-time link: valid only while token_version matches; the bump logs out all sessions.
     res = await db.profiles.update_one(
-        {"id": user_id},
-        {"$set": {"password_hash": hash_password(payload.new_password)}},
+        {"id": user_id, "token_version": {"$in": [int(data.get("tv") or 0)] + ([None] if not data.get("tv") else [])}},
+        {"$set": {"password_hash": hash_password(payload.new_password)}, "$inc": {"token_version": 1}},
     )
     if res.matched_count == 0:
-        raise HTTPException(status_code=404, detail="User not found")
+        await login_guard.record_failure(db, "password_reset", "", request, reason="reused_reset_token")
+        raise HTTPException(status_code=400, detail="Invalid or already used link")
     return {"ok": True}
 
 
@@ -266,7 +273,7 @@ async def login(payload: LoginIn, request: Request):
 
     await login_guard.clear_failures(db, "user", payload.email)
     await db.profiles.update_one({"id": user["id"]}, {"$set": {"last_active": datetime.now(timezone.utc).isoformat()}})
-    token = create_access_token({"sub": user["id"], "type": "user"})
+    token = user_token(user)
     return {"token": token, "user": _public_user(user)}
 
 
@@ -301,6 +308,11 @@ def _state_secret() -> bytes:
     return secret.encode("utf-8")
 
 
+def _is_safe_path(p: str) -> bool:
+    """Only same-site relative paths ("/x"), never "//host", "/\\host" or schemes."""
+    return bool(p) and p.startswith("/") and not p.startswith("//") and "\\" not in p and ":" not in p.split("?")[0]
+
+
 def _make_state(next_path: str = "", site: str = "") -> str:
     """Signed, short-lived CSRF state token. No DB needed.
 
@@ -310,7 +322,7 @@ def _make_state(next_path: str = "", site: str = "") -> str:
     ts = str(int(time.time()))
     # Allow forwarding a `next=` redirect inside state so the user lands where
     # they tried to go before logging in. Sanitized to a path on our domain.
-    safe_next = next_path if next_path.startswith("/") else ""
+    safe_next = next_path if _is_safe_path(next_path) else ""
     safe_site = site if site in OAUTH_RETURN_SITES else ""
     payload = f"{nonce}.{ts}.{safe_site}.{safe_next}"
     sig = hmac.new(_state_secret(), payload.encode("utf-8"), hashlib.sha256).hexdigest()
@@ -469,9 +481,16 @@ async def google_callback(code: Optional[str] = None, state: Optional[str] = Non
     if user:
         if user.get("suspended"):
             return _callback_error_redirect("account_suspended")
+        link_extra: dict = {}
+        if user.get("password_hash") and not user.get("google_id") and not user.get("email_verified"):
+            # Pre-hijack protection: Google proves email ownership, the earlier password signup did not.
+            # Drop that unverified password and end its sessions; the owner can set a new one via reset.
+            link_extra = {"password_hash": None, "email_verified": True}
+            await db.profiles.update_one({"id": user["id"]}, {"$inc": {"token_version": 1}})
+            user["token_version"] = int(user.get("token_version") or 0) + 1
         await db.profiles.update_one(
             {"id": user["id"]},
-            {"$set": {
+            {"$set": {**link_extra,
                 "avatar": picture or user.get("avatar"),
                 "google_id": google_id or user.get("google_id"),
                 "auth_provider": user.get("auth_provider") or "google",
@@ -516,9 +535,9 @@ async def google_callback(code: Optional[str] = None, state: Optional[str] = Non
         from routers.referral import attach_referral_code_to_new_user
         user["referral_code"] = await attach_referral_code_to_new_user(db, user_id)
 
-    token = create_access_token({"sub": user["id"], "type": "user"})
+    token = user_token(user)
     target = OAUTH_RETURN_SITES.get(site) or _frontend_url()
-    safe_next = next_path if next_path.startswith("/") else "/garage"
+    safe_next = next_path if _is_safe_path(next_path) else "/garage"
     redirect_url = f"{target}/auth/callback?token={token}&next={safe_next}"
     # Log non-PII parts for debugging unexpected hosts (e.g. onrender interstitials).
     import logging
@@ -555,18 +574,8 @@ async def get_user_avatar(user_id: str):
     if av.startswith("http://") or av.startswith("https://"):
         return _RedirectResp(url=av, status_code=302)
     if av.startswith("data:"):
-        # data:image/png;base64,XXXXX
-        try:
-            header, b64 = av.split(",", 1)
-            mime = header.split(":", 1)[1].split(";", 1)[0] or "image/png"
-            raw = _b64.b64decode(b64)
-            return _Resp(
-                content=raw,
-                media_type=mime,
-                headers={"Cache-Control": "public, max-age=86400"},
-            )
-        except Exception:
-            raise HTTPException(status_code=500, detail="Bad avatar encoding")
+        from image_safety import data_url_response
+        return data_url_response(av)
     raise HTTPException(status_code=404, detail="Unsupported avatar format")
 
 
@@ -582,6 +591,8 @@ async def update_me(payload: UpdateProfileIn, user=Depends(get_current_user)):
 
 @router.post("/logout")
 async def logout(user=Depends(get_current_user)):
+    """Invalidates ALL sessions of this user (token_version bump)."""
+    await get_db().profiles.update_one({"id": user["id"]}, {"$inc": {"token_version": 1}})
     return {"ok": True}
 
 
@@ -607,12 +618,14 @@ async def refresh_token(authorization: Optional[str] = Header(None)):
         raise HTTPException(status_code=401, detail="Cannot refresh admin token here")
     db = get_db()
     user_id = payload.get("sub")
-    user = await db.profiles.find_one({"id": user_id}, {"_id": 0, "id": 1, "suspended": 1})
+    user = await db.profiles.find_one({"id": user_id}, {"_id": 0, "id": 1, "suspended": 1, "token_version": 1})
     if not user:
         raise HTTPException(status_code=401, detail="User not found")
+    if int(payload.get("tv") or 0) != int(user.get("token_version") or 0):
+        raise HTTPException(status_code=401, detail="Session expired")
     if user.get("suspended"):
         raise HTTPException(status_code=403, detail="Account suspended")
-    new_token = create_access_token({"sub": user_id, "type": "user"})
+    new_token = user_token(user)
     return {"token": new_token}
 
 
@@ -639,6 +652,11 @@ async def upload_avatar(payload: AvatarIn, user=Depends(get_current_user)):
     # Rough size guard for data URLs — 2MB base64 ≈ 1.5MB binary.
     if is_data_url and len(val) > 2_800_000:
         raise HTTPException(status_code=413, detail="Avatar too large (max ~2MB)")
+    if is_data_url:
+        from image_safety import sanitize_data_url
+        val = sanitize_data_url(val, max_side=1024)
+    elif not val.startswith("https://"):
+        raise HTTPException(status_code=400, detail="Avatar URL must use https")
     db = get_db()
     await db.profiles.update_one(
         {"id": user["id"]},

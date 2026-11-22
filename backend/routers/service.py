@@ -67,6 +67,8 @@ async def update(entry_id: str, payload: ServiceEntryIn, user=Depends(get_curren
     e = await db.service_entries.find_one({"id": entry_id, "user_id": user["id"]})
     if not e:
         raise HTTPException(status_code=404, detail="Entry not found")
+    if e.get("business_id"):
+        raise HTTPException(status_code=403, detail="Workshop-confirmed entries cannot be edited by the owner")
     update = payload.model_dump(exclude_unset=True)
     await db.service_entries.update_one({"id": entry_id}, {"$set": update})
     fresh = await db.service_entries.find_one({"id": entry_id}, {"_id": 0})

@@ -128,45 +128,70 @@ async def delete_account(payload: DeleteAccountIn, request: Request, user=Depend
 
     now_iso = datetime.now(timezone.utc).isoformat()
     original_email = full.get("email")
-    original_name = full.get("name")
-    anon_email = f"deleted-{user['id'][:8]}@removed.sharago"
-
-    await db.profiles.update_one(
-        {"id": user["id"]},
-        {"$set": {
-            "deleted_at": now_iso,
-            "deleted_email": original_email,
-            # Iter 48 fix: persist original name for symmetric restore in
-            # undelete_account (previously overwritten with '[usunięte]' and
-            # never recoverable).
-            "deleted_name": original_name,
-            "email": anon_email,
-            "name": "[usunięte]",
-            "bio": None,
-            "avatar": None,
-            "location": None,
-            "marketing_consent": False,
-            "privacy_settings": {"profile_public": False, "vehicles_public": False, "searchable": False},
-        }},
-    )
-    # Anonymise messages (Art. 17 while preserving conversation coherence).
-    await db.messages.update_many(
-        {"sender_id": user["id"]},
-        {"$set": {"content": "[usunięte]", "anonymized_at": now_iso}},
-    )
-    # Hide user-generated content from public discovery.
-    await db.listings.update_many({"user_id": user["id"]}, {"$set": {"status": "archived"}})
-    await db.vehicles.update_many({"user_id": user["id"]}, {"$set": {"status": "archived"}})
-    await db.swap_listings.update_many({"user_id": user["id"]}, {"$set": {"active": False}})
+    counts = await erase_user_data(db, user["id"], now_iso)
 
     ip = client_ip(request)
     await log_security_event(db, EVENT_ACCOUNT_DELETED, ip_address=ip, user_id=user["id"],
                              endpoint="/api/auth/account/delete",
-                             details={"email": original_email})
+                             details={"counts": counts})
+    return {"ok": True, "message": "Account deleted."}
 
-    # TODO(Iter 49): fire welcome-style confirmation email + schedule
-    # hard-delete cron for T+30d. For now the soft-delete is authoritative.
-    return {"ok": True, "message": "Account soft-deleted. Undo within 30 days via support."}
+
+# Collections hard-deleted on erasure: (collection, field holding the user id)
+ERASE_DELETE = [
+    ("vehicles", "user_id"), ("service_entries", "user_id"), ("service_records", "user_id"),
+    ("reminders", "user_id"), ("fuel_logs", "user_id"), ("mileage_logs", "user_id"),
+    ("project_items", "user_id"), ("listings", "user_id"), ("swap_listings", "user_id"),
+    ("swap_interactions", "user_id"), ("swap_matches", "user_ids"), ("vehicle_shares", "user_id"),
+    ("services", "user_id"), ("part_alerts", "user_id"), ("notifications", "user_id"),
+    ("ai_chats", "user_id"), ("vehicle_views", "user_id"), ("premium_waitlist", "user_id"),
+]
+
+
+async def erase_user_data(db, user_id: str, now_iso: str) -> dict:
+    """GDPR Art. 17: delete personal data + R2 photos, anonymise what other users still see."""
+    from storage import delete_vehicle_photo, delete_entity_photo
+    counts: dict = {}
+    photos_deleted = 0
+    async for v in db.vehicles.find({"user_id": user_id}, {"_id": 0, "id": 1, "photos": 1}):
+        for ph in v.get("photos") or []:
+            if isinstance(ph, dict):
+                photos_deleted += int(bool(await delete_vehicle_photo(ph)))
+        await db.workshop_vehicle_access.delete_many({"vehicle_id": v["id"]})
+    for coll in ("listings", "services", "service_entries"):
+        async for d in db[coll].find({"user_id": user_id}, {"_id": 0, "photos": 1}):
+            for ph in d.get("photos") or []:
+                if isinstance(ph, dict):
+                    photos_deleted += int(bool(await delete_entity_photo(ph)))
+    counts["r2_photos"] = photos_deleted
+    for coll, field in ERASE_DELETE:
+        try:
+            res = await db[coll].delete_many({field: user_id})
+            if res.deleted_count:
+                counts[coll] = res.deleted_count
+        except Exception:
+            pass
+    # Messages stay for the other party, content removed.
+    await db.messages.update_many({"sender_id": user_id}, {"$set": {"content": "[usunięte]", "anonymized_at": now_iso}})
+    # Referrals: keep the row for the referrer's counter, drop the link to this person.
+    await db.referrals.update_many({"referred_id": user_id}, {"$set": {"referred_id": None, "anonymized_at": now_iso}})
+    await db.referral_clicks.delete_many({"referrer_id": user_id})
+    # Forum threads/comments stay; author resolves to the anonymised profile below.
+    await db.profiles.update_one(
+        {"id": user_id},
+        {"$set": {
+            "deleted_at": now_iso,
+            "email": f"deleted-{user_id[:8]}@removed.sharago",
+            "name": "Użytkownik usunięty",
+            "username": None, "slug": None, "bio": None, "avatar": None, "location": None, "phone": None,
+            "google_id": None, "password_hash": None, "referral_code": None,
+            "marketing_consent": False,
+            "privacy_settings": {"profile_public": False, "vehicles_public": False, "searchable": False},
+        },
+         "$unset": {"deleted_email": "", "deleted_name": ""},
+         "$inc": {"token_version": 1}},
+    )
+    return counts
 
 
 @router.post("/account/undelete")

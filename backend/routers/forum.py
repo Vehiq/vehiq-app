@@ -1,3 +1,4 @@
+from rate_guard import rate_limit
 """Forum router — categories, threads, comments."""
 from fastapi import APIRouter, HTTPException, Depends, Query
 from pydantic import BaseModel
@@ -107,7 +108,7 @@ async def get_thread(thread_id: str):
     return t
 
 
-@router.post("/threads")
+@router.post("/threads", dependencies=[Depends(rate_limit("forum_thread", 10, 3600))])
 async def create_thread(payload: ThreadIn, user=Depends(get_current_user)):
     db = get_db()
     if payload.category not in CATEGORIES:
@@ -164,7 +165,7 @@ async def list_comments(thread_id: str):
     return items
 
 
-@router.post("/comments")
+@router.post("/comments", dependencies=[Depends(rate_limit("forum_comment", 30, 3600))])
 async def create_comment(payload: CommentIn, user=Depends(get_current_user)):
     db = get_db()
     t = await db.forum_threads.find_one({"id": payload.thread_id})

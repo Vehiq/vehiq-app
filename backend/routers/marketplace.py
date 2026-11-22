@@ -1,3 +1,4 @@
+from rate_guard import rate_limit
 """Marketplace router — listings + messaging."""
 from fastapi import APIRouter, HTTPException, Depends, Query, Header
 from pydantic import BaseModel, field_validator, model_validator
@@ -373,7 +374,7 @@ async def get_listing(listing_id: str, authorization: Optional[str] = Header(Non
     return l
 
 
-@router.post("/listings")
+@router.post("/listings", dependencies=[Depends(rate_limit("listing", 10, 86400))])
 async def create_listing(payload: ListingIn, user=Depends(get_current_user)):
     db = get_db()
     valid_types = {"car", "parts", "swap", "full_parts", "project", "rental", "service"}
@@ -506,7 +507,7 @@ async def delete_listing(listing_id: str, user=Depends(get_current_user)):
     return {"ok": True}
 
 
-@router.post("/listings/{listing_id}/report")
+@router.post("/listings/{listing_id}/report", dependencies=[Depends(rate_limit("listing_report", 10, 3600))])
 async def report_listing(listing_id: str, user=Depends(get_current_user)):
     db = get_db()
     await db.listings.update_one({"id": listing_id}, {"$inc": {"report_count": 1}})
@@ -563,7 +564,7 @@ async def get_messages(listing_id: str, other_id: str, user=Depends(get_current_
     return items
 
 
-@router.post("/messages")
+@router.post("/messages", dependencies=[Depends(rate_limit("message", 30, 3600))])
 async def send_message(payload: MessageIn, user=Depends(get_current_user)):
     db = get_db()
     if payload.receiver_id == user["id"]:
