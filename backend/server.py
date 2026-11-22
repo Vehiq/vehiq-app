@@ -508,44 +508,7 @@ async def on_startup():
                 logger.info("SMTP migration: smtp_port 587 → 465 (Render Free compat)")
         except Exception as e:
             logger.warning(f"smtp_port migration failed: {e}")
-        # Iter 34: rebrand legal_pages docs (VEHIQ → Sharago) so production legal/
-        # privacy/terms pages stop showing the old brand. Idempotent — no-op if
-        # already clean.
-        try:
-            import re as _re
-            now_iso = datetime.now(timezone.utc).isoformat()
-            patterns = [
-                (_re.compile(r"\bVEHIQ\b"), "Sharago"),
-                (_re.compile(r"\bVehiq\b"), "Sharago"),
-                (_re.compile(r"\bvehiq\.pl\b"), "sharago.pl"),
-                (_re.compile(r"kontakt@vehiq\.pl"), "kontakt@sharago.com"),
-                (_re.compile(r"kontakt@sharago\.pl"), "kontakt@sharago.com"),
-                (_re.compile(r"#C9A84C", _re.I), "#2B7FE8"),
-                (_re.compile(r"#E8C96A", _re.I), "#4A95F0"),
-                (_re.compile(r"#0D0F1A", _re.I), "#0D1626"),
-            ]
-            patched = 0
-            async for doc in db.legal_pages.find({}):
-                updates = {}
-                for field in ("title", "title_pl", "title_en", "content",
-                              "content_pl", "content_en", "body", "html",
-                              "meta_description"):
-                    v = doc.get(field)
-                    if not isinstance(v, str):
-                        continue
-                    new_v = v
-                    for pat, rep in patterns:
-                        new_v = pat.sub(rep, new_v)
-                    if new_v != v:
-                        updates[field] = new_v
-                if updates:
-                    updates["updated_at"] = now_iso
-                    await db.legal_pages.update_one({"_id": doc["_id"]}, {"$set": updates})
-                    patched += 1
-            if patched:
-                logger.warning(f"legal_pages rebrand: patched {patched} docs (VEHIQ → Sharago)")
-        except Exception as e:
-            logger.warning(f"legal_pages rebrand migration failed: {e}")
+        # Legal pages are never modified at startup (seed only inserts missing slugs).
         try:
             from secrets_crypto import migrate_api_keys
             await migrate_api_keys(db)

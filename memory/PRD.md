@@ -2314,3 +2314,4 @@ Backend curl E2E — wszystkie zielone (slugify PL, business register, GET/{slug
 - Legal pages: migracja kontakt@sharago.pl → kontakt@sharago.com (przy starcie, idempotentna).
 - D2 (obowiązkowe 2FA admin) — tylko opis, nie wdrożone.
 - Backlog: AdminLegal dynamiczne slugi (P2), alerty części (P1), GPS (P1), push (P1), FB OAuth (P2), slow-queries (P2).
+- 2026-06: startup NIE modyfikuje legal_pages (usunięta migracja regex z server.py); ręczny skrypt backend/scripts/legal_pages_contact_email.py (dry-run / --apply). Czysty build FE (npm) i BE (venv, PyPI) OK; npm audit prod 0, pip-audit 0.
