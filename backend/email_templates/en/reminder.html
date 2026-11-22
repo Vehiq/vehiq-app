@@ -1,0 +1,33 @@
+{% extends "base.html" %}{% import "_macros.html" as m %}
+{% block content %}
+{% if items|length == 1 %}
+{{ m.h1(items[0].type_label ~ " – " ~ items[0].vehicle_name) }}
+{% else %}
+{{ m.h1("Upcoming dates") }}
+{% endif %}
+<p style="margin:0 0 18px 0;">Hi{% if user_name %} {{ user_name }}{% endif %}, a quick reminder about {% if items|length == 1 %}a date{% else %}dates{% endif %} for your cars:</p>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border:1px solid #E6E9EF; border-radius:10px; border-collapse:separate;">
+  {% for it in items %}
+  <tr>
+    <td style="padding:16px 18px;{% if not loop.last %} border-bottom:1px solid #E6E9EF;{% endif %}">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td valign="top" style="font-family:Arial, Helvetica, sans-serif;">
+            <div style="font-size:16px; line-height:22px; font-weight:bold; color:#0A0E16;">{{ it.type_label }}</div>
+            <div style="font-size:14px; line-height:20px; color:#4A5568;">{{ it.vehicle_name }}</div>
+          </td>
+          <td valign="top" align="right" style="font-family:Arial, Helvetica, sans-serif; white-space:nowrap;">
+            <div style="font-size:16px; line-height:22px; font-weight:bold; color:#0A0E16;">{{ it.due_date }}</div>
+            <div style="font-size:13px; line-height:20px; font-weight:bold; color:{% if it.days_left <= 2 %}#D9480F{% else %}#2B7FE8{% endif %};">
+              {% if it.days_left <= 0 %}today{% elif it.days_left == 1 %}tomorrow{% else %}in {{ it.days_left }} days{% endif %}
+            </div>
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+  {% endfor %}
+</table>
+{{ m.button(reminders_url, "View in Sharago") }}
+{{ m.note("Once the service or MOT is done, add an entry in Sharago – your car's history stays complete and you can set the next date in one click.") }}
+{% endblock %}

@@ -324,15 +324,12 @@ async def admin_forgot_password(payload: ForgotPasswordIn, request: Request):
         else:
             app_url = os.environ.get("APP_URL", "https://sharago.pl")
         link = f"{app_url}/gv91-admin/reset-password?token={token}"
-        body = (
-            f'<h2 style="font-family:Georgia,serif;color:#0D0F1A;font-size:24px;margin:0 0 12px;">Sharago Admin — reset hasła</h2>'
-            f'<p>Otrzymaliśmy prośbę o zresetowanie hasła do panelu administracyjnego Sharago.</p>'
-            f'<p><strong>Link wygasa za 15 minut.</strong> Jeśli to nie Ty — zignoruj tę wiadomość.</p>'
-            f'{_btn("Ustaw nowe hasło", link)}'
-            f'<p style="color:#666;font-size:12px;word-break:break-all;">Link: {link}</p>'
-        )
-        subject = "Sharago Admin — reset hasła"
-        html = _wrap_html(subject, body, "pl")
+        from email_render import render
+        subject, html, _ = render("generic", "pl", subject="Sharago Admin — reset hasła", preheader="Link wygasa za 15 minut.",
+                                  title="Sharago Admin — reset hasła",
+                                  paragraphs=["Otrzymaliśmy prośbę o zresetowanie hasła do panelu administracyjnego Sharago."],
+                                  button_url=link, button_label="Ustaw nowe hasło",
+                                  note="Link wygasa za 15 minut. Jeśli to nie Ty — zignoruj tę wiadomość.")
         await send_email(ADMIN_EMAIL, subject, html)
     except Exception:
         pass
@@ -697,7 +694,8 @@ class TestEmailIn(BaseModel):
 @router.post("/test-email")
 async def admin_test_email(payload: TestEmailIn, admin=Depends(get_admin)):
     from email_service import send_email, tpl_test
-    subject, html = tpl_test(payload.language)
+    cfg = await __import__("email_service")._get_smtp_config()
+    subject, html = tpl_test("en" if payload.language == "en" else "pl", cfg["from_email"])
     ok, err = await send_email(payload.to, subject, html)
     return {"success": ok, "error": err or None, "to": payload.to}
 
@@ -1063,3 +1061,42 @@ async def list_waitlist(admin=Depends(get_admin)):
     db = get_db()
     items = await db.premium_waitlist.find({}, {"_id": 0}).sort("created_at", -1).to_list(5000)
     return {"items": items, "total": len(items)}
+
+
+# ---------------- Paczka 7: e-mail templates tab ----------------
+from fastapi.responses import HTMLResponse as _HTMLResponse  # noqa: E402
+
+
+@router.get("/emails/templates")
+async def email_templates(admin=Depends(get_admin)):
+    from email_render import TEMPLATES, SUBJECTS
+    return [{"name": n, "subject_pl": SUBJECTS["pl"][n if n != "reminder" else "reminder_single"]["subject"],
+             "subject_en": SUBJECTS["en"][n if n != "reminder" else "reminder_single"]["subject"]} for n in TEMPLATES]
+
+
+def _render_sample(name: str, lang: str):
+    from email_render import render, sample, TEMPLATES
+    if name not in TEMPLATES:
+        raise HTTPException(status_code=404, detail="Unknown template")
+    lang = "en" if lang == "en" else "pl"
+    smp = sample(name, lang)
+    return render(name, lang, subject_fmt=smp["fmt"], user_name="Jan" if lang == "pl" else "John", **smp["ctx"])
+
+
+@router.get("/emails/preview/{name}", response_class=_HTMLResponse)
+async def email_preview(name: str, lang: str = "pl", admin=Depends(get_admin)):
+    return _render_sample(name, lang)[1]
+
+
+@router.post("/emails/test/{name}")
+async def email_send_test(name: str, lang: str = "pl", admin=Depends(get_admin)):
+    subject, html, text = _render_sample(name, lang)
+    ok, err = await send_email(admin["email"], "[TEST] " + subject, html, text=text)
+    return {"success": ok, "error": err or None, "to": admin["email"]}
+
+
+@router.get("/waitlist/stats")
+async def waitlist_stats(admin=Depends(get_admin)):
+    db = get_db()
+    by = {d["_id"] or "unknown": d["n"] async for d in db.premium_waitlist.aggregate([{"$group": {"_id": "$trigger", "n": {"$sum": 1}}}])}
+    return {"total": sum(by.values()), "by_source": by}

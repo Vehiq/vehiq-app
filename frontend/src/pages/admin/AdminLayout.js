@@ -10,6 +10,7 @@ const SECTIONS = [
   { to: "marketplace", icon: Store, label: "Marketplace" },
   { to: "businesses", icon: Building2, label: "Firmy" },
   { to: "waitlist", icon: Mail, label: "Waitlist Premium" },
+  { to: "emails", icon: Mail, label: "E-maile" },
   { to: "founding", icon: Star, label: "Founding 100" },
   { to: "referrals", icon: Share2, label: "Referrals" },
   { to: "forum", icon: MessagesSquare, label: "Forum" },

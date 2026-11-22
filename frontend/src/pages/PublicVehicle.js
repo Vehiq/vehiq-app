@@ -64,7 +64,8 @@ export default function PublicVehicle() {
       })
       .catch((err) => {
         if (cancelled) return;
-        setError(err?.response?.status === 404 ? "not-found" : "error");
+        const st = err?.response?.status;
+        setError(st === 403 ? "private" : st === 404 ? "not-found" : "error");
       });
     return () => {
       cancelled = true;
@@ -121,7 +122,19 @@ export default function PublicVehicle() {
     }
   };
 
-  if (error === "not-found") {
+  if (error === "private") {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-vehiq-bg text-center px-4" data-testid="public-vehicle-private">
+        <div>
+          <CarIcon size={48} className="mx-auto text-vehiq-gold/40" />
+          <h1 className="vehiq-display text-3xl text-vehiq-text mt-4">{t("pv.privateTitle")}</h1>
+          <p className="text-vehiq-muted mt-2">{t("pv.privateDesc")}</p>
+          <Link to="/" className="vehiq-btn-primary inline-block mt-6">Sharago</Link>
+        </div>
+      </div>
+    );
+  }
+  if (error === "not-found" || error === "error") {
     return (
       <div className="min-h-screen flex items-center justify-center bg-vehiq-bg text-center px-4" data-testid="public-vehicle-404">
         <div>
@@ -157,7 +170,7 @@ export default function PublicVehicle() {
             <Logo size="md" />
           </Link>
           <button onClick={copy} className="vehiq-btn-secondary inline-flex items-center gap-2 text-xs" data-testid="public-share-btn">
-            {copied ? <Check size={14} /> : <Share2 size={14} />} {t("share.share")}
+            {copied ? <Check size={14} /> : <Share2 size={14} />} {t("pv.copyLink")}
           </button>
         </div>
       </header>
@@ -194,8 +207,10 @@ export default function PublicVehicle() {
             <h1 className="vehiq-display text-4xl sm:text-5xl mt-1" data-testid="public-title">{v.make} {v.model}</h1>
             {v.owner && (
               <div className="text-xs text-vehiq-muted mt-3">
-                {t("share.owner")}: <span className="text-vehiq-text">{v.owner.name}</span>
-                {v.owner.location ? <span> · {v.owner.location}</span> : null}
+                {t("share.owner")}:{" "}
+                {v.owner.profile_slug
+                  ? <Link to={`/u/${v.owner.profile_slug}`} className="text-vehiq-gold hover:underline" data-testid="public-owner-link">{v.owner.name}</Link>
+                  : <span className="text-vehiq-text">{v.owner.name}</span>}
               </div>
             )}
 
@@ -270,7 +285,7 @@ export default function PublicVehicle() {
 
             {!isServiceHistory && (
               <div className="mt-6 pt-6 border-t border-vehiq-border space-y-4">
-                <SocialShare vehicle={v} url={shareUrl} />
+                {v.is_owner && <SocialShare vehicle={v} url={shareUrl} />}
                 {shortId && (
                   <div className="flex items-start gap-4 flex-wrap">
                     <div className="flex-1 min-w-[200px]">

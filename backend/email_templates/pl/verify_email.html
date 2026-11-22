@@ -1,0 +1,9 @@
+{% extends "base.html" %}{% import "_macros.html" as m %}
+{% block content %}
+{{ m.h1("Potwierdź swój adres e-mail") }}
+<p style="margin:0 0 14px 0;">Cześć{% if user_name %} {{ user_name }}{% endif %},</p>
+<p style="margin:0 0 14px 0;">dzięki za założenie konta w Sharago. Kliknij przycisk poniżej, żeby potwierdzić adres e-mail i dokończyć rejestrację.</p>
+{{ m.button(verify_url, "Potwierdź adres e-mail") }}
+{{ m.link_fallback(verify_url, lang) }}
+{{ m.note("Link jest ważny przez " ~ expires_hours ~ " godz. Jeśli to nie Ty zakładałeś konto, zignoruj tę wiadomość – bez potwierdzenia konto nie zostanie aktywowane.") }}
+{% endblock %}

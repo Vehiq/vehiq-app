@@ -980,7 +980,7 @@
     "notify": "We'll let you know when it becomes available.",
     "back": "Back to garage",
     "title": "You've reached the photo limit",
-    "max": "Max. 5 photos per vehicle",
+    "max": "Max. 7 photos per vehicle",
     "body": "Want to store more photos of your vehicle? Leave your email and you'll be the first to know when it's possible.",
     "emailPh": "Your email address"
   },
@@ -1030,5 +1030,68 @@
     "loadMore": "Load more",
     "ctaDesc": "Service history, costs, mileage, listings and community — all in one place. Free sign-up, no card needed.",
     "share": "Share"
+  },
+  "pv": {
+    "privateTitle": "This car is private",
+    "privateDesc": "The owner doesn't share this car publicly.",
+    "copyLink": "Copy link",
+    "shareTitle": "Link to this car",
+    "privateShare": "This car is private. Make it public to share it.",
+    "makePublic": "Make public"
+  },
+  "pp": {
+    "private": "This profile is private",
+    "since": "On Sharago since {{date}}",
+    "noVehicles": "This driver isn't showing any cars yet",
+    "report": "Report profile",
+    "reportConfirm": "Report this profile for moderation?",
+    "reported": "Thanks, report sent",
+    "message": "Send a message",
+    "seeAsOthers": "See it as others do",
+    "editProfile": "Edit profile",
+    "sold": "Sold"
+  },
+  "vis": {
+    "label": "Visibility",
+    "private": "Private – only you can see it",
+    "public": "Public – shown on your profile",
+    "note": "Plate number and VIN are never shown publicly.",
+    "toggleHint": "Click to change visibility"
+  },
+  "forms": {
+    "mileagePh": "e.g. 245 000",
+    "mileageRequired": "Enter the car's mileage",
+    "yearPh": "e.g. 2015",
+    "required": "This field is required"
+  },
+  "limits": {
+    "vehiclesTitle": "FREE plan car limit",
+    "vehiclesText": "On the FREE plan you can keep {{limit}} cars in your garage (sold cars don't count).",
+    "photosTitle": "FREE plan photo limit",
+    "photosText": "On the FREE plan you can add {{limit}} photos per car.",
+    "aiTitle": "AI Mechanic – weekly limit",
+    "aiText": "You've used this week's AI Mechanic question. The next one is available from Monday.",
+    "premiumSoon": "Premium coming soon",
+    "notifyMe": "Let me know when it launches",
+    "saved": "Saved – we'll let you know by email",
+    "aiAvailable": "This week's question: available",
+    "aiUsed": "You've used this week's AI Mechanic question. The next one is available from Monday.",
+    "aiWeekly": "1 AI Mechanic question per week"
+  },
+  "terms": {
+    "title": "Due dates",
+    "add": "Add date",
+    "type": "Type",
+    "date": "Date",
+    "empty": "No dates yet. Add MOT, insurance or a service – we'll email you 7 days before.",
+    "types": {
+      "przeglad": "MOT / inspection",
+      "OC": "Third-party insurance",
+      "AC": "Comprehensive insurance",
+      "olej": "Oil change",
+      "opony": "Tyre change",
+      "service": "Service",
+      "other": "Other"
+    }
   }
 }

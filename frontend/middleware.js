@@ -1,6 +1,6 @@
 // Vercel Routing Middleware: per-URL meta tags + hreflang (sharago.pl PL, sharago.com EN), <html lang> per host, real 404 status.
 import { ROUTES, ADMIN_PREFIX, findRoute } from "./src/routes/paths.js";
-import { pageSeo, blogPostSeo, DEFAULT_OG_IMAGE, DEFAULT_OG_IMAGE_EN } from "./src/seo/pages.js";
+import { pageSeo, blogPostSeo, entitySeo, DEFAULT_OG_IMAGE, DEFAULT_OG_IMAGE_EN } from "./src/seo/pages.js";
 
 export const config = {
   matcher: ["/((?!api/|assets/|.*\\..*).*)", "/robots.txt"],
@@ -65,6 +65,45 @@ export async function resolvePage(pathname, lang) {
     const { status, data } = await apiStatus(`/blog/${encodeURIComponent(route.params.slug)}`);
     if (status === 404) return { status: 404, seo: null };
     return { status: 200, seo: blogPostSeo(route.params.slug, data, lang) };
+  }
+  const en = lang === "en";
+  if (route.pattern === ROUTES.publicVehicle) {
+    const slug = route.params.slug;
+    const { status, data: v } = await apiStatus(`/vehicles/public/by-slug/${encodeURIComponent(slug)}`);
+    if (status === 404) return { status: 404, seo: null };
+    if (!v) return { status: 200, seo: null };
+    const bits = [v.year, v.mileage_current ? `${Number(v.mileage_current).toLocaleString("pl-PL")} km` : null, v.fuel].filter(Boolean).join(" · ");
+    const svc = Array.isArray(v.service_entries) ? v.service_entries.length : 0;
+    return { status: 200, seo: entitySeo(`/vehicles/${slug}`, {
+      title: `${v.make || ""} ${v.model || ""} ${v.year || ""}`.trim(),
+      description: `${bits}${svc ? (en ? ` · ${svc} service entries` : ` · ${svc} wpisów serwisowych`) : ""}`,
+      image: v.cover_photo || (v.photos || [])[0],
+    }, lang) };
+  }
+  if (route.pattern === ROUTES.publicProfile) {
+    const slug = route.params.slug;
+    const { status, data } = await apiStatus(`/users/${encodeURIComponent(slug)}`);
+    if (status === 404) return { status: 404, seo: null };
+    if (!data) return { status: 200, seo: null };
+    const n = (data.vehicles || []).length;
+    const first = (data.vehicles || []).find((x) => x.cover_photo);
+    return { status: 200, seo: entitySeo(`/u/${slug}`, {
+      title: en ? `${data.card?.name || "Driver"} on Sharago` : `${data.card?.name || "Kierowca"} w Sharago`,
+      description: en ? `${n} public car(s) in the garage` : `Auta w garażu: ${n}`,
+      image: first?.cover_photo,
+    }, lang) };
+  }
+  if (route.pattern === ROUTES.listing && !["new", "mine", "messages"].includes(route.params.id)) {
+    const { status, data: l } = await apiStatus(`/marketplace/listings/${encodeURIComponent(route.params.id)}`);
+    if (status === 404) return { status: 404, seo: null };
+    if (!l) return { status: 200, seo: null };
+    const ph = (l.photos || [])[0];
+    const img = typeof ph === "string" ? ph : ph?.url || ph?.full || ph?.thumb;
+    return { status: 200, seo: entitySeo(`/marketplace/${l.id}`, {
+      title: `${l.title}${l.price ? ` – ${Number(l.price).toLocaleString("pl-PL")} ${l.currency || "PLN"}` : ""}`,
+      description: (l.description || "").slice(0, 180),
+      image: img,
+    }, lang) };
   }
   if (route.pattern === ROUTES.legal) {
     const { status } = await apiStatus(`/legal/${encodeURIComponent(route.params.slug)}`);

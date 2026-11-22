@@ -17,14 +17,15 @@ ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
 MODEL_NAME = os.environ.get("ANTHROPIC_MODEL", "claude-haiku-4-5-20251001")
 MAX_TOKENS = int(os.environ.get("ANTHROPIC_MAX_TOKENS", "600"))
 # Hard limits (independent of LIMITS_ENABLED)
-USER_MONTHLY_LIMIT = 3
+USER_WEEKLY_LIMIT = 1  # Mon–Sun, reset Monday 00:00 Europe/Warsaw
 GLOBAL_DAILY_LIMIT = 200
 MAX_QUESTION_CHARS = 1000
 HISTORY_MESSAGES = 4  # incl. the new question
 # USD per 1M tokens (input, output) for the cost estimate in the admin panel
 PRICES = {"haiku": (1.0, 5.0), "sonnet": (3.0, 15.0), "opus": (15.0, 75.0)}
 UNAVAILABLE = {"pl": "AI Mechanik chwilowo niedostępny, spróbuj jutro.", "en": "AI Mechanic is temporarily unavailable, please try again tomorrow."}
-MONTHLY_MSG = {"pl": "Wykorzystałeś 3 pytania do AI Mechanika w tym miesiącu.", "en": "You've used your 3 AI Mechanic questions for this month."}
+WEEKLY_MSG = {"pl": "Twoje pytanie do AI Mechanika na ten tydzień zostało wykorzystane. Kolejne od poniedziałku.",
+              "en": "You've used this week's AI Mechanic question. The next one is available from Monday."}
 
 STATIC_INSTRUCTIONS = (
     "You are Sharago AI, an expert automotive mechanic with 30 years of experience. "
@@ -73,6 +74,15 @@ def _build_system_prompt(vehicle: dict, services: list, language: str) -> str:
         f"- Mileage: {vehicle.get('mileage_current') or 'unknown'} km\n\n"
         f"RECENT SERVICE HISTORY (last 5):\n{services_block}\n"
     )
+
+
+@router.get("/quota")
+async def ai_quota(user=Depends(get_current_user)):
+    from plan_limits import is_admin_user, week_key
+    if is_admin_user(user):
+        return {"unlimited": True, "remaining": None, "limit": None}
+    used = await get_db().ai_usage.find_one({"user_id": user["id"], "week": week_key()}) or {}
+    return {"unlimited": False, "limit": USER_WEEKLY_LIMIT, "remaining": max(0, USER_WEEKLY_LIMIT - int(used.get("count") or 0))}
 
 
 @router.get("/chat/{vehicle_id}")
@@ -171,9 +181,12 @@ async def ask(payload: AskIn, request: Request, user=Depends(get_current_user)):
         raise HTTPException(status_code=503, detail="AI Mechanic is not configured (missing ANTHROPIC_API_KEY)")
     now_dt = datetime.now(timezone.utc)
     day, month = now_dt.strftime("%Y-%m-%d"), now_dt.strftime("%Y-%m")
-    used = await db.ai_usage.find_one({"user_id": user["id"], "month": month}) or {}
-    if (used.get("count") or 0) >= USER_MONTHLY_LIMIT:
-        raise HTTPException(status_code=429, detail=MONTHLY_MSG[language])
+    from plan_limits import is_admin_user, week_key
+    week = week_key()
+    is_admin = is_admin_user(user)
+    used_w = await db.ai_usage.find_one({"user_id": user["id"], "week": week}) or {}
+    if not is_admin and (used_w.get("count") or 0) >= USER_WEEKLY_LIMIT:
+        raise HTTPException(status_code=402, detail={"code": "ai_limit_reached", "limit": USER_WEEKLY_LIMIT, "message": WEEKLY_MSG[language]})
     daily = await db.ai_usage_daily.find_one({"day": day}) or {}
     if (daily.get("count") or 0) >= GLOBAL_DAILY_LIMIT:
         raise HTTPException(status_code=503, detail=UNAVAILABLE[language])
@@ -209,6 +222,7 @@ async def ask(payload: AskIn, request: Request, user=Depends(get_current_user)):
         cost = tin / 1e6 * pin + tout / 1e6 * pout
         inc = {"count": 1, "input_tokens": tin, "output_tokens": tout, "cost_usd": cost}
         await db.ai_usage.update_one({"user_id": user["id"], "month": month}, {"$inc": inc}, upsert=True)
+        await db.ai_usage.update_one({"user_id": user["id"], "week": week}, {"$inc": {"count": 1}}, upsert=True)
         d = await db.ai_usage_daily.find_one_and_update({"day": day}, {"$inc": inc}, upsert=True, return_document=True)
         if (d or {}).get("count", 0) >= int(GLOBAL_DAILY_LIMIT * 0.8):
             await _alert_admin(db, "ai_daily_80pct", f"AI Mechanic used {d.get('count')} of {GLOBAL_DAILY_LIMIT} daily questions.")

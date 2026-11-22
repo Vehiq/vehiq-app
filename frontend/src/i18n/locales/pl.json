@@ -982,7 +982,7 @@
     "notify": "Powiadomimy Cię gdy będzie to możliwe.",
     "back": "Wróć do garażu",
     "title": "Osiągnąłeś limit zdjęć",
-    "max": "Maks. 5 zdjęć na pojazd",
+    "max": "Maks. 7 zdjęć na pojazd",
     "body": "Chcesz przechowywać więcej zdjęć swojego pojazdu? Zostaw adres e-mail — jako pierwszy dowiesz się gdy będzie to możliwe.",
     "emailPh": "Twój adres e-mail"
   },
@@ -1032,5 +1032,68 @@
     "loadMore": "Załaduj więcej",
     "ctaDesc": "Historia serwisowa, koszty, przebieg, ogłoszenia i społeczność — wszystko w jednym miejscu. Darmowa rejestracja, bez karty.",
     "share": "Udostępnij"
+  },
+  "pv": {
+    "privateTitle": "To auto jest prywatne",
+    "privateDesc": "Właściciel nie udostępnia tego auta publicznie.",
+    "copyLink": "Kopiuj link",
+    "shareTitle": "Link do auta",
+    "privateShare": "Auto jest prywatne. Zmień na publiczne, żeby udostępnić.",
+    "makePublic": "Zmień na publiczne"
+  },
+  "pp": {
+    "private": "Ten profil jest prywatny",
+    "since": "W Sharago od {{date}}",
+    "noVehicles": "Ten kierowca nie pokazuje jeszcze aut",
+    "report": "Zgłoś profil",
+    "reportConfirm": "Zgłosić ten profil do moderacji?",
+    "reported": "Dziękujemy, zgłoszenie wysłane",
+    "message": "Napisz wiadomość",
+    "seeAsOthers": "Tak widzą Cię inni",
+    "editProfile": "Edytuj profil",
+    "sold": "Sprzedane"
+  },
+  "vis": {
+    "label": "Widoczność",
+    "private": "Prywatne – widzisz tylko Ty",
+    "public": "Publiczne – widoczne na Twoim profilu",
+    "note": "Numer rejestracyjny i VIN nigdy nie są pokazywane publicznie.",
+    "toggleHint": "Kliknij, aby zmienić widoczność"
+  },
+  "forms": {
+    "mileagePh": "np. 245 000",
+    "mileageRequired": "Podaj przebieg auta",
+    "yearPh": "np. 2015",
+    "required": "To pole jest wymagane"
+  },
+  "limits": {
+    "vehiclesTitle": "Limit aut w planie FREE",
+    "vehiclesText": "W planie FREE możesz mieć {{limit}} aut w garażu (sprzedane się nie liczą).",
+    "photosTitle": "Limit zdjęć w planie FREE",
+    "photosText": "W planie FREE możesz dodać {{limit}} zdjęć do jednego auta.",
+    "aiTitle": "AI Mechanik – limit tygodniowy",
+    "aiText": "Twoje pytanie do AI Mechanika na ten tydzień zostało wykorzystane. Kolejne od poniedziałku.",
+    "premiumSoon": "Premium już wkrótce",
+    "notifyMe": "Daj mi znać, gdy ruszy",
+    "saved": "Zapisane – damy znać mailem",
+    "aiAvailable": "Pytanie na ten tydzień: dostępne",
+    "aiUsed": "Twoje pytanie do AI Mechanika na ten tydzień zostało wykorzystane. Kolejne od poniedziałku.",
+    "aiWeekly": "1 pytanie do AI Mechanika tygodniowo"
+  },
+  "terms": {
+    "title": "Terminy",
+    "add": "Dodaj termin",
+    "type": "Rodzaj",
+    "date": "Data",
+    "empty": "Brak terminów. Dodaj przegląd, OC lub serwis – przypomnimy mailem 7 dni wcześniej.",
+    "types": {
+      "przeglad": "Przegląd techniczny",
+      "OC": "Ubezpieczenie OC",
+      "AC": "Ubezpieczenie AC",
+      "olej": "Wymiana oleju",
+      "opony": "Wymiana opon",
+      "service": "Serwis",
+      "other": "Inny termin"
+    }
   }
 }

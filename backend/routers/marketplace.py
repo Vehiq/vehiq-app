@@ -585,10 +585,12 @@ async def send_message(payload: MessageIn, user=Depends(get_current_user)):
     doc.pop("_id", None)
     # Notify recipient (best effort, throttled to 1/week per user).
     # Demo users never trigger outbound email to real users (Iter 30).
-    receiver = await db.profiles.find_one({"id": payload.receiver_id}, {"_id": 0, "id": 1, "email": 1, "language": 1, "marketing_consent": 1, "is_demo": 1})
-    if receiver and receiver.get("email") and not user.get("is_demo") and not receiver.get("is_demo"):
-        preview = (payload.content or "")[:120]
-        subject, html = tpl_new_message(user.get("name") or "Someone", listing.get("title") or "—", preview, payload.listing_id, user["id"], receiver.get("language", "pl"))
+    receiver = await db.profiles.find_one({"id": payload.receiver_id}, {"_id": 0, "id": 1, "email": 1, "name": 1, "language": 1, "marketing_consent": 1, "is_demo": 1, "message_emails": 1})
+    if receiver and receiver.get("email") and not user.get("is_demo") and not receiver.get("is_demo") and receiver.get("message_emails") is not False:
+        from reminder_job import unsubscribe_url
+        subject, html = tpl_new_message(user.get("name") or "Someone", listing.get("title") or "—", "", payload.listing_id, user["id"],
+                                        "en" if receiver.get("language") == "en" else "pl", user_name=receiver.get("name") or "",
+                                        unsubscribe_url=unsubscribe_url(receiver["id"], "unsub_messages"))
         fire_and_forget(send_notification(receiver["id"], "new_message", receiver["email"], subject, html))
     return doc
 
@@ -689,15 +691,17 @@ async def _notify_part_alerts(listing: dict):
             )
             if not user_doc or not user_doc.get("email"):
                 continue
-            from email_service import _wrap_html, _H2, _P, _btn, APP_URL
+            from email_render import render, app_url as _au
             is_en = user_doc.get("language") == "en"
+            _l = "en" if is_en else "pl"
             subj = (f"New part matching your alert: {listing.get('title','')}" if is_en
                     else f"Nowa część pasująca do Twojego alertu: {listing.get('title','')}")
-            body = f"""<h2 style="{_H2}">{"We found a matching part" if is_en else "Znaleźliśmy pasującą część"}</h2>
-<p style="{_P}">{listing.get('title','')} — <strong style="color:#fff">{lprice:.0f} PLN</strong></p>
-<p style="{_P}">{(listing.get('description') or '')[:200]}</p>
-{_btn("View listing →" if is_en else "Zobacz ogłoszenie →", f"{APP_URL}/marketplace/{listing['id']}")}"""
-            html = _wrap_html(subj, body, lang="en" if is_en else "pl")
+            subj, html, _ = render("generic", _l, subject=subj, preheader=f"{listing.get('title','')} — {lprice:.0f} PLN",
+                                   user_name=user_doc.get("name") or "",
+                                   title="We found a matching part" if is_en else "Znaleźliśmy pasującą część",
+                                   paragraphs=[f"{listing.get('title','')} — {lprice:.0f} PLN"],
+                                   button_url=f"{_au(_l)}/marketplace/{listing['id']}",
+                                   button_label="View listing" if is_en else "Zobacz ogłoszenie")
             fire_and_forget(send_email(user_doc["email"], subj, html))
             await db.part_alerts.update_one(
                 {"id": alert["id"]},

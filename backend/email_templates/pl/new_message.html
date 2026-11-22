@@ -1,0 +1,8 @@
+{% extends "base.html" %}{% import "_macros.html" as m %}
+{% block content %}
+{{ m.h1("Masz nową wiadomość") }}
+<p style="margin:0 0 14px 0;">Cześć{% if user_name %} {{ user_name }}{% endif %},</p>
+<p style="margin:0 0 14px 0;"><strong>{{ sender_name }}</strong> napisał(a) do Ciebie w sprawie ogłoszenia <strong>„{{ listing_title }}”</strong>.</p>
+{{ m.button(thread_url, "Odczytaj wiadomość") }}
+{{ m.note("Uwaga na oszustów: Sharago nigdy nie prosi o zapłatę, zaliczkę ani dane karty w imieniu innych użytkowników. Nie przechodź na podejrzane linki do płatności.") }}
+{% endblock %}

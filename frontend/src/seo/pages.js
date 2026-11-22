@@ -111,3 +111,18 @@ export function blogPostSeo(slug, post, lang = "pl") {
     alternates: alternatesFor(path),
   };
 }
+
+// Paczka 7: OG tags for shared entities (vehicle, driver profile, listing).
+export function entitySeo(path, { title, description, image }, lang = "pl") {
+  const site = SITES[lang];
+  return {
+    title: `${title} | Sharago`,
+    ogTitle: title,
+    description: description || site.seo[ROUTES.home]?.description || "",
+    url: canonicalFor(path, lang),
+    image: image && /^https?:\/\//.test(image) ? image : site.image,
+    type: "website",
+    locale: site.locale,
+    alternates: alternatesFor(path),
+  };
+}

@@ -256,8 +256,8 @@ function AddEntryForm({ vehicleId, lang, onDone }) {
           {SERVICE_TYPES_FORM.map((k) => (<option key={k} value={k}>{(EVENT_TYPES[k] || {})[lang] || k}</option>))}
         </select>
         <input type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} className="vehiq-input text-sm" data-testid="history-add-date" required />
-        <input type="number" min={0} placeholder={lang === "pl" ? "Przebieg (km)" : "Mileage (km)"} value={form.mileage} onChange={(e) => setForm({ ...form, mileage: e.target.value })} className="vehiq-input text-sm" data-testid="history-add-mileage" />
-        <input type="number" step="0.01" min={0} placeholder={lang === "pl" ? "Koszt (PLN)" : "Cost (PLN)"} value={form.cost} onChange={(e) => setForm({ ...form, cost: e.target.value })} className="vehiq-input text-sm" data-testid="history-add-cost" />
+        <input type="number" inputMode="numeric" min={0} placeholder={lang === "pl" ? "Przebieg (km)" : "Mileage (km)"} value={form.mileage} onChange={(e) => setForm({ ...form, mileage: e.target.value })} className="vehiq-input text-sm" data-testid="history-add-mileage" />
+        <input type="number" inputMode="decimal" step="0.01" min={0} placeholder={lang === "pl" ? "Koszt (PLN)" : "Cost (PLN)"} value={form.cost} onChange={(e) => setForm({ ...form, cost: e.target.value })} className="vehiq-input text-sm" data-testid="history-add-cost" />
       </div>
       <input type="text" placeholder={lang === "pl" ? "Warsztat (opcjonalnie)" : "Workshop (optional)"} value={form.workshop} onChange={(e) => setForm({ ...form, workshop: e.target.value })} className="vehiq-input text-sm w-full" data-testid="history-add-workshop" />
       <textarea rows={2} placeholder={lang === "pl" ? "Opis / notatki" : "Description / notes"} value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} className="vehiq-input text-sm w-full resize-none" data-testid="history-add-notes" />

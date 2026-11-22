@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect } from "react";
+import { useEffect, useLayoutEffect, lazy, Suspense } from "react";
 import "@/App.css";
 import "@/i18n";
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
@@ -16,65 +16,66 @@ import Onboarding from "@/pages/Onboarding";
 import Garage from "@/pages/Garage";
 import AddVehicle from "@/pages/AddVehicle";
 import VehicleProfile from "@/pages/VehicleProfile";
-import Marketplace from "@/pages/Marketplace";
-import Rentals from "@/pages/Rentals";
-import OpenToOffersPage from "@/pages/OpenToOffersPage";
-import SwapPage from "@/pages/SwapPage";
-import MyListings from "@/pages/MyListings";
-import CreateListing from "@/pages/CreateListing";
-import ListingDetail from "@/pages/ListingDetail";
-import Messages from "@/pages/Messages";
-import Forum from "@/pages/Forum";
-import NewThread from "@/pages/NewThread";
-import ThreadDetail from "@/pages/ThreadDetail";
+const Marketplace = lazy(() => import("@/pages/Marketplace"));
+const Rentals = lazy(() => import("@/pages/Rentals"));
+const OpenToOffersPage = lazy(() => import("@/pages/OpenToOffersPage"));
+const SwapPage = lazy(() => import("@/pages/SwapPage"));
+const MyListings = lazy(() => import("@/pages/MyListings"));
+const CreateListing = lazy(() => import("@/pages/CreateListing"));
+const ListingDetail = lazy(() => import("@/pages/ListingDetail"));
+const Messages = lazy(() => import("@/pages/Messages"));
+const Forum = lazy(() => import("@/pages/Forum"));
+const NewThread = lazy(() => import("@/pages/NewThread"));
+const ThreadDetail = lazy(() => import("@/pages/ThreadDetail"));
 import Profile from "@/pages/Profile";
 import UserSearch from "@/pages/UserSearch";
 import Search from "@/pages/Search";
-import Services from "@/pages/Services";
-import ServiceDetail from "@/pages/ServiceDetail";
-import AddService from "@/pages/AddService";
-import Events from "@/pages/Events";
-import EventDetail from "@/pages/EventDetail";
-import AddEvent from "@/pages/AddEvent";
+const Services = lazy(() => import("@/pages/Services"));
+const ServiceDetail = lazy(() => import("@/pages/ServiceDetail"));
+const AddService = lazy(() => import("@/pages/AddService"));
+const Events = lazy(() => import("@/pages/Events"));
+const EventDetail = lazy(() => import("@/pages/EventDetail"));
+const AddEvent = lazy(() => import("@/pages/AddEvent"));
 import PublicProfile from "@/pages/PublicProfile";
 import LegalPage from "@/pages/LegalPage";
 import PublicVehicle from "@/pages/PublicVehicle";
 import VehicleShort from "@/pages/VehicleShort";
-import QuickFuelPage from "@/pages/QuickFuelPage";
+const QuickFuelPage = lazy(() => import("@/pages/QuickFuelPage"));
 // Iter 53: B2B + Stripe entry points
-import DlaWarsztatow from "@/pages/DlaWarsztatow";
-import DlaDealerow from "@/pages/DlaDealerow";
-import BusinessRegister from "@/pages/BusinessRegister";
-import WorkshopList from "@/pages/WorkshopList";
-import WorkshopProfile from "@/pages/WorkshopProfile";
-import BusinessDashboard from "@/pages/BusinessDashboard";
-import BusinessOnboarding from "@/pages/BusinessOnboarding";
-import Blog from "@/pages/Blog";
-import BlogPost from "@/pages/BlogPost";
+const DlaWarsztatow = lazy(() => import("@/pages/DlaWarsztatow"));
+const DlaDealerow = lazy(() => import("@/pages/DlaDealerow"));
+const BusinessRegister = lazy(() => import("@/pages/BusinessRegister"));
+const WorkshopList = lazy(() => import("@/pages/WorkshopList"));
+const WorkshopProfile = lazy(() => import("@/pages/WorkshopProfile"));
+const BusinessDashboard = lazy(() => import("@/pages/BusinessDashboard"));
+const BusinessOnboarding = lazy(() => import("@/pages/BusinessOnboarding"));
+const Blog = lazy(() => import("@/pages/Blog"));
+const BlogPost = lazy(() => import("@/pages/BlogPost"));
 import NotFound from "@/pages/NotFound";
 import { ROUTES, ADMIN_PREFIX } from "@/routes/paths";
 
-import AdminLogin from "@/pages/admin/AdminLogin";
-import AdminChangePassword from "@/pages/admin/AdminChangePassword";
-import AdminResetPassword from "@/pages/admin/AdminResetPassword";
-import AdminLayout from "@/pages/admin/AdminLayout";
-import AdminDashboard from "@/pages/admin/AdminDashboard";
-import AdminUsers from "@/pages/admin/AdminUsers";
-import AdminVehicles from "@/pages/admin/AdminVehicles";
-import AdminMarketplace from "@/pages/admin/AdminMarketplace";
-import AdminForum from "@/pages/admin/AdminForum";
-import AdminLegal from "@/pages/admin/AdminLegal";
-import AdminContent from "@/pages/admin/AdminContent";
-import AdminSettings from "@/pages/admin/AdminSettings";
-import AdminSecurity from "@/pages/admin/AdminSecurity";
-import AdminSecurityMonitor from "@/pages/admin/AdminSecurityMonitor";
-import AdminApiKeys from "@/pages/admin/AdminApiKeys";
-import AdminAnalytics from "@/pages/admin/AdminAnalytics";
-import AdminBlog from "@/pages/admin/AdminBlog";
-import AdminFoundingMembers from "@/pages/admin/AdminFoundingMembers";
-import AdminReferrals from "@/pages/admin/AdminReferrals";
-import AdminBusinesses from "@/pages/admin/AdminBusinesses";
-import AdminWaitlist from "@/pages/admin/AdminWaitlist";
+const AdminLogin = lazy(() => import("@/pages/admin/AdminLogin"));
+const AdminChangePassword = lazy(() => import("@/pages/admin/AdminChangePassword"));
+const AdminResetPassword = lazy(() => import("@/pages/admin/AdminResetPassword"));
+const AdminLayout = lazy(() => import("@/pages/admin/AdminLayout"));
+const AdminDashboard = lazy(() => import("@/pages/admin/AdminDashboard"));
+const AdminUsers = lazy(() => import("@/pages/admin/AdminUsers"));
+const AdminVehicles = lazy(() => import("@/pages/admin/AdminVehicles"));
+const AdminMarketplace = lazy(() => import("@/pages/admin/AdminMarketplace"));
+const AdminForum = lazy(() => import("@/pages/admin/AdminForum"));
+const AdminLegal = lazy(() => import("@/pages/admin/AdminLegal"));
+const AdminContent = lazy(() => import("@/pages/admin/AdminContent"));
+const AdminSettings = lazy(() => import("@/pages/admin/AdminSettings"));
+const AdminSecurity = lazy(() => import("@/pages/admin/AdminSecurity"));
+const AdminSecurityMonitor = lazy(() => import("@/pages/admin/AdminSecurityMonitor"));
+const AdminApiKeys = lazy(() => import("@/pages/admin/AdminApiKeys"));
+const AdminAnalytics = lazy(() => import("@/pages/admin/AdminAnalytics"));
+const AdminBlog = lazy(() => import("@/pages/admin/AdminBlog"));
+const AdminFoundingMembers = lazy(() => import("@/pages/admin/AdminFoundingMembers"));
+const AdminReferrals = lazy(() => import("@/pages/admin/AdminReferrals"));
+const AdminBusinesses = lazy(() => import("@/pages/admin/AdminBusinesses"));
+const AdminWaitlist = lazy(() => import("@/pages/admin/AdminWaitlist"));
+const AdminEmails = lazy(() => import("@/pages/admin/AdminEmails"));
 
 import api from "@/lib/api";
 import { useTranslation } from "react-i18next";
@@ -127,6 +128,14 @@ function PrivateRoute({ children }) {
   return children;
 }
 
+// Listing links open without login: logged-in users get the app layout, guests a plain page.
+function ListingRoute() {
+  const { user, loading } = useAuth();
+  if (loading) return null;
+  if (user) return <Layout />;
+  return <div className="min-h-screen bg-vehiq-bg max-w-5xl mx-auto px-4 md:px-6 py-6"><ListingDetail /></div>;
+}
+
 function PublicHomeRedirect() {
   const { user, loading } = useAuth();
   if (loading) return <div className="min-h-screen flex items-center justify-center bg-vehiq-bg text-vehiq-muted">Loading…</div>;
@@ -173,6 +182,7 @@ function App() {
             <Toaster theme="dark" position="top-right" toastOptions={{ style: { background: "#162035", border: "1px solid rgba(43,127,232,0.2)", color: "#FFFFFF" } }} />
             <CookieBanner />
 
+        <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-vehiq-bg text-vehiq-muted">…</div>}>
         <Routes>
           {/* Public auth */}
           <Route path={ROUTES.home} element={<PublicHomeRedirect />} />
@@ -198,6 +208,7 @@ function App() {
           <Route path={ROUTES.publicHistory} element={<PublicVehicle />} />
           <Route path={ROUTES.vehicleShort} element={<VehicleShort />} />
           <Route path={ROUTES.publicProfile} element={<PublicProfile />} />
+          <Route path={ROUTES.listing} element={<ListingRoute />}><Route index element={<ListingDetail />} /></Route>
 
           {/* Blog (public) */}
           <Route path={ROUTES.blog} element={<Blog />} />
@@ -225,6 +236,7 @@ function App() {
             <Route path="referrals" element={<AdminReferrals />} />
             <Route path="businesses" element={<AdminBusinesses />} />
             <Route path="waitlist" element={<AdminWaitlist />} />
+            <Route path="emails" element={<AdminEmails />} />
           </Route>
 
           {/* Authenticated app */}
@@ -237,8 +249,7 @@ function App() {
             <Route path={ROUTES.marketplaceMessages} element={<Messages />} />
             <Route path={ROUTES.marketplaceNew} element={<CreateListing />} />
             <Route path={ROUTES.marketplaceEdit} element={<CreateListing />} />
-            <Route path={ROUTES.listing} element={<ListingDetail />} />
-            <Route path={ROUTES.rentalsPl} element={<Rentals />} />
+              <Route path={ROUTES.rentalsPl} element={<Rentals />} />
             <Route path={ROUTES.rentals} element={<Rentals />} />
             <Route path={ROUTES.openToOffers} element={<OpenToOffersPage />} />
             <Route path={ROUTES.swaps} element={<SwapPage />} />
@@ -262,6 +273,7 @@ function App() {
 
           <Route path="*" element={<NotFound />} />
         </Routes>
+        </Suspense>
         </ErrorBoundary>
       </AuthProvider>
     </BrowserRouter>

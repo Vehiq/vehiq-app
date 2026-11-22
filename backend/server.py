@@ -465,14 +465,16 @@ async def on_startup():
     else:
         logger.warning("Skipping seed_database — db is None.")
     # Activation/retention e-mails (D+1, D+7, monthly) are OFF unless RETENTION_EMAILS_ENABLED=1.
-    if os.environ.get("RETENTION_EMAILS_ENABLED") == "1":
-        try:
-            from retention import scheduler_loop
-            asyncio.create_task(scheduler_loop())
-        except Exception as e:
-            logger.warning(f"retention scheduler failed to start: {e}")
+    # Activation / retention e-mails ("Co słychać u Twojego auta?", D+1/D+7, monthly) are permanently off.
     # Reminder e-mails: in-process daily run (Mongo lock prevents double sends across instances).
-    if db is not None and os.environ.get("REMINDERS_SCHEDULER", "1") == "1":
+    if db is None:
+        logger.warning("Reminder scheduler: disabled – no database connection")
+    elif os.environ.get("REMINDERS_SCHEDULER", "1") != "1":
+        logger.warning("Reminder scheduler: disabled – REMINDERS_SCHEDULER is not 1 (use /api/reminders/internal/run)")
+    elif not os.environ.get("PUBLIC_API_URL"):
+        logger.warning("Reminder scheduler: disabled – PUBLIC_API_URL not set (needed for unsubscribe links)")
+    else:
+        logger.info("Reminder scheduler: started (hourly check, first run of the day from 07:00 UTC)")
         async def _reminders_loop():
             from reminder_job import run_reminders, ensure_indexes
             await ensure_indexes(db)
@@ -514,24 +516,7 @@ async def on_startup():
             await migrate_api_keys(db)
         except Exception as e:
             logger.warning(f"api_keys encryption migration failed: {e}")
-        # Iter 31: clean up stale VEHIQ-era SMTP sender so Brevo accepts outbound mail.
-        # Old override `kontakt@vehiq.pl` / `VEHIQ` lingers in DB and shadows the new
-        # default `kontakt@sharago.com`, causing silent password-reset failures.
-        try:
-            stale = await db.api_keys.find_one(
-                {"id": "default"},
-                {"_id": 0, "smtp_from_email": 1, "smtp_from_name": 1},
-            ) or {}
-            updates = {}
-            if (stale.get("smtp_from_email") or "").lower().endswith("@vehiq.pl"):
-                updates["smtp_from_email"] = "kontakt@sharago.com"
-            if (stale.get("smtp_from_name") or "").strip().upper() == "VEHIQ":
-                updates["smtp_from_name"] = "Sharago"
-            if updates:
-                await db.api_keys.update_one({"id": "default"}, {"$set": updates}, upsert=True)
-                logger.warning(f"SMTP sender migration: {updates}")
-        except Exception as e:
-            logger.warning(f"smtp_from migration failed: {e}")
+        # Sender always comes from SMTP_FROM_EMAIL (no startup rewrite of api_keys.smtp_from_*).
         # Admin singleton audit + auto-clean of stale duplicates from VEHIQ→Sharago rebrand
         try:
             desired = (os.environ.get("ADMIN_EMAIL") or "kontakt@sharago.com").lower()

@@ -1,3 +1,4 @@
+import PremiumLimitModal from "@/components/PremiumLimitModal";
 import { useEffect, useState, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import api, { apiErrorMessage } from "@/lib/api";
@@ -10,6 +11,9 @@ export default function AITab({ vehicle }) {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
+  const [quota, setQuota] = useState(null);
+  const [showLimit, setShowLimit] = useState(false);
+  useEffect(() => { api.get("/ai/quota").then((r) => setQuota(r.data)).catch(() => {}); }, []);
   const endRef = useRef(null);
   // Bug 28 (Iter 52b): skip the auto-scroll on the very first render after
   // history loads — otherwise switching to the AI tab yanks the whole page
@@ -44,8 +48,12 @@ export default function AITab({ vehicle }) {
     try {
       const { data } = await api.post("/ai/ask", { vehicle_id: vehicle.id, message: text });
       setMessages((m) => [...m, data.ai_message]);
+      setQuota((q) => (q && !q.unlimited ? { ...q, remaining: Math.max(0, (q.remaining || 1) - 1) } : q));
     } catch (err) {
-      toast.error(apiErrorMessage(err, t("common.error")));
+      if (err?.response?.status === 402 && err?.response?.data?.detail?.code === "ai_limit_reached") {
+        setQuota((q) => ({ ...(q || {}), remaining: 0 }));
+        setShowLimit(true);
+      } else toast.error(apiErrorMessage(err, t("common.error")));
       setMessages((m) => m.slice(0, -1));
     } finally {
       setBusy(false);
@@ -78,6 +86,12 @@ export default function AITab({ vehicle }) {
 
   return (
     <div className="space-y-4" data-testid="ai-tab">
+      <PremiumLimitModal kind="ai" open={showLimit} onClose={() => setShowLimit(false)} vehicleId={vehicle.id} limit={1} />
+      {quota && !quota.unlimited && (
+        <div className={`text-xs mb-2 ${quota.remaining > 0 ? "text-vehiq-gold" : "text-vehiq-muted"}`} data-testid="ai-quota">
+          {quota.remaining > 0 ? t("limits.aiAvailable") : <button type="button" onClick={() => setShowLimit(true)} className="underline" data-testid="ai-quota-used">{t("limits.aiUsed")}</button>}
+        </div>
+      )}
       <div className="flex justify-between items-end flex-wrap gap-3">
         <div>
           <h2 className="vehiq-display text-3xl text-vehiq-text flex items-center gap-2">

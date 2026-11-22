@@ -53,9 +53,11 @@ export default function TopBar({ onMenu }) {
         setUnreadMsgs(total);
       })
       .catch(() => { /* silent — non-critical */ });
-    load();
-    const id = setInterval(load, 60_000);
-    return () => clearInterval(id);
+    const tick = () => { if (document.visibilityState === "visible") load(); };
+    tick();
+    const id = setInterval(tick, 60_000);
+    document.addEventListener("visibilitychange", tick);
+    return () => { clearInterval(id); document.removeEventListener("visibilitychange", tick); };
   }, [user]);
 
   return (

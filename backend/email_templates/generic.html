@@ -1,0 +1,8 @@
+{% extends "base.html" %}{% import "_macros.html" as m %}
+{% block content %}
+{{ m.h1(title) }}
+<p style="margin:0 0 14px 0;">{% if lang == 'en' %}Hi{% else %}Cześć{% endif %}{% if user_name %} {{ user_name }}{% endif %},</p>
+{% for para in paragraphs %}{{ m.p(para) }}{% endfor %}
+{% if button_url %}{{ m.button(button_url, button_label) }}{% endif %}
+{% if note %}{{ m.note(note) }}{% endif %}
+{% endblock %}

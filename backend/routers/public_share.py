@@ -70,14 +70,11 @@ async def get_public_vehicle_short(short_id: str, user=Depends(get_current_user_
     if not v:
         raise HTTPException(status_code=404, detail="Vehicle not found")
     privacy = v.get("privacy") or {}
-    if privacy.get("profile_visible") is False or v.get("searchable") is False:
-        raise HTTPException(status_code=404, detail="Vehicle not found")
-    is_public = v.get("visibility") == "public" or v.get("public") is True
-    hidden = v.get("status") in ("sold", "archived")
-    if (hidden or not is_public) and not (user and (user.get("id") == v.get("user_id") or user.get("account_type") == "business"
+    from visibility import is_vehicle_public
+    if not is_vehicle_public(v) and not (user and (user.get("id") == v.get("user_id") or user.get("account_type") == "business"
                                                      or await get_db().business_accounts.find_one({"owner_user_id": user.get("id")}, {"_id": 1}))):
         # Private / sold cars: only the owner or a workshop (QR scan → access request) may resolve the short link.
-        raise HTTPException(status_code=404, detail="Vehicle not found")
+        raise HTTPException(status_code=403, detail="vehicle_private")
 
     workshop_action = None
     if user and v.get("user_id") != user.get("id"):
@@ -319,7 +316,8 @@ async def og_vehicle(short_id: str):
         )
         return HTMLResponse(h, status_code=404)
     privacy = v.get("privacy") or {}
-    if privacy.get("profile_visible") is False:
+    from visibility import is_vehicle_public
+    if not is_vehicle_public(v):
         return HTMLResponse(
             _OG_TEMPLATE.format(
                 title="Sharago — Profil prywatny",

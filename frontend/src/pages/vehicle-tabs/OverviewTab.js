@@ -1,3 +1,4 @@
+import VehicleTerms from "@/components/VehicleTerms";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Car as CarIcon, Lock, Wrench, Upload, X, Star } from "lucide-react";
@@ -5,13 +6,14 @@ import api, { apiErrorMessage } from "@/lib/api";
 import { toast } from "sonner";
 import { photoUrl, photoThumb } from "@/lib/photos";
 import ServiceReminders from "@/components/ServiceReminders";
-import PhotoLimitModal from "@/components/PhotoLimitModal";
+import PremiumLimitModal from "@/components/PremiumLimitModal";
 
 export default function OverviewTab({ vehicle, reload, actions = null }) {
   const { t } = useTranslation();
   const [active, setActive] = useState(0);
   const [uploading, setUploading] = useState(false);
   const [showPhotoLimit, setShowPhotoLimit] = useState(false);
+  const [photoLimit, setPhotoLimit] = useState(7);
   const photos = vehicle.photos || [];
   const privacy = vehicle.privacy || { profile_visible: true, show_service: true, show_costs: false, show_mileage: true };
 
@@ -36,6 +38,7 @@ export default function OverviewTab({ vehicle, reload, actions = null }) {
       const detail = err?.response?.data?.detail;
       const code = detail && typeof detail === "object" ? detail.code : null;
       if (err?.response?.status === 402 && code === "photo_limit_reached") {
+        setPhotoLimit(detail.limit);
         setShowPhotoLimit(true);
       } else {
         toast.error(apiErrorMessage(err, t("common.error")));
@@ -100,12 +103,9 @@ export default function OverviewTab({ vehicle, reload, actions = null }) {
           out of the header so the header is title-only. */}
       {actions}
       {/* Iter 53: photo waitlist modal — opens when backend returns 402 */}
-      <PhotoLimitModal
-        isOpen={showPhotoLimit}
-        onClose={() => setShowPhotoLimit(false)}
-        vehicleId={vehicle.id}
-      />
+      <PremiumLimitModal kind="photos" open={showPhotoLimit} onClose={() => setShowPhotoLimit(false)} vehicleId={vehicle.id} limit={photoLimit} />
       <ServiceReminders vehicleId={vehicle.id} />
+      <VehicleTerms vehicleId={vehicle.id} />
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
       <div className="vehiq-card overflow-hidden">
         <div className="aspect-[16/10] bg-vehiq-bg relative">

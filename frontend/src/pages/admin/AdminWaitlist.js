@@ -6,6 +6,8 @@ import { Download } from "lucide-react";
 export default function AdminWaitlist() {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState(null);
+  useEffect(() => { adminApi.get("/admin/waitlist/stats").then(r => setStats(r.data)).catch(() => {}); }, []);
 
   useEffect(() => {
     adminApi.get("/admin/waitlist")
@@ -31,6 +33,12 @@ export default function AdminWaitlist() {
     <div className="space-y-6" data-testid="admin-waitlist">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold">Waitlist Premium</h1>
+        {stats && (
+          <div className="text-sm" data-testid="waitlist-stats">
+            Zapisy: <strong>{stats.total}</strong>{" "}
+            {Object.entries(stats.by_source || {}).map(([k, v]) => <span key={k} className="ml-2 text-xs opacity-80">{k}: {v}</span>)}
+          </div>
+        )}
         <button
           onClick={exportCsv}
           disabled={!items.length}

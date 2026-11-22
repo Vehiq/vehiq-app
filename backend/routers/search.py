@@ -61,10 +61,8 @@ async def global_search(
         # Bug 31 (Iter 54): unified `visibility: "public"` supersedes the
         # legacy `searchable + privacy.profile_visible` combo — we accept
         # both during the transition period so old docs still surface.
-        privacy_clause = {"$or": [
-            {"visibility": "public"},
-            {"public": True, "visibility": {"$exists": False}},
-        ]}
+        from visibility import PUBLIC_VEHICLE_Q
+        privacy_clause = {"$or": [PUBLIC_VEHICLE_Q]}
         if viewer:
             privacy_clause["$or"].append({"user_id": viewer["id"]})
         # Paczka 1 P2: sold / archived vehicles never surface in search

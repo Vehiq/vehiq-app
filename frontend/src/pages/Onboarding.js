@@ -188,7 +188,7 @@ function WizardCard({ stage, setStage, form, setForm, handlePhoto, submitVehicle
             </div>
             <div>
               <label className="vehiq-overline mb-2 block">{t("vehicle.year")}</label>
-              <input data-testid="onboarding-year" type="number" min="1900" max="2030" value={form.year} onChange={(e) => setForm({ ...form, year: e.target.value })} className="vehiq-input text-lg py-3" />
+              <input data-testid="onboarding-year" type="number" inputMode="numeric" min="1900" max="2030" value={form.year} onChange={(e) => setForm({ ...form, year: e.target.value })} className="vehiq-input text-lg py-3" />
             </div>
           </div>
           <NavRow
@@ -213,7 +213,7 @@ function WizardCard({ stage, setStage, form, setForm, handlePhoto, submitVehicle
           <div className="space-y-4">
             <div>
               <label className="vehiq-overline mb-2 block">{t("vehicle.mileage")}</label>
-              <input data-testid="onboarding-mileage" type="number" min="0" value={form.mileage_current} onChange={(e) => setForm({ ...form, mileage_current: e.target.value })} className="vehiq-input text-lg py-3" />
+              <input data-testid="onboarding-mileage" type="number" inputMode="numeric" min="0" value={form.mileage_current} onChange={(e) => setForm({ ...form, mileage_current: e.target.value })} className="vehiq-input text-lg py-3" />
             </div>
             <div>
               <label className="vehiq-overline mb-2 block">{t("vehicle.purchaseDate")}</label>

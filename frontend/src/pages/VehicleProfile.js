@@ -268,14 +268,6 @@ function ShareMenu({ vehicle, reload }) {
     }
   };
 
-  const toggleService = async () => {
-    setBusy(true);
-    try {
-      await api.post(`/vehicles/${vehicle.id}/visibility`, { public_show_service: !vehicle.public_show_service });
-      reload();
-    } catch { toast.error(t("common.error")); } finally { setBusy(false); }
-  };
-
   const copy = async () => {
     if (!publicUrl) return;
     try { await navigator.clipboard.writeText(publicUrl); setCopied(true); setTimeout(() => setCopied(false), 1500); toast.success(t("share.copied")); } catch {}
@@ -305,37 +297,23 @@ function ShareMenu({ vehicle, reload }) {
             className="fixed inset-x-0 bottom-0 z-40 vehiq-card p-4 rounded-b-none rounded-t-xl border-b-0 max-h-[80vh] overflow-y-auto sm:static sm:inset-auto sm:z-30 sm:rounded sm:border sm:absolute sm:right-0 sm:top-full sm:mt-2 sm:w-80"
             data-testid="vehicle-share-menu"
           >
-            <div className="flex items-center justify-between gap-3 pb-3 border-b border-vehiq-border">
-              <div className="text-sm text-vehiq-text font-medium">{t("share.publicProfile")}</div>
-              <button
-                onClick={togglePublic}
-                disabled={busy}
-                className={`text-xs px-2.5 py-1 rounded uppercase tracking-wider inline-flex items-center gap-1 ${
-                  vehicle.public ? "bg-vehiq-gold-dim text-vehiq-gold" : "bg-vehiq-nav text-vehiq-muted"
-                }`}
-                data-testid="share-toggle-public"
-              >
-                {vehicle.public ? <Eye size={12} /> : <EyeOff size={12} />}
-                {vehicle.public ? t("share.public") : t("share.private")}
-              </button>
-            </div>
-
             {vehicle.public && publicUrl ? (
               <>
-                <div className="mt-3 text-xs text-vehiq-muted">{t("share.linkHint")}</div>
+                <div className="text-sm text-vehiq-text font-medium">{t("pv.shareTitle")}</div>
                 <div className="flex items-center gap-2 mt-2">
                   <input readOnly value={publicUrl} className="vehiq-input text-xs flex-1" data-testid="share-link-input" />
-                  <button onClick={copy} className="vehiq-btn-primary px-3 py-2" data-testid="share-copy-btn">
-                    {copied ? <Check size={14} /> : <Copy size={14} />}
+                  <button onClick={copy} className="vehiq-btn-primary px-3 py-2 inline-flex items-center gap-1 text-xs" data-testid="share-copy-btn">
+                    {copied ? <Check size={14} /> : <Copy size={14} />} {t("pv.copyLink")}
                   </button>
                 </div>
-                <label className="flex items-center gap-2 text-xs text-vehiq-muted mt-3 cursor-pointer">
-                  <input type="checkbox" checked={!!vehicle.public_show_service} onChange={toggleService} className="accent-vehiq-gold" data-testid="share-toggle-service" />
-                  {t("share.showServiceHistory")}
-                </label>
               </>
             ) : (
-              <div className="mt-3 text-xs text-vehiq-muted">{t("share.notPublicHint")}</div>
+              <div data-testid="share-private-note">
+                <div className="text-sm text-vehiq-text">{t("pv.privateShare")}</div>
+                <button onClick={togglePublic} disabled={busy} className="vehiq-btn-primary w-full mt-3 text-xs inline-flex items-center justify-center gap-2" data-testid="share-toggle-public">
+                  <Eye size={12} /> {t("pv.makePublic")}
+                </button>
+              </div>
             )}
 
             <button onClick={sellThisCar} className="vehiq-btn-secondary w-full mt-4 text-xs" data-testid="share-sell-this">
@@ -409,7 +387,7 @@ function MarkSoldModal({ vehicle, onClose, onSold }) {
         <div className="space-y-3 mt-4">
           <div>
             <label className="vehiq-overline mb-1 block">{t("sell.salePrice")} (PLN)</label>
-            <input type="number" min="0" autoFocus value={salePrice} onChange={(e) => setSalePrice(e.target.value)} className="vehiq-input text-lg py-2.5" data-testid="mark-sold-price" />
+            <input type="number" inputMode="numeric" min="0" autoFocus value={salePrice} onChange={(e) => setSalePrice(e.target.value)} className="vehiq-input text-lg py-2.5" data-testid="mark-sold-price" />
           </div>
           <div>
             <label className="vehiq-overline mb-1 block">{t("sell.saleDate")}</label>

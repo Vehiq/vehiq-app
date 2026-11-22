@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { Plus, Car as CarIcon, Calendar, Bell, Activity, Store, ChevronRight, Lock, Wrench } from "lucide-react";
+import { Plus, Car as CarIcon, Calendar, Bell, Activity, Store, ChevronRight, Lock, Wrench, Eye } from "lucide-react";
+import { toast } from "sonner";
 import api from "@/lib/api";
 import { cachedGet } from "@/lib/apiCache";
 import { resolveCover } from "@/lib/photos";
@@ -146,7 +147,6 @@ function VehicleCard({ v, t, eager = false, lang = "pl" }) {
       </div>
     );
   }
-  const isPrivate = v.privacy && v.privacy.profile_visible === false;
   const isProject = !!v.is_project;
   return (
     <Link to={`/garage/${v.id}`} className="group vehiq-card overflow-hidden hover:border-vehiq-gold transition-all duration-200 hover:-translate-y-1" data-testid={`vehicle-card-${v.id}`}>
@@ -159,11 +159,7 @@ function VehicleCard({ v, t, eager = false, lang = "pl" }) {
           </div>
         )}
         <div className="absolute top-3 left-3 flex gap-1.5">
-          {isPrivate && (
-            <span title={t("privacy.privateTooltip")} className="text-[10px] uppercase tracking-widest px-2 py-1 rounded bg-vehiq-bg/80 text-vehiq-muted border border-vehiq-border inline-flex items-center gap-1" data-testid={`private-badge-${v.id}`}>
-              <Lock size={10}/>
-            </span>
-          )}
+          <VisibilityBadge v={v} t={t} />
           {isProject && (
             <span className="text-[10px] uppercase tracking-widest px-2 py-1 rounded bg-vehiq-gold-dim text-vehiq-gold border border-vehiq-gold/40 inline-flex items-center gap-1" data-testid={`project-badge-${v.id}`}>
               <Wrench size={10}/> {t("vehicle.project")}
@@ -186,6 +182,30 @@ function VehicleCard({ v, t, eager = false, lang = "pl" }) {
         {plNode}
       </div>
     </Link>
+  );
+}
+
+function VisibilityBadge({ v, t }) {
+  const sold = v.status === "sold" || v.status === "archived";
+  const [vis, setVis] = useState(v.visibility || (v.public ? "public" : "private"));
+  const toggle = async (e) => {
+    e.preventDefault(); e.stopPropagation();
+    if (sold) return;
+    const next = vis === "public" ? "private" : "public";
+    try {
+      await api.post(`/vehicles/${v.id}/visibility`, { visibility: next });
+      setVis(next);
+      try { (await import("@/lib/apiCache")).cacheBust("/vehicles"); } catch { /* noop */ }
+      toast.success(next === "public" ? t("share.madePublic") : t("share.madePrivate"));
+    } catch { toast.error(t("common.error")); }
+  };
+  const label = sold ? t("pp.sold") : vis === "public" ? t("share.public") : t("share.private");
+  return (
+    <button type="button" onClick={toggle} title={sold ? "" : t("vis.toggleHint")}
+      className={`text-[10px] uppercase tracking-widest px-2 py-1 rounded border inline-flex items-center gap-1 ${vis === "public" && !sold ? "bg-vehiq-gold-dim text-vehiq-gold border-vehiq-gold/40" : "bg-vehiq-bg/80 text-vehiq-muted border-vehiq-border"}`}
+      data-testid={`visibility-badge-${v.id}`}>
+      {vis === "public" && !sold ? <Eye size={10} /> : <Lock size={10} />} {label}
+    </button>
   );
 }
 

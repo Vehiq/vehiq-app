@@ -21,6 +21,7 @@ export default function CreateListing() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const [draftHint, setDraftHint] = useState("");
   const { id: editId } = useParams(); // Bug 23 (Iter 51): edit mode via /marketplace/:id/edit
   const isEdit = !!editId;
   const [vehicles, setVehicles] = useState([]);
@@ -119,10 +120,9 @@ export default function CreateListing() {
               model: v.model || "",
               year: v.year || "",
               mileage: v.mileage_current || "",
-              title: `${v.make || ""} ${v.model || ""} ${v.year || ""}`.trim(),
-              description: `${v.engine || ""} ${v.fuel || ""}\n${i18n.t("lst.mileagePrefill")}: ${v.mileage_current || 0} km`.trim(),
               photos: full, // Bug 22: all garage photos pre-selected
             }));
+            applyDraft(v.id);
           }).catch(() => { /* silent — form still usable */ });
         }
       }
@@ -142,6 +142,15 @@ export default function CreateListing() {
   };
   const _normalisePhotos = (arr) => (arr || []).map(_photoStr).filter(Boolean);
 
+  // Paczka 7 (F): auto title + description from the garage car — only fills empty fields, stays editable.
+  const applyDraft = (vid) => {
+    const lang = i18n.language?.startsWith("en") ? "en" : "pl";
+    api.get(`/vehicles/${vid}/listing-draft`, { params: { lang } }).then(({ data }) => {
+      setForm((f) => ({ ...f, title: f.title || data.title, description: f.description || data.description }));
+      setDraftHint(data.hint);
+    }).catch(() => {});
+  };
+
   const prefill = async (vid) => {
     const v = vehicles.find(x => x.id === vid);
     if (!v) return;
@@ -158,10 +167,9 @@ export default function CreateListing() {
       model: v.model || "",
       year: v.year || "",
       mileage: v.mileage_current || "",
-      title: `${v.make || ""} ${v.model || ""} ${v.year || ""}`.trim(),
-      description: `${v.engine || ""} ${v.fuel || ""}\n${i18n.t("lst.mileagePrefill")}: ${v.mileage_current || 0} km`.trim(),
       photos: seed,
     }));
+    applyDraft(vid);
     setGaragePhotos(seed);
     try {
       const { data } = await api.get(`/vehicles/${vid}`);
@@ -506,11 +514,11 @@ export default function CreateListing() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
                 <label className="vehiq-overline mb-2 block">{t("vehicle.year")}</label>
-                <input type="number" min="1900" max="2030" value={form.year} onChange={(e) => setForm({...form, year: e.target.value})} className="vehiq-input" data-testid="listing-year" />
+                <input type="number" inputMode="numeric" min="1900" max="2030" value={form.year} onChange={(e) => setForm({...form, year: e.target.value})} className="vehiq-input" data-testid="listing-year" />
               </div>
               <div>
                 <label className="vehiq-overline mb-2 block">{t("vehicle.mileage")}</label>
-                <input type="number" min="0" value={form.mileage} onChange={(e) => setForm({...form, mileage: e.target.value})} className="vehiq-input" data-testid="listing-mileage" />
+                <input type="number" inputMode="numeric" min="0" value={form.mileage} onChange={(e) => setForm({...form, mileage: e.target.value})} className="vehiq-input" data-testid="listing-mileage" />
               </div>
               <div>
                 <label className="vehiq-overline mb-2 block">{t("marketplace.steeringLabel")}</label>
@@ -584,11 +592,11 @@ export default function CreateListing() {
                 </div>
                 <div>
                   <label className="text-[10px] uppercase tracking-widest text-vehiq-muted">{t("marketplace.yearFrom")}</label>
-                  <input type="number" value={d.year_from || ""} onChange={(e) => updateDesiredSwap(i, { year_from: parseInt(e.target.value) || null })} className="vehiq-input text-sm py-1.5" />
+                  <input type="number" inputMode="numeric" value={d.year_from || ""} onChange={(e) => updateDesiredSwap(i, { year_from: parseInt(e.target.value) || null })} className="vehiq-input text-sm py-1.5" />
                 </div>
                 <div>
                   <label className="text-[10px] uppercase tracking-widest text-vehiq-muted">{t("marketplace.yearTo")}</label>
-                  <input type="number" value={d.year_to || ""} onChange={(e) => updateDesiredSwap(i, { year_to: parseInt(e.target.value) || null })} className="vehiq-input text-sm py-1.5" />
+                  <input type="number" inputMode="numeric" value={d.year_to || ""} onChange={(e) => updateDesiredSwap(i, { year_to: parseInt(e.target.value) || null })} className="vehiq-input text-sm py-1.5" />
                 </div>
                 <div className="flex gap-1 items-end">
                   <select value={d.condition || "any"} onChange={(e) => updateDesiredSwap(i, { condition: e.target.value })} className="vehiq-input text-sm py-1.5 flex-1">
@@ -603,13 +611,14 @@ export default function CreateListing() {
 
         <div>
           <label className="vehiq-overline mb-2 block">{t("marketplace.description")}</label>
-          <textarea value={form.description} onChange={(e) => setForm({...form, description: e.target.value})} className="vehiq-input" rows={5} data-testid="listing-description" />
+          <textarea value={form.description} placeholder={draftHint} onChange={(e) => setForm({...form, description: e.target.value})} className="vehiq-input" rows={6} data-testid="listing-description" />
+          {draftHint && <div className="text-xs text-vehiq-muted mt-1" data-testid="listing-draft-hint">{draftHint}</div>}
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {!(form.category === "rental_car" || form.category === "rental_garage" || isServiceType) && (
             <div>
               <label className="vehiq-overline mb-2 block">{t("marketplace.price")}</label>
-              <input required type="number" step="0.01" value={form.price} onChange={(e) => setForm({...form, price: e.target.value})} className="vehiq-input" data-testid="listing-price" />
+              <input required type="number" inputMode="decimal" step="0.01" value={form.price} onChange={(e) => setForm({...form, price: e.target.value})} className="vehiq-input" data-testid="listing-price" />
             </div>
           )}
           <div>
@@ -641,7 +650,7 @@ export default function CreateListing() {
             <div>
               <label className="vehiq-overline mb-2 block">{i18n.t("lst.priceDay")}</label>
               <input
-                type="number" min="0" step="1" required
+                type="number" inputMode="numeric" min="0" step="1" required
                 value={form.rental.price_per_day}
                 onChange={(e) => setForm({ ...form, rental: { ...form.rental, price_per_day: e.target.value } })}
                 className="vehiq-input"
@@ -651,7 +660,7 @@ export default function CreateListing() {
             <div>
               <label className="vehiq-overline mb-2 block">{i18n.t("lst.priceWeek")}</label>
               <input
-                type="number" min="0" step="1"
+                type="number" inputMode="numeric" min="0" step="1"
                 value={form.rental.price_per_week}
                 onChange={(e) => setForm({ ...form, rental: { ...form.rental, price_per_week: e.target.value } })}
                 className="vehiq-input"
@@ -661,7 +670,7 @@ export default function CreateListing() {
             <div>
               <label className="vehiq-overline mb-2 block">{i18n.t("lst.priceMonth")}</label>
               <input
-                type="number" min="0" step="1"
+                type="number" inputMode="numeric" min="0" step="1"
                 value={form.rental.price_per_month}
                 onChange={(e) => setForm({ ...form, rental: { ...form.rental, price_per_month: e.target.value } })}
                 className="vehiq-input"
@@ -759,7 +768,7 @@ export default function CreateListing() {
             <div>
               <label className="vehiq-overline mb-2 block">{i18n.t("lst.priceFrom")}</label>
               <input
-                type="number" min="0" step="1"
+                type="number" inputMode="numeric" min="0" step="1"
                 value={form.service.price_from}
                 onChange={(e) => setForm({ ...form, service: { ...form.service, price_from: e.target.value } })}
                 className="vehiq-input"

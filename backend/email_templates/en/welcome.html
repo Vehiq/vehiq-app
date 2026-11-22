@@ -1,0 +1,22 @@
+{% extends "base.html" %}{% import "_macros.html" as m %}
+{% block content %}
+{{ m.h1("Your garage is ready") }}
+<p style="margin:0 0 14px 0;">Hi{% if user_name %} {{ user_name }}{% endif %},</p>
+<p style="margin:0 0 18px 0;">welcome to Sharago. Three steps and your car's history is always at hand:</p>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+  <tr>
+    <td width="36" valign="top" style="padding:0 0 14px 0;"><div style="width:26px; height:26px; line-height:26px; border-radius:13px; background:#2B7FE8; color:#FFFFFF; font-size:14px; font-weight:bold; text-align:center;">1</div></td>
+    <td valign="top" style="padding:2px 0 14px 0;"><strong>Add your car</strong> – make, model, mileage and a photo.</td>
+  </tr>
+  <tr>
+    <td width="36" valign="top" style="padding:0 0 14px 0;"><div style="width:26px; height:26px; line-height:26px; border-radius:13px; background:#2B7FE8; color:#FFFFFF; font-size:14px; font-weight:bold; text-align:center;">2</div></td>
+    <td valign="top" style="padding:2px 0 14px 0;"><strong>Add your dates</strong> – MOT, insurance, oil change. You'll get one email 7 days before each.</td>
+  </tr>
+  <tr>
+    <td width="36" valign="top" style="padding:0 0 4px 0;"><div style="width:26px; height:26px; line-height:26px; border-radius:13px; background:#2B7FE8; color:#FFFFFF; font-size:14px; font-weight:bold; text-align:center;">3</div></td>
+    <td valign="top" style="padding:2px 0 4px 0;"><strong>Log your services</strong> – and when you sell, send the buyer one link to the full history.</td>
+  </tr>
+</table>
+{{ m.button(add_car_url, "Add your first car") }}
+{{ m.note("No spam: we only email you when a date is coming up or someone messages you on Sharago.") }}
+{% endblock %}

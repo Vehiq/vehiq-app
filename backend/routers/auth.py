@@ -22,8 +22,9 @@ from auth_utils import (
 )
 from email_service import (
     send_email, fire_and_forget,
-    tpl_welcome, tpl_password_reset
+    send_template,
 )
+from email_render import app_url as _site_url, lang_of
 from security import limiter, record_failed_login, log_security_event, EVENT_FAILED_LOGIN, client_ip
 import login_guard
 
@@ -172,8 +173,9 @@ async def register(payload: RegisterIn, request: Request):
         await link_referral_on_signup(db, user_id, payload.referral_code, payload.referral_source)
         user["referred_by"] = payload.referral_code.strip().upper()
     # Welcome email (non-blocking)
-    subject, html = tpl_welcome(user["name"], user.get("language", "pl"))
-    fire_and_forget(send_email(user["email"], subject, html))
+    _lang = lang_of(user)
+    fire_and_forget(send_template(user["email"], "welcome", _lang, user_name=user.get("name") or "",
+                                  add_car_url=f"{_site_url(_lang)}/garage/new"))
 
     token = user_token({"id": user_id})
     return {"token": token, "user": _public_user(user)}
@@ -209,9 +211,8 @@ async def password_reset_request(payload: PasswordResetRequestIn, request: Reque
         else:
             base_url = APP_URL
         reset_url = f"{base_url}/password-reset/confirm?token={token}"
-        lang = user.get("language", payload.language or "pl")
-        subject, html = tpl_password_reset(reset_url, lang)
-        fire_and_forget(send_email(user["email"], subject, html))
+        lang = lang_of(user.get("language") or payload.language)
+        fire_and_forget(send_template(user["email"], "password_reset", lang, user_name=user.get("name") or "", reset_url=reset_url))
     return {"ok": True}
 
 
@@ -236,6 +237,13 @@ async def password_reset_confirm(payload: PasswordResetConfirmIn, request: Reque
     if res.matched_count == 0:
         await login_guard.record_failure(db, "password_reset", "", request, reason="reused_reset_token")
         raise HTTPException(status_code=400, detail="Invalid or already used link")
+    u = await db.profiles.find_one({"id": user_id}, {"_id": 0, "email": 1, "name": 1, "language": 1})
+    if u and u.get("email"):
+        from zoneinfo import ZoneInfo
+        lang = lang_of(u)
+        now_pl = datetime.now(ZoneInfo("Europe/Warsaw")).strftime("%d.%m.%Y " + ("at" if lang == "en" else "o") + " %H:%M")
+        fire_and_forget(send_template(u["email"], "password_changed", lang, user_name=u.get("name") or "",
+                                      changed_at=now_pl, reset_url=f"{_site_url(lang)}/password-reset"))
     return {"ok": True}
 
 

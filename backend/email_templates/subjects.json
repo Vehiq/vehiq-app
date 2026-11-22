@@ -1,0 +1,24 @@
+{
+  "pl": {
+    "verify_email":            {"subject": "Potwierdź adres e-mail w Sharago",                    "preheader": "Jedno kliknięcie i Twój garaż jest aktywny."},
+    "welcome":                 {"subject": "Twój garaż w Sharago jest gotowy 🚗",                 "preheader": "Dodaj auto i terminy – resztą zajmiemy się my."},
+    "password_reset":          {"subject": "Ustaw nowe hasło do Sharago",                          "preheader": "Link działa jeden raz i jest ważny przez 1 godzinę."},
+    "password_changed":        {"subject": "Hasło do Sharago zostało zmienione",                   "preheader": "Jeśli to nie Ty – zareaguj od razu."},
+    "reminder_single":         {"subject": "{type_label} – {vehicle_name}: {due_date}",            "preheader": "Termin {days_text}. Jedno przypomnienie, bez spamu."},
+    "reminder_multi":          {"subject": "Zbliżające się terminy dla Twoich aut ({count})",      "preheader": "Najbliższy: {first_type} – {first_vehicle}, {first_due}."},
+    "new_message":             {"subject": "Nowa wiadomość: {listing_title}",                      "preheader": "{sender_name} napisał(a) do Ciebie w Sharago."},
+    "workshop_access_request": {"subject": "{workshop_name} prosi o dostęp do historii {vehicle_name}", "preheader": "Zaakceptuj albo odrzuć prośbę w Sharago."},
+    "smtp_test":               {"subject": "Sharago – test wysyłki",                               "preheader": "Konfiguracja poczty działa."}
+  },
+  "en": {
+    "verify_email":            {"subject": "Confirm your email for Sharago",                       "preheader": "One click and your garage is active."},
+    "welcome":                 {"subject": "Your Sharago garage is ready 🚗",                      "preheader": "Add your car and dates – we'll handle the rest."},
+    "password_reset":          {"subject": "Set a new Sharago password",                           "preheader": "The link works once and is valid for 1 hour."},
+    "password_changed":        {"subject": "Your Sharago password was changed",                    "preheader": "If this wasn't you, act now."},
+    "reminder_single":         {"subject": "{type_label} – {vehicle_name}: {due_date}",            "preheader": "Due {days_text}. One reminder, no spam."},
+    "reminder_multi":          {"subject": "Upcoming dates for your cars ({count})",               "preheader": "Next: {first_type} – {first_vehicle}, {first_due}."},
+    "new_message":             {"subject": "New message: {listing_title}",                         "preheader": "{sender_name} sent you a message on Sharago."},
+    "workshop_access_request": {"subject": "{workshop_name} is asking to access {vehicle_name}'s history", "preheader": "Accept or decline the request in Sharago."},
+    "smtp_test":               {"subject": "Sharago – test email",                                 "preheader": "Email configuration works."}
+  }
+}

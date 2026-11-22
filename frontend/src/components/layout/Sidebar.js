@@ -77,7 +77,7 @@ export default function Sidebar({ onNavigate, mobile = false }) {
     const fetch = async () => {
       if (cancelled || inFlight) return;
       const now = Date.now();
-      if (now - lastFetchAt < 15_000) return;
+      if (now - lastFetchAt < 55_000) return;
       inFlight = true;
       lastFetchAt = now;
       try {
@@ -88,9 +88,12 @@ export default function Sidebar({ onNavigate, mobile = false }) {
       } catch { /* silent — badge just stays stale */ }
       finally { inFlight = false; }
     };
-    fetch();
-    const i = setInterval(fetch, 30_000);
-    return () => { cancelled = true; clearInterval(i); };
+    // Paczka 7: every 60 s, only while the tab is visible; refresh on return to the tab.
+    const tick = () => { if (document.visibilityState === "visible") fetch(); };
+    tick();
+    const i = setInterval(tick, 60_000);
+    document.addEventListener("visibilitychange", tick);
+    return () => { cancelled = true; clearInterval(i); document.removeEventListener("visibilitychange", tick); };
   }, [user]);
 
   return (

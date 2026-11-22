@@ -40,7 +40,7 @@ async def _get_smtp_config():
         # silently reject outbound mail (e.g. password reset). Override via
         # admin SMTP settings (`smtp_from_email`) or `SMTP_FROM_EMAIL` env var
         # if a different verified sender is needed.
-        "from_email": cfg.get("smtp_from_email") or os.environ.get("SMTP_FROM_EMAIL") or "kontakt@sharago.com",
+        "from_email": os.environ.get("SMTP_FROM_EMAIL") or cfg.get("smtp_from_email") or "noreply@sharago.com",
     }
 
 
@@ -155,43 +155,27 @@ def tpl_service_reminder(vehicle_label: str, reminder_type: str, due_date: str, 
     return subject, _wrap_html(subject, body, lang)
 
 
-def tpl_new_message(sender_name: str, listing_title: str, preview: str, listing_id: str, sender_id: str, lang: str = "pl"):
-    sender_name = html_lib.escape(sender_name or "")
-    listing_title = html_lib.escape(listing_title or "")
-    preview = html_lib.escape(preview or "")
-    reply_url = f"{APP_URL}/marketplace/messages?listing={listing_id}&user={sender_id}"
-    if lang == "en":
-        subject = "You have a new message on Sharago 💬"
-        body = f"""<h2 style="{_H2}">You have a new message</h2>
-<p style="{_P}"><strong style="color:#ffffff;">{sender_name}</strong> wrote to you about the listing "<em style="color:#ffffff;">{listing_title}</em>".</p>
-<blockquote style="{_QUOTE}">{preview}</blockquote>
-{_btn("Reply →", reply_url)}"""
-    else:
-        subject = "Masz nową wiadomość w Sharago 💬"
-        body = f"""<h2 style="{_H2}">Masz nową wiadomość</h2>
-<p style="{_P}"><strong style="color:#ffffff;">{sender_name}</strong> napisał/a do Ciebie w sprawie ogłoszenia "<em style="color:#ffffff;">{listing_title}</em>".</p>
-<blockquote style="{_QUOTE}">{preview}</blockquote>
-{_btn("Odpowiedz →", reply_url)}"""
-    return subject, _wrap_html(subject, body, lang)
+def tpl_new_message(sender_name: str, listing_title: str, preview: str, listing_id: str, sender_id: str, lang: str = "pl",
+                    user_name: str = "", unsubscribe_url: Optional[str] = None):
+    """Message content is never included in the e-mail (privacy / anti-phishing)."""
+    from email_render import render, app_url
+    subject, html, _ = render("new_message", lang, subject_fmt={"listing_title": listing_title or "—", "sender_name": sender_name or ""},
+                              user_name=user_name, sender_name=sender_name or "", listing_title=listing_title or "—",
+                              thread_url=f"{app_url(lang)}/marketplace/messages?listing={listing_id}&user={sender_id}",
+                              unsubscribe_url=unsubscribe_url)
+    return subject, html
 
 
 def tpl_forum_reply(thread_title: str, replier_name: str, preview: str, thread_id: str, lang: str = "pl"):
-    replier_name = html_lib.escape(replier_name or "")
-    thread_title = html_lib.escape(thread_title or "")
-    preview = html_lib.escape(preview or "")
-    if lang == "en":
-        subject = "Someone replied to your post on Sharago"
-        body = f"""<h2 style="{_H2}">New reply on your post</h2>
-<p style="{_P}"><strong style="color:#ffffff;">{replier_name}</strong> replied to your post "<em style="color:#ffffff;">{thread_title}</em>".</p>
-<blockquote style="{_QUOTE}">{preview}</blockquote>
-{_btn("See reply →", f"{APP_URL}/forum/{thread_id}")}"""
-    else:
-        subject = "Ktoś odpowiedział na Twój post w Sharago"
-        body = f"""<h2 style="{_H2}">Nowa odpowiedź na Twój post</h2>
-<p style="{_P}"><strong style="color:#ffffff;">{replier_name}</strong> odpowiedział/a na Twój post "<em style="color:#ffffff;">{thread_title}</em>".</p>
-<blockquote style="{_QUOTE}">{preview}</blockquote>
-{_btn("Zobacz odpowiedź →", f"{APP_URL}/forum/{thread_id}")}"""
-    return subject, _wrap_html(subject, body, lang)
+    from email_render import render, app_url
+    en = lang == "en"
+    subject = "Someone replied to your post on Sharago" if en else "Ktoś odpowiedział na Twój post w Sharago"
+    para = (f"{replier_name} replied to your post “{thread_title}”." if en
+            else f"{replier_name} odpowiedział(a) na Twój post „{thread_title}”.")
+    s_, html, _ = render("generic", lang, subject=subject, preheader=para, title="New reply on your post" if en else "Nowa odpowiedź na Twój post",
+                         paragraphs=[para], button_url=f"{app_url(lang)}/forum/{thread_id}",
+                         button_label="See reply" if en else "Zobacz odpowiedź")
+    return s_, html
 
 
 def tpl_swap_match(other_name: str, other_vehicle: str, my_vehicle: str, lang: str = "pl"):
@@ -230,20 +214,18 @@ def tpl_account_deleted(name: str, lang: str = "pl"):
     return subject, _wrap_html(subject, body, lang)
 
 
-def tpl_test(lang: str = "pl"):
-    if lang == "en":
-        subject = "Sharago — SMTP test"
-        body = f"""<h2 style="{_H2}">SMTP test successful ✓</h2>
-<p style="{_P}">If you received this email, your Sharago SMTP configuration is working correctly.</p>"""
-    else:
-        subject = "Sharago — Test SMTP"
-        body = f"""<h2 style="{_H2}">Test SMTP udany ✓</h2>
-<p style="{_P}">Jeśli otrzymałeś tego maila, konfiguracja SMTP w Sharago działa poprawnie.</p>"""
-    return subject, _wrap_html(subject, body, lang)
+def tpl_test(lang: str = "pl", from_email: str = ""):
+    from email_render import render
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+    subject, html, _ = render("smtp_test", lang, sent_at=datetime.now(ZoneInfo("Europe/Warsaw")).strftime("%d.%m.%Y %H:%M"),
+                              from_email=from_email or os.environ.get("SMTP_FROM_EMAIL") or "noreply@sharago.com")
+    return subject, html
 
 
 # ---------- Sender ----------
-async def send_email(to: str, subject: str, html: str) -> tuple[bool, str]:
+async def send_email(to: str, subject: str, html: str, text: Optional[str] = None,
+                     unsubscribe_url: Optional[str] = None) -> tuple[bool, str]:
     """Send email — Brevo HTTP API (primary) or SMTP (fallback).
 
     Brevo HTTP API works over HTTPS:443 (allowed on Render Free).
@@ -252,6 +234,9 @@ async def send_email(to: str, subject: str, html: str) -> tuple[bool, str]:
     Returns (ok, error_message_or_empty).
     """
     cfg = await _get_smtp_config()
+    if text is None:
+        from email_render import to_text
+        text = to_text(html)
 
     # ─── Path 1: Brevo HTTP API ───
     if cfg["brevo_api_key"]:
@@ -269,6 +254,8 @@ async def send_email(to: str, subject: str, html: str) -> tuple[bool, str]:
                         "to": [{"email": to}],
                         "subject": subject,
                         "htmlContent": html,
+                        **({"textContent": text} if text else {}),
+                        **({"headers": {"List-Unsubscribe": f"<{unsubscribe_url}>"}} if unsubscribe_url else {}),
                     },
                 )
             if 200 <= r.status_code < 300:
@@ -292,7 +279,9 @@ async def send_email(to: str, subject: str, html: str) -> tuple[bool, str]:
     msg["From"] = f"{cfg['from_name']} <{cfg['from_email']}>"
     msg["To"] = to
     msg["Subject"] = subject
-    msg.attach(MIMEText("(This email requires HTML rendering)", "plain", "utf-8"))
+    if unsubscribe_url:
+        msg["List-Unsubscribe"] = f"<{unsubscribe_url}>"
+    msg.attach(MIMEText(text or "(This email requires HTML rendering)", "plain", "utf-8"))
     msg.attach(MIMEText(html, "html", "utf-8"))
 
     logger.info(f"SMTP fallback send → to={to} subject={subject!r} via {cfg['host']}:{cfg['port']}")
@@ -399,3 +388,11 @@ async def send_notification(user_id: str, email_type: str, to: str, subject: str
     if ok and user_id:
         await _log_email_sent(user_id, email_type, to)
     return ok, err
+
+
+async def send_template(to: str, name: str, lang: str, **ctx) -> tuple[bool, str]:
+    """Render a Jinja2 template (email_templates/) and send it as HTML + plain text."""
+    from email_render import render, UNSUB_TEMPLATES
+    unsub = ctx.get("unsubscribe_url") if name in UNSUB_TEMPLATES else None
+    subject, html, text = render(name, lang, **ctx)
+    return await send_email(to, subject, html, text=text, unsubscribe_url=unsub)

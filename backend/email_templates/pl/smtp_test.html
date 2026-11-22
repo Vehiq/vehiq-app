@@ -1,0 +1,6 @@
+{% extends "base.html" %}{% import "_macros.html" as m %}
+{% block content %}
+{{ m.h1("Test wysyłki działa ✓") }}
+<p style="margin:0 0 14px 0;">Ta wiadomość potwierdza, że konfiguracja poczty w Sharago działa poprawnie.</p>
+<p style="margin:0 0 4px 0; font-size:14px; color:#4A5568;">Wysłano: {{ sent_at }}<br>Nadawca: {{ from_email }}</p>
+{% endblock %}

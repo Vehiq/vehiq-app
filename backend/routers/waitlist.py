@@ -45,11 +45,15 @@ async def join_waitlist(payload: WaitlistIn, user=Depends(get_optional_user)):
     await db.premium_waitlist.insert_one(doc)
 
     # Confirmation email — fire-and-forget
-    subj = "Jesteś na liście oczekujących Sharago Premium"
-    body = f"""<h2 style="{_H2}">Dziękujemy!</h2>
-<p style="{_P}">Zapisaliśmy Cię na listę oczekujących. Powiadomimy Cię gdy Sharago Premium będzie dostępne.</p>
-{_btn("Wróć do garażu →", f"{APP_URL}/garage")}"""
-    html = _wrap_html(subj, body, lang="pl")
+    from email_render import render, app_url, lang_of
+    _l = lang_of((user or {}).get("language") or getattr(payload, "language", None))
+    en = _l == "en"
+    subj, html, _ = render("generic", _l, subject="You're on the Sharago Premium waitlist" if en else "Jesteś na liście oczekujących Sharago Premium",
+                           preheader="We'll let you know by email." if en else "Damy znać mailem.",
+                           user_name=(user or {}).get("name") or "", title="Thank you!" if en else "Dziękujemy!",
+                           paragraphs=["We've added you to the waitlist. We'll email you when Sharago Premium launches." if en
+                                       else "Zapisaliśmy Cię na listę oczekujących. Powiadomimy Cię mailem, gdy Sharago Premium będzie dostępne."],
+                           button_url=f"{app_url(_l)}/garage", button_label="Back to garage" if en else "Wróć do garażu")
     fire_and_forget(send_email(payload.email, subj, html))
 
     return {"ok": True, "already_on_list": False}

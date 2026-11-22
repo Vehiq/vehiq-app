@@ -13,7 +13,7 @@ export default function AddEvent() {
   const [form, setForm] = useState({
     name: "", type: "meet", description: "",
     location: { name: "", address: "", city: "", lat: null, lng: null },
-    date_start: "", date_end: "", price: 0, max_participants: 0, make_filter: [], tags: [],
+    date_start: "", date_end: "", price: "", max_participants: "", make_filter: [], tags: [],
   });
   const [busy, setBusy] = useState(false);
   const [geoBusy, setGeoBusy] = useState(false);
@@ -68,8 +68,8 @@ export default function AddEvent() {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Field label={t("events.dateStart")}><input required type="date" value={form.date_start} onChange={(e) => setForm({ ...form, date_start: e.target.value })} className="vehiq-input" data-testid="evt-date-start"/></Field>
           <Field label={t("events.dateEnd")}><input type="date" value={form.date_end} onChange={(e) => setForm({ ...form, date_end: e.target.value })} className="vehiq-input"/></Field>
-          <Field label={t("events.price")+" (PLN)"}><input type="number" step="0.01" min={0} value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} className="vehiq-input"/></Field>
-          <Field label={t("events.maxParticipants")}><input type="number" min={0} value={form.max_participants} onChange={(e) => setForm({ ...form, max_participants: e.target.value })} className="vehiq-input"/></Field>
+          <Field label={t("events.price")+" (PLN)"}><input type="number" inputMode="decimal" step="0.01" min={0} value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} className="vehiq-input"/></Field>
+          <Field label={t("events.maxParticipants")}><input type="number" inputMode="numeric" min={0} value={form.max_participants} onChange={(e) => setForm({ ...form, max_participants: e.target.value })} className="vehiq-input"/></Field>
         </div>
 
         <div className="border-t border-vehiq-border pt-4 space-y-3">

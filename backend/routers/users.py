@@ -6,6 +6,12 @@ from db_helper import get_db
 from auth_utils import get_optional_user
 
 router = APIRouter(prefix="/users", tags=["users"])
+import uuid
+from datetime import datetime, timezone
+from fastapi import Request
+from pydantic import BaseModel
+from rate_guard import rate_limit
+from visibility import public_vehicle_q, vehicle_visibility
 
 DEFAULT_PRIVACY = {
     "profile_public": True,
@@ -87,10 +93,7 @@ async def _build_card(db, p: dict, viewer_is_owner: bool) -> dict:
     # Public vehicles for this user
     veh_filter = {"user_id": user_id}
     if not viewer_is_owner:
-        veh_filter["searchable"] = {"$ne": False}
-        veh_filter["$or"] = [{"privacy.profile_visible": {"$ne": False}}, {"privacy": {"$exists": False}}]
-        # Paczka 1 P2: hide vehicles marked "sold" / "archived" from non-owner views.
-        veh_filter["status"] = {"$nin": ["sold", "archived"]}
+        veh_filter = public_vehicle_q(user_id=user_id)
     public_vehicles = await db.vehicles.find(
         veh_filter,
         {"_id": 0, "id": 1, "slug": 1, "make": 1, "model": 1, "year": 1, "photos": 1, "cover_photo_index": 1,
@@ -140,7 +143,7 @@ async def _build_card(db, p: dict, viewer_is_owner: bool) -> dict:
             "name": p.get("name"),
             "avatar": p.get("avatar"),
             "bio": p.get("bio"),
-            "location": p.get("location") if (viewer_is_owner or privacy.get("profile_public", True)) else None,
+            "location": p.get("location") if viewer_is_owner else None,
             "created_at": p.get("created_at"),
             "last_active": p.get("last_active"),
             # Iter 47: Founding Member badge — always public (it's a status,
@@ -175,33 +178,23 @@ async def public_user_card(slug_or_id: str, viewer=Depends(get_optional_user)):
 
 
 @router.get("/{slug_or_id}")
-async def public_user_profile(slug_or_id: str, viewer=Depends(get_optional_user)):
-    """Privacy-aware public profile. Always hides email/phone/listings/forum/etc unless flagged."""
+async def public_user_profile(slug_or_id: str, as_public: int = 0, viewer=Depends(get_optional_user)):
+    """Privacy-aware public profile. `as_public=1` → owner preview exactly as an anonymous visitor."""
     db = get_db()
+    if as_public:
+        viewer = None
     p = await _resolve_profile(db, slug_or_id)
     if not p:
         raise HTTPException(status_code=404, detail="User not found")
     privacy = _privacy(p)
     is_owner = bool(viewer and viewer.get("id") == p["id"])
     if not is_owner and not privacy.get("profile_public", True):
-        raise HTTPException(status_code=403, detail="Profile is private")
+        raise HTTPException(status_code=403, detail="profile_private")
 
     card = await _build_card(db, p, is_owner)
 
-    # Public vehicles — Bug 31 (Iter 54): unified `visibility: "public"`.
-    # Legacy `searchable + privacy.profile_visible` still accepted so old
-    # docs surface until we run the migration script.
-    veh_filter = {"user_id": p["id"]}
-    if not is_owner:
-        veh_filter["$or"] = [
-            {"visibility": "public"},
-            {"$and": [
-                {"searchable": {"$ne": False}},
-                {"$or": [{"privacy.profile_visible": {"$ne": False}}, {"privacy": {"$exists": False}}]},
-            ]},
-        ]
-        # Paczka 1 P2: never list sold/archived vehicles on the public profile.
-        veh_filter["status"] = {"$nin": ["sold", "archived"]}
+    # Paczka 7: one rule for every public place (visibility.py).
+    veh_filter = {"user_id": p["id"]} if is_owner else public_vehicle_q(user_id=p["id"])
     raw_vehicles = await db.vehicles.find(veh_filter, {"_id": 0}).sort("created_at", -1).to_list(120)
     vehicles_public = []
     for v in raw_vehicles:
@@ -221,6 +214,7 @@ async def public_user_profile(slug_or_id: str, viewer=Depends(get_optional_user)
             "cover_photo": _cover(photos, idx),
             "photos": [_photo_thumb(ph) for ph in photos[:6]],
             "status": v.get("status") or "active",
+            "visibility": vehicle_visibility(v),
             "mileage_current": v.get("mileage_current") if (is_owner or show_mileage) else None,
             "is_project": bool(v.get("is_project")),
         })
@@ -248,4 +242,22 @@ async def public_user_profile(slug_or_id: str, viewer=Depends(get_optional_user)
         "forum_threads": forum_threads,
         "active_listings": listings,
         "joined_at": p.get("created_at"),
+        "profile_public": privacy.get("profile_public", True) is not False,
     }
+
+
+class ProfileReportIn(BaseModel):
+    reason: str = ""
+
+
+@router.post("/{slug_or_id}/report", dependencies=[Depends(rate_limit("profile_report", 10, 3600))])
+async def report_profile(slug_or_id: str, payload: ProfileReportIn, request: Request, viewer=Depends(get_optional_user)):
+    db = get_db()
+    p = await _resolve_profile(db, slug_or_id)
+    if not p:
+        raise HTTPException(status_code=404, detail="User not found")
+    await db.profile_reports.insert_one({
+        "id": str(uuid.uuid4()), "profile_id": p["id"], "reporter_id": (viewer or {}).get("id"),
+        "reason": (payload.reason or "")[:500], "created_at": datetime.now(timezone.utc).isoformat(),
+    })
+    return {"ok": True}

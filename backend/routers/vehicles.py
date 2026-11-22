@@ -13,6 +13,7 @@ import logging
 from db_helper import get_db
 from auth_utils import get_current_user, get_optional_user
 import storage as r2_storage
+from visibility import public_vehicle_q, is_vehicle_public, vehicle_visibility, is_profile_public
 
 
 def _app_url() -> str:
@@ -240,9 +241,11 @@ class VehicleIn(BaseModel):
     searchable: Optional[bool] = True
     open_to_offers: Optional[bool] = False  # Iter 39: owner accepts unsolicited buyer offers
     privacy: Optional[dict] = None  # {profile_visible, show_service, show_costs, show_mileage}
+    visibility: Optional[str] = None  # "private" (default) | "public"
 
 
 class VehicleUpdateIn(BaseModel):
+    visibility: Optional[str] = None
     """Partial update — every field optional. Used by PUT /vehicles/{id}."""
     @field_validator("*", mode="before")
     @classmethod
@@ -294,7 +297,7 @@ async def list_vehicles(response: Response, user=Depends(get_current_user)):
         "id": 1, "slug": 1, "make": 1, "model": 1, "year": 1,
         # meta shown on card
         "mileage_current": 1, "engine": 1, "fuel": 1, "status": 1,
-        "is_project": 1, "condition": 1, "open_to_offers": 1,
+        "is_project": 1, "condition": 1, "open_to_offers": 1, "visibility": 1, "public": 1,
         "created_at": 1, "updated_at": 1,
         # photo resolution — server picks cover then discards rest
         "photos": 1, "cover_photo_index": 1,
@@ -388,11 +391,7 @@ async def search_vehicles(
     """Public search for vehicles owned by users with public profile + searchable=True.
     Returns enriched owner info (name, avatar) for the community garage/search page."""
     db = get_db()
-    f: dict = {"searchable": {"$ne": False}}
-    # privacy.profile_visible must be truthy — treat missing as True by default
-    f["$or"] = [{"privacy.profile_visible": {"$ne": False}}, {"privacy": {"$exists": False}}]
-    # Only cars the owner made public, never sold/archived ones.
-    f["$and"] = [{"$or": [{"visibility": "public"}, {"public": True, "visibility": {"$exists": False}}]}, {"status": {"$nin": ["sold", "archived"]}}]
+    f: dict = public_vehicle_q()
     if make:
         f["make"] = {"$regex": f"^{re.escape(make)}$", "$options": "i"}
     if model:
@@ -439,15 +438,7 @@ async def list_open_to_offers(limit: int = 60):
     - status == "active" (skip sold / archived)
     """
     db = get_db()
-    f = {
-        "open_to_offers": True,
-        "status": {"$ne": "archived"},
-        "searchable": {"$ne": False},
-        "$or": [
-            {"privacy.profile_visible": {"$ne": False}},
-            {"privacy": {"$exists": False}},
-        ],
-    }
+    f = public_vehicle_q(open_to_offers=True)
     cursor = db.vehicles.find(
         f,
         {"_id": 0, "id": 1, "slug": 1, "make": 1, "model": 1, "year": 1,
@@ -504,9 +495,9 @@ async def toggle_open_to_offers(
 @router.post("")
 async def create_vehicle(payload: VehicleIn, user=Depends(get_current_user)):
     db = get_db()
-    settings = await db.app_settings.find_one({"key": "max_vehicles_per_user"})
-    max_v = int(settings["value"]) if settings else 0
-    if max_v > 0:
+    from plan_limits import plan_limit, is_admin_user, limit_error
+    max_v = await plan_limit(db, "max_vehicles_per_user")
+    if max_v > 0 and not is_admin_user(user):
         # Count only ACTIVE (non-archived/non-sold) vehicles against the plan limit.
         # Sold/archived vehicles must not consume a slot — they're history.
         count = await db.vehicles.count_documents({
@@ -514,10 +505,11 @@ async def create_vehicle(payload: VehicleIn, user=Depends(get_current_user)):
             "status": {"$nin": ["archived", "sold"]},
         })
         if count >= max_v:
-            raise HTTPException(status_code=400, detail=f"Max vehicles per user reached ({max_v})")
+            limit_error("vehicle_limit_reached", max_v, count)
 
-    photo_settings = await db.app_settings.find_one({"key": "max_photos_per_vehicle"})
-    max_p = int(photo_settings["value"]) if photo_settings else 20
+    max_p = await plan_limit(db, "max_photos_per_vehicle")
+    if is_admin_user(user) or max_p <= 0:
+        max_p = 1000
     photos = _guard_inline_photos((payload.photos or [])[:max_p])
     from image_safety import sanitize_data_url
     photos = [sanitize_data_url(p) if isinstance(p, str) and p.startswith("data:") else p for p in (photos or [])]
@@ -525,13 +517,14 @@ async def create_vehicle(payload: VehicleIn, user=Depends(get_current_user)):
     v_id = str(uuid.uuid4())
     doc = payload.model_dump()
     doc["photos"] = photos
+    vis = doc.get("visibility") if doc.get("visibility") in ("public", "private") else ("public" if doc.get("public") else "private")
+    doc.update({"visibility": vis, "public": vis == "public", "searchable": vis == "public"})
     # generate unique slug
     base_slug = _slugify(f"{doc.get('make','')}-{doc.get('model','')}-{doc.get('year') or ''}")
     doc["slug"] = await _unique_slug(db, base_slug)
     doc.update({
         "id": v_id,
         "user_id": user["id"],
-        "public": bool(doc.get("public") or False),
         "public_show_service": bool(doc.get("public_show_service") or False),
         "is_demo": bool(user.get("is_demo")),
         "created_at": datetime.now(timezone.utc).isoformat(),
@@ -734,6 +727,15 @@ async def update_vehicle(vehicle_id: str, payload: VehicleUpdateIn, user=Depends
         raise HTTPException(status_code=404, detail="Vehicle not found")
 
     update = payload.model_dump(exclude_unset=True)
+    if "visibility" in update:
+        if update["visibility"] not in ("public", "private"):
+            raise HTTPException(status_code=400, detail="visibility must be 'public' or 'private'")
+        update["public"] = update["searchable"] = update["visibility"] == "public"
+    elif "public" in update:
+        update["visibility"] = "public" if update["public"] else "private"
+        update["searchable"] = bool(update["public"])
+    if update.get("status") not in (None, "active", "sold", "archived", "for_sale"):
+        raise HTTPException(status_code=400, detail="Invalid status")
     # Iter 42: guard against document-too-large writes from base64 photo array
     if "photos" in update:
         update["photos"] = _guard_inline_photos(update["photos"])
@@ -896,24 +898,22 @@ async def get_pl(vehicle_id: str, user=Depends(get_current_user)):
 async def get_public_vehicle(slug: str, user=Depends(get_optional_user)):
     """Public read-only profile of a vehicle. Owner sees regardless of `public`. Others only when public=True."""
     db = get_db()
-    v = await db.vehicles.find_one({"slug": slug}, {"_id": 0})
+    v = await db.vehicles.find_one({"slug": slug}, {"_id": 0}) or await db.vehicles.find_one({"id": slug}, {"_id": 0})
     if not v:
         raise HTTPException(status_code=404, detail="Vehicle not found")
     is_owner = bool(user and user.get("id") == v.get("user_id"))
-    if not is_owner and not v.get("public"):
-        raise HTTPException(status_code=404, detail="Vehicle not found")
-
-    # Vehicle-level privacy controls (independent of `public` flag).
-    # Defaults to all-visible when privacy dict is missing.
+    if not is_owner and not is_vehicle_public(v):
+        # Exists but private / sold → distinct message on the page ("Auto jest prywatne").
+        raise HTTPException(status_code=403, detail="vehicle_private")
     privacy = v.get("privacy") or {}
-    if not is_owner and privacy.get("profile_visible") is False:
-        raise HTTPException(status_code=404, detail="Vehicle not found")
 
     photos = v.get("photos") or []
     idx = v.get("cover_photo_index") or 0
     cover = _photo_full(photos[idx]) if (0 <= idx < len(photos)) else (_photo_full(photos[0]) if photos else None)
 
-    owner = await db.profiles.find_one({"id": v.get("user_id")}, {"_id": 0, "id": 1, "name": 1, "avatar": 1, "location": 1, "created_at": 1}) or {}
+    owner_doc = await db.profiles.find_one({"id": v.get("user_id")}, {"_id": 0, "id": 1, "slug": 1, "name": 1, "avatar": 1, "created_at": 1, "privacy_settings": 1}) or {}
+    owner = {k: owner_doc.get(k) for k in ("id", "name", "avatar", "created_at")}
+    owner["profile_slug"] = (owner_doc.get("slug") or owner_doc.get("id")) if owner_doc and is_profile_public(owner_doc) else None
     # Active listing for this vehicle (if any)
     listing = await db.listings.find_one(
         {"vehicle_id": v.get("id"), "status": "active"},
@@ -934,7 +934,8 @@ async def get_public_vehicle(slug: str, user=Depends(get_optional_user)):
         "cover_photo": cover,
         "status": v.get("status"),
         "is_owner": is_owner,
-        "public": bool(v.get("public")),
+        "public": is_vehicle_public(v),
+        "visibility": vehicle_visibility(v),
         "public_show_service": bool(v.get("public_show_service")),
         "is_project": bool(v.get("is_project")),
         "privacy": privacy if is_owner else None,
@@ -943,8 +944,8 @@ async def get_public_vehicle(slug: str, user=Depends(get_optional_user)):
         "view_count": int(v.get("view_count") or 0),
         "share_count": int(v.get("share_count") or 0),
     }
-    show_service = is_owner or (v.get("public_show_service") and privacy.get("show_service", True))
-    show_costs = is_owner or privacy.get("show_costs", False)
+    show_service = is_owner or privacy.get("show_service", True) is not False
+    show_costs = is_owner
     if show_service:
         services = await db.service_entries.find({"vehicle_id": v["id"]}, {"_id": 0}).sort("date", -1).to_list(500)
         if not show_costs:
@@ -1042,9 +1043,9 @@ async def track_public_view(slug: str, payload: VehicleViewIn):
     db = get_db()
     v = await db.vehicles.find_one(
         {"slug": slug},
-        {"_id": 0, "id": 1, "public": 1, "view_count": 1, "share_count": 1, "privacy": 1},
+        {"_id": 0, "id": 1, "public": 1, "visibility": 1, "status": 1, "view_count": 1, "share_count": 1, "privacy": 1},
     )
-    if not v or not v.get("public"):
+    if not v or not is_vehicle_public(v):
         raise HTTPException(status_code=404, detail="Vehicle not found")
     privacy = v.get("privacy") or {}
     if privacy.get("profile_visible") is False:
@@ -1084,9 +1085,9 @@ async def track_public_share(slug: str):
     """Increment share_count for a public vehicle. Anonymous-safe, no dedupe."""
     db = get_db()
     v = await db.vehicles.find_one(
-        {"slug": slug}, {"_id": 0, "id": 1, "public": 1, "privacy": 1}
+        {"slug": slug}, {"_id": 0, "id": 1, "public": 1, "visibility": 1, "status": 1, "privacy": 1}
     )
-    if not v or not v.get("public"):
+    if not v or not is_vehicle_public(v):
         raise HTTPException(status_code=404, detail="Vehicle not found")
     privacy = v.get("privacy") or {}
     if privacy.get("profile_visible") is False:
@@ -1178,26 +1179,11 @@ async def upload_photos(
     # paywall fires even when R2 isn't configured yet (preview) and so we
     # don't waste the round-trip on requests that would fail the cap anyway.
     existing = v.get("photos") or []
-    PHOTO_LIMIT_PER_VEHICLE = int(os.environ.get("PHOTO_LIMIT_PER_VEHICLE", "5"))
-    if len(existing) >= PHOTO_LIMIT_PER_VEHICLE:
-        raise HTTPException(status_code=402, detail={
-            "code": "photo_limit_reached",
-            "current": len(existing),
-            "limit": PHOTO_LIMIT_PER_VEHICLE,
-            "message": "Osiągnąłeś limit zdjęć",
-        })
-    if len(existing) + len(files) > PHOTO_LIMIT_PER_VEHICLE:
-        allowed = max(0, PHOTO_LIMIT_PER_VEHICLE - len(existing))
-        raise HTTPException(status_code=402, detail={
-            "code": "photo_limit_reached",
-            "current": len(existing),
-            "limit": PHOTO_LIMIT_PER_VEHICLE,
-            "would_upload": len(files),
-            "allowed": allowed,
-            "message": f"Możesz dodać jeszcze {allowed} zdjęć",
-        })
-    if len(existing) + len(files) > r2_storage.MAX_PHOTOS_PER_VEHICLE:
-        raise HTTPException(status_code=400, detail=f"Max {r2_storage.MAX_PHOTOS_PER_VEHICLE} photos per vehicle")
+    from plan_limits import plan_limit, is_admin_user, limit_error
+    limit = await plan_limit(db, "max_photos_per_vehicle")
+    if not is_admin_user(user) and limit > 0:
+        if len(existing) + len(files) > limit:
+            limit_error("photo_limit_reached", limit, len(existing), allowed=max(0, limit - len(existing)), would_upload=len(files))
 
     storage = await r2_storage.get_storage()
     if not storage:
@@ -1325,3 +1311,32 @@ async def vehicle_cover_stream(vehicle_id: str):
     if not data:
         raise HTTPException(status_code=404, detail="No cover")
     return _base64_to_response(data)
+
+
+@router.get("/{vehicle_id}/listing-draft")
+async def listing_draft(vehicle_id: str, lang: str = "pl", user=Depends(get_current_user)):
+    """Paczka 7: auto title/description for 'Wystaw na sprzedaż' (no VIN, plate, owner data or costs)."""
+    db = get_db()
+    v = await db.vehicles.find_one({"id": vehicle_id, "user_id": user["id"]}, {"_id": 0})
+    if not v:
+        raise HTTPException(status_code=404, detail="Vehicle not found")
+    en = lang == "en"
+    mm = f"{v.get('make') or ''} {v.get('model') or ''}".strip()
+    engine = " ".join(str(x) for x in [v.get("engine"), f"{v['power_hp']} KM" if v.get("power_hp") and not en else (f"{v['power_hp']} hp" if v.get("power_hp") else None)] if x)
+    km = f"{int(v['mileage_current']):,}".replace(",", " ") + " km" if v.get("mileage_current") else None
+    line1 = ", ".join(str(x) for x in [mm, v.get("year"), engine or None, v.get("fuel"), v.get("transmission") or v.get("gearbox"), v.get("body_type"), km] if x)
+    entries = await db.service_entries.find({"vehicle_id": vehicle_id}, {"_id": 0, "date": 1, "mileage": 1, "type": 1, "service_type": 1, "title": 1}).sort("date", -1).to_list(500)
+    lines = [line1]
+    if entries:
+        last = entries[0]
+        what = last.get("title") or last.get("service_type") or last.get("type") or ""
+        bits = ", ".join(x for x in [str(last.get("date") or "")[:10], f"{last['mileage']} km" if last.get("mileage") else "", what] if x)
+        lines.append((f"Service history on Sharago: {len(entries)} entries, last service: {bits}." if en
+                      else f"Historia serwisowa w Sharago: {len(entries)} wpisów, ostatni serwis: {bits}."))
+    if is_vehicle_public(v) and v.get("slug"):
+        site = "https://sharago.com" if en else _app_url()
+        lines.append(("Full history: " if en else "Pełna historia: ") + f"{site}/vehicles/{v['slug']}")
+    lines.append("")
+    hint = "Add 2–3 sentences: condition, damage, reason for selling" if en else "Dopisz 2–3 zdania: stan, uszkodzenia, powód sprzedaży"
+    title = " ".join(str(x) for x in [mm, v.get("year"), v.get("engine")] if x)
+    return {"title": title, "description": "\n".join(lines), "hint": hint}

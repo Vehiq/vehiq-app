@@ -21,7 +21,8 @@ from pydantic import BaseModel, EmailStr, Field, field_validator
 from auth_utils import get_current_user, get_optional_user
 from db_helper import get_db
 from sanitizer import sanitize_plain
-from email_service import fire_and_forget, send_email, _wrap_html, _H2, _P, _btn, APP_URL
+from email_service import fire_and_forget, send_email, send_template, _wrap_html, _H2, _P, _btn, APP_URL
+from email_render import render as _render
 
 router = APIRouter()
 
@@ -121,12 +122,11 @@ async def register_business(payload: BusinessRegisterIn, user=Depends(get_option
         )
 
     # Welcome email
-    subj = f"Witaj w Sharago — {doc['name']}"
-    body = f"""<h2 style="{_H2}">Dziękujemy za rejestrację!</h2>
-<p style="{_P}">Twój warsztat / firma <strong style="color:#ffffff;">{doc['name']}</strong> został zarejestrowany bezpłatnie.</p>
-<p style="{_P}">Aby aktywować konto, wystarczy zeskanować pierwszy kod QR z auta klienta lub dodać pierwsze ogłoszenie usług — zrobimy to automatycznie.</p>
-{_btn("Przejdź do panelu →", f"{APP_URL}/business/{doc['slug']}")}"""
-    html = _wrap_html(subj, body, lang="pl")
+    subj, html, _ = _render("generic", "pl", subject=f"Witaj w Sharago — {doc['name']}", preheader="Rejestracja warsztatu zakończona.",
+                            title="Dziękujemy za rejestrację!",
+                            paragraphs=[f"Twój warsztat / firma {doc['name']} został zarejestrowany bezpłatnie.",
+                                        "Aby aktywować konto, wystarczy zeskanować pierwszy kod QR z auta klienta lub dodać pierwsze ogłoszenie usług — zrobimy to automatycznie."],
+                            button_url=f"{APP_URL}/business/{doc['slug']}", button_label="Przejdź do panelu")
     fire_and_forget(send_email(doc["email"], subj, html))
 
     return {"id": doc["id"], "slug": doc["slug"], "activated": False}
@@ -291,11 +291,9 @@ async def activate_business(business_id: str, trigger: str = "qr_scan", user=Dep
             "updated_at": datetime.now(timezone.utc).isoformat(),
         }},
     )
-    subj = f"Twój warsztat {doc['name']} jest aktywny!"
-    body = f"""<h2 style="{_H2}">Konto aktywne</h2>
-<p style="{_P}">Twój warsztat pojawia się teraz w wynikach wyszukiwania Sharago.</p>
-{_btn("Otwórz panel →", f"{APP_URL}/business")}"""
-    html = _wrap_html(subj, body, lang="pl")
+    subj, html, _ = _render("generic", "pl", subject=f"Twój warsztat {doc['name']} jest aktywny!", preheader="Konto aktywne.",
+                            title="Konto aktywne", paragraphs=["Twój warsztat pojawia się teraz w wynikach wyszukiwania Sharago."],
+                            button_url=f"{APP_URL}/business", button_label="Otwórz panel")
     fire_and_forget(send_email(doc["email"], subj, html))
     return {"ok": True, "already_activated": False}
 
@@ -378,11 +376,10 @@ async def activate_business_on_scan(db, business: dict) -> dict:
     business["activated_at"] = now
     # Fire welcome-active email
     try:
-        subj = f"Twój warsztat {business.get('name','')} jest aktywny!"
-        body = f"""<h2 style="{_H2}">Konto aktywne</h2>
-<p style="{_P}">Twój warsztat pojawia się teraz w wynikach wyszukiwania Sharago i możesz obsługiwać pojazdy klientów.</p>
-{_btn("Otwórz panel →", f"{APP_URL}/business/dashboard")}"""
-        html = _wrap_html(subj, body, lang="pl")
+        subj, html, _ = _render("generic", "pl", subject=f"Twój warsztat {business.get('name','')} jest aktywny!", preheader="Konto aktywne.",
+                                title="Konto aktywne",
+                                paragraphs=["Twój warsztat pojawia się teraz w wynikach wyszukiwania Sharago i możesz obsługiwać pojazdy klientów."],
+                                button_url=f"{APP_URL}/business/dashboard", button_label="Otwórz panel")
         if business.get("email"):
             fire_and_forget(send_email(business["email"], subj, html))
     except Exception:
@@ -423,26 +420,18 @@ async def request_vehicle_access(db, business: dict, vehicle: dict) -> dict:
     try:
         owner = await db.profiles.find_one(
             {"id": vehicle.get("user_id")},
-            {"_id": 0, "email": 1, "name": 1, "language": 1},
+            {"_id": 0, "id": 1, "email": 1, "name": 1, "language": 1},
         )
         if owner and owner.get("email"):
             car = f"{vehicle.get('make','')} {vehicle.get('model','')}"
-            if owner.get("language") == "en":
-                subj = f"Service history access request — {business.get('name','workshop')}"
-                body = f"""<h2 style="{_H2}">A workshop is asking for access</h2>
-<p style="{_P}">The workshop <strong style="color:#fff">{business.get('name','')}</strong> scanned the QR code in your {car}.</p>
-<p style="{_P}">If you want them to add service records, approve access in the vehicle profile.</p>
-{_btn("Approve in Sharago →", f"{APP_URL}/garage/{vehicle['id']}")}"""
-                lang = "en"
-            else:
-                subj = f"Prośba o dostęp do historii serwisowej — {business.get('name','warsztat')}"
-                body = f"""<h2 style="{_H2}">Warsztat prosi o dostęp</h2>
-<p style="{_P}">Warsztat <strong style="color:#fff">{business.get('name','')}</strong> zeskanował Twój kod QR w pojeździe {car}.</p>
-<p style="{_P}">Jeśli chcesz, aby mógł dodawać wpisy serwisowe, zatwierdź dostęp w profilu pojazdu.</p>
-{_btn("Zatwierdź w Sharago →", f"{APP_URL}/garage/{vehicle['id']}")}"""
-                lang = "pl"
-            html = _wrap_html(subj, body, lang=lang)
-            fire_and_forget(send_email(owner["email"], subj, html))
+            from email_render import app_url as _au, lang_of
+            from reminder_job import unsubscribe_url
+            _l = lang_of(owner)
+            fire_and_forget(send_template(owner["email"], "workshop_access_request", _l, user_name=owner.get("name") or "",
+                                          subject_fmt={"workshop_name": business.get("name", ""), "vehicle_name": car},
+                                          workshop_name=business.get("name", ""), vehicle_name=car,
+                                          request_url=f"{_au(_l)}/garage/{vehicle['id']}",
+                                          unsubscribe_url=unsubscribe_url(owner["id"], "unsub_messages")))
     except Exception:
         pass
     return doc

@@ -221,7 +221,7 @@ function AddEntryModal({ access, onClose, onDone }) {
 
         <div>
           <label className="vehiq-overline mb-1 block">Koszt (PLN)</label>
-          <input type="number" min="0" step="0.01" value={form.cost} onChange={(e) => setForm({ ...form, cost: e.target.value })} className="vehiq-input" data-testid="business-entry-cost" />
+          <input type="number" inputMode="decimal" min="0" step="0.01" value={form.cost} onChange={(e) => setForm({ ...form, cost: e.target.value })} className="vehiq-input" data-testid="business-entry-cost" />
         </div>
 
         <div>

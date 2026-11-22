@@ -66,9 +66,9 @@ function AddFuelForm({ vehicleId, lastLog, lang, onDone, onCancel }) {
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <input type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} className="vehiq-input text-sm" data-testid="fuel-date" required />
-        <input type="number" min={0} placeholder={lang === "pl" ? "Przebieg (km)" : "Mileage (km)"} value={form.mileage} onChange={(e) => setForm({ ...form, mileage: e.target.value })} className="vehiq-input text-sm" data-testid="fuel-mileage" />
-        <input type="number" step="0.01" min={0} placeholder={lang === "pl" ? "Litry" : "Liters"} value={form.liters} onChange={(e) => setForm({ ...form, liters: e.target.value })} className="vehiq-input text-sm" data-testid="fuel-liters" required />
-        <input type="number" step="0.01" min={0} placeholder={lang === "pl" ? "Cena za litr (PLN)" : "Price/L (PLN)"} value={form.price_per_liter} onChange={(e) => setForm({ ...form, price_per_liter: e.target.value })} className="vehiq-input text-sm" data-testid="fuel-price" required />
+        <input type="number" inputMode="numeric" min={0} placeholder={lang === "pl" ? "Przebieg (km)" : "Mileage (km)"} value={form.mileage} onChange={(e) => setForm({ ...form, mileage: e.target.value })} className="vehiq-input text-sm" data-testid="fuel-mileage" />
+        <input type="number" inputMode="decimal" step="0.01" min={0} placeholder={lang === "pl" ? "Litry" : "Liters"} value={form.liters} onChange={(e) => setForm({ ...form, liters: e.target.value })} className="vehiq-input text-sm" data-testid="fuel-liters" required />
+        <input type="number" inputMode="decimal" step="0.01" min={0} placeholder={lang === "pl" ? "Cena za litr (PLN)" : "Price/L (PLN)"} value={form.price_per_liter} onChange={(e) => setForm({ ...form, price_per_liter: e.target.value })} className="vehiq-input text-sm" data-testid="fuel-price" required />
       </div>
       <div className="flex items-center justify-between">
         <label className="inline-flex items-center gap-2 text-xs text-vehiq-muted cursor-pointer">

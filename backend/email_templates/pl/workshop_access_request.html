@@ -1,0 +1,9 @@
+{% extends "base.html" %}{% import "_macros.html" as m %}
+{% block content %}
+{{ m.h1("Warsztat prosi o dostęp do historii auta") }}
+<p style="margin:0 0 14px 0;">Cześć{% if user_name %} {{ user_name }}{% endif %},</p>
+<p style="margin:0 0 14px 0;">warsztat <strong>{{ workshop_name }}</strong> prosi o dostęp do historii serwisowej auta <strong>{{ vehicle_name }}</strong>, żeby dodać wpis z wykonanej usługi.</p>
+<p style="margin:0 0 4px 0;">Ty decydujesz: zaakceptuj albo odrzuć prośbę w Sharago. Dostęp możesz cofnąć w każdej chwili.</p>
+{{ m.button(request_url, "Zobacz prośbę") }}
+{{ m.note("Nie znasz tego warsztatu? Odrzuć prośbę – nic się nie stanie.") }}
+{% endblock %}
