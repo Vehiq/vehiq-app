@@ -1,3 +1,4 @@
+import PublicStatus, { errorKind, PUBLIC_TIMEOUT } from "@/components/PublicStatus";
 import { useEffect, useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
@@ -19,11 +20,12 @@ export default function VehicleShort() {
   const { shortId } = useParams();
   const navigate = useNavigate();
   const [error, setError] = useState(null);
+  const [retry, setRetry] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
     api
-      .get(`/vehicles/short/${shortId}`)
+      .get(`/vehicles/short/${shortId}`, { timeout: PUBLIC_TIMEOUT })
       .then((r) => {
         if (cancelled) return;
         const slug = r.data?.slug;
@@ -35,10 +37,12 @@ export default function VehicleShort() {
       })
       .catch((err) => {
         if (cancelled) return;
-        setError(err?.response?.status === 404 ? "not-found" : "error");
+        setError(errorKind(err));
       });
     return () => { cancelled = true; };
-  }, [shortId, navigate]);
+  }, [shortId, navigate, retry]);
+
+  if (error) return <PublicStatus kind={error} onRetry={() => { setError(null); setRetry((n) => n + 1); }} />;
 
   if (error === "not-found") {
     return (

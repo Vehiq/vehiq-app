@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { Plus, Car, Wrench, Store, MessagesSquare, X } from "lucide-react";
+import { Plus, Car, Wrench, Store, MessagesSquare, Bot } from "lucide-react";
 
 /**
  * Floating Action Button — quick add menu for vehicles, service entries,
@@ -35,6 +35,10 @@ export default function FAB() {
     { Icon: Wrench, label: t("fab.addService"), onClick: () => navigate("/garage"), testid: "fab-add-service" },
     { Icon: Store, label: t("fab.addListing"), onClick: () => navigate("/marketplace/new"), testid: "fab-add-listing" },
     { Icon: MessagesSquare, label: t("fab.newThread"), onClick: () => navigate("/forum/new"), testid: "fab-new-thread" },
+    { Icon: Bot, label: t("fab.askAi"), onClick: () => {
+      const m = location.pathname.match(/^\/garage\/([^/]+)$/);
+      navigate(m && m[1] !== "new" ? `/garage/${m[1]}?tab=ai` : "/garage?ai=1");
+    }, testid: "fab-ask-ai" },
   ];
 
   return (

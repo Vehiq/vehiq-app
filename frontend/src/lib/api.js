@@ -47,6 +47,9 @@ api.interceptors.response.use(
   (r) => r,
   async (err) => {
     const status = err?.response?.status;
+    if (status === 403 && err?.response?.data?.detail?.code === "email_not_verified") {
+      window.dispatchEvent(new CustomEvent("sharago:verify-needed"));
+    }
     if (status !== 401) return Promise.reject(err);
     if (window.location.pathname.startsWith("/gv91-admin")) {
       return Promise.reject(err); // admin flow handles its own auth

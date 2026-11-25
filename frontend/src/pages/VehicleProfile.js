@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
+import { trackEvent } from "@/hooks/usePageTracking";
 import api from "@/lib/api";
 import { toast } from "sonner";
 import { ArrowLeft, Trash2, Edit2, Share2, Eye, EyeOff, Check, Copy, Tag, CheckCircle2, QrCode, HandCoins, Repeat } from "lucide-react";
@@ -28,7 +29,9 @@ export default function VehicleProfile() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [vehicle, setVehicle] = useState(null);
-  const [tab, setTab] = useState("overview");
+  const [searchParams] = useSearchParams();
+  const [tab, setTab] = useState(searchParams.get("tab") || "overview");
+  useEffect(() => { const q = searchParams.get("tab"); if (q) setTab(q); }, [searchParams]);
   const [editing, setEditing] = useState(false);
   const [showSell, setShowSell] = useState(false);
   const [showMarkSold, setShowMarkSold] = useState(false);
@@ -36,6 +39,13 @@ export default function VehicleProfile() {
   const [soldResult, setSoldResult] = useState(null);
   const [showPrintQr, setShowPrintQr] = useState(false);
   const tabsRef = useRef(null);
+  const barTop = useRef(null);
+  useLayoutEffect(() => {
+    if (barTop.current == null || !tabsRef.current) return;
+    const diff = tabsRef.current.getBoundingClientRect().top - barTop.current;
+    if (Math.abs(diff) > 1) window.scrollBy(0, diff);
+    barTop.current = null;
+  }, [tab]);
 
   const reload = () => api.get(`/vehicles/${id}`).then(r => setVehicle(r.data));
 
@@ -140,18 +150,17 @@ export default function VehicleProfile() {
       {/* Bug 25 (Iter 52a): Overview tab now hosts the vehicle actions
           block. VehicleProfile is owner-only (route requires auth); guests
           land on PublicVehicle. So we always show the full tab set here. */}
-      <div ref={tabsRef} className="border-b border-vehiq-border flex gap-1 overflow-x-auto">
+      <div ref={tabsRef} className="vehiq-tabbar border-b border-vehiq-border flex gap-1" role="tablist" data-testid="vehicle-tabbar">
         {TABS.map(({ id: tid, key }) => (
           <button
             key={tid}
-            onClick={() => {
+            onClick={(e) => {
+              // Paczka 8: keep the tab bar at the same screen position (no vertical jump).
+              barTop.current = tabsRef.current?.getBoundingClientRect().top ?? null;
+              const btn = e.currentTarget;
+              const bar = tabsRef.current;
+              if (bar) bar.scrollTo({ left: btn.offsetLeft - (bar.clientWidth - btn.offsetWidth) / 2, behavior: "smooth" });
               setTab(tid);
-              // Change 16 (Iter 52a): after switching tabs, scroll the tab
-              // bar into view so users don't land halfway down a long tab
-              // (especially AI Mechanik which auto-scrolls to bottom of chat).
-              requestAnimationFrame(() => {
-                tabsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-              });
             }}
             data-testid={`tab-${tid}`}
             className={`px-4 py-3 text-sm font-medium uppercase tracking-wider transition-colors border-b-2 -mb-px whitespace-nowrap ${
@@ -163,7 +172,7 @@ export default function VehicleProfile() {
         ))}
       </div>
 
-      <div>
+      <div style={{ minHeight: "100vh" }}>
         {tab === "overview" && (
           <OverviewTab
             vehicle={vehicle}
@@ -270,7 +279,7 @@ function ShareMenu({ vehicle, reload }) {
 
   const copy = async () => {
     if (!publicUrl) return;
-    try { await navigator.clipboard.writeText(publicUrl); setCopied(true); setTimeout(() => setCopied(false), 1500); toast.success(t("share.copied")); } catch {}
+    try { await navigator.clipboard.writeText(publicUrl); setCopied(true); setTimeout(() => setCopied(false), 1500); toast.success(t("share.copied")); trackEvent("public_link_shared", { action: "copied" }); } catch {}
   };
 
   const sellThisCar = () => {

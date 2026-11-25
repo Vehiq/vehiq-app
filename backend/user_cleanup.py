@@ -67,3 +67,12 @@ async def cascade_delete_users(db, user_ids: list[str]) -> dict:
     res = await db.profiles.delete_many({"id": {"$in": user_ids}})
     counts["profiles"] = res.deleted_count or 0
     return counts
+
+
+async def full_delete_user(db, user_id: str) -> dict:
+    """Same procedure as GDPR account deletion (R2 photos + personal data), then hard-delete the rest."""
+    from datetime import datetime, timezone
+    from routers.gdpr import erase_user_data
+    counts = await erase_user_data(db, user_id, datetime.now(timezone.utc).isoformat())
+    counts.update(await cascade_delete_user(db, user_id))
+    return counts

@@ -69,6 +69,7 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const login = async (email, password) => {
+    localStorage.removeItem("sharago_verify_banner_dismissed");
     const { data } = await api.post("/auth/login", { email, password });
     localStorage.setItem("sharago_token", data.token);
     setUser(data.user);
@@ -91,6 +92,7 @@ export const AuthProvider = ({ children }) => {
     localStorage.setItem("sharago_token", data.token);
     setUser(data.user);
     trackEvent("login", { method: "google" });
+    if (data?.user?.created_at && Date.now() - new Date(data.user.created_at).getTime() < 5 * 60 * 1000) trackEvent("sign_up", { method: "google" });
     return data.user;
   };
 
@@ -103,6 +105,7 @@ export const AuthProvider = ({ children }) => {
     const { data } = await api.get("/auth/me");
     setUser(data);
     trackEvent("login", { method: "google" });
+    if (data?.created_at && Date.now() - new Date(data.created_at).getTime() < 5 * 60 * 1000) trackEvent("sign_up", { method: "google" });
     return data;
   };
 

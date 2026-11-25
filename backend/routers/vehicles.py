@@ -492,6 +492,16 @@ async def toggle_open_to_offers(
 
 
 
+@router.get("/limits")
+async def my_limits(user=Depends(get_current_user)):
+    from plan_limits import plan_limit, is_admin_user
+    db = get_db()
+    active = await db.vehicles.count_documents({"user_id": user["id"], "status": {"$nin": ["sold", "archived"]}})
+    return {"unlimited": is_admin_user(user), "active_vehicles": active,
+            "max_vehicles": await plan_limit(db, "max_vehicles_per_user"),
+            "max_photos": await plan_limit(db, "max_photos_per_vehicle")}
+
+
 @router.post("")
 async def create_vehicle(payload: VehicleIn, user=Depends(get_current_user)):
     db = get_db()
@@ -1343,9 +1353,6 @@ async def listing_draft(vehicle_id: str, lang: str = "pl", user=Depends(get_curr
         pl_word = "wpis" if n == 1 else "wpisy" if n % 10 in (2, 3, 4) and n % 100 not in (12, 13, 14) else "wpisów"
         lines.append((f"Service history on Sharago: {n} {'entry' if n == 1 else 'entries'}, last service: {bits}." if en
                       else f"Historia serwisowa w Sharago: {n} {pl_word}, ostatni serwis: {bits}."))
-    if is_vehicle_public(v) and v.get("slug"):
-        site = "https://sharago.com" if en else "https://sharago.pl"
-        lines.append(("Full history: " if en else "Pełna historia: ") + f"{site}/vehicles/{v['slug']}")
     lines.append("")
     hint = "Add 2–3 sentences: condition, damage, reason for selling" if en else "Dopisz 2–3 zdania: stan, uszkodzenia, powód sprzedaży"
     title = " ".join(str(x) for x in [mm, v.get("year"), v.get("engine")] if x)

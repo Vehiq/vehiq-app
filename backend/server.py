@@ -465,6 +465,12 @@ async def on_startup():
     else:
         logger.warning("Skipping seed_database — db is None.")
     # Activation/retention e-mails (D+1, D+7, monthly) are OFF unless RETENTION_EMAILS_ENABLED=1.
+    if db is not None:
+        try:
+            from routers.demo import demo_cleanup_loop
+            asyncio.create_task(demo_cleanup_loop())
+        except Exception as e:
+            logger.warning(f"demo cleanup loop failed to start: {e}")
     # Activation / retention e-mails ("Co słychać u Twojego auta?", D+1/D+7, monthly) are permanently off.
     # Reminder e-mails: in-process daily run (Mongo lock prevents double sends across instances).
     if db is None:

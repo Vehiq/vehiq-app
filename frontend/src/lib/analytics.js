@@ -16,14 +16,8 @@
 const COOKIE_KEY = "sharago_cookie_consent";
 
 function getMeasurementId() {
-  try {
-    const fromEnv = (typeof process !== "undefined" && process.env && process.env.REACT_APP_GA4_MEASUREMENT_ID) || null;
-    if (fromEnv) return fromEnv;
-    if (typeof import.meta !== "undefined" && import.meta.env && import.meta.env.REACT_APP_GA4_MEASUREMENT_ID) {
-      return import.meta.env.REACT_APP_GA4_MEASUREMENT_ID;
-    }
-  } catch { /* noop */ }
-  return null;
+  // Replaced at build time by vite.config.js `define` (REACT_APP_GA4_MEASUREMENT_ID).
+  return process.env.REACT_APP_GA4_MEASUREMENT_ID || null;
 }
 
 function readConsent() {
@@ -78,7 +72,7 @@ export function denyAnalyticsConsent() {
 export function initAnalytics() {
   if (typeof window === "undefined") return;
   const gaId = getMeasurementId();
-  if (!gaId) return;
+  if (!gaId) { console.warn("GA4: brak identyfikatora"); return; }
   if (window.__sharago_ga_initialised) return;
   window.__sharago_ga_initialised = true;
 

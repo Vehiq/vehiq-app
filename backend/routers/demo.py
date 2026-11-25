@@ -176,17 +176,39 @@ async def _cleanup_expired_demos(db) -> int:
     list stays in sync with admin user deletes. Returns the number of profiles
     deleted.
     """
-    from user_cleanup import cascade_delete_users
-    cutoff_iso = (datetime.now(timezone.utc) - timedelta(hours=DEMO_TTL_HOURS)).isoformat()
-    expired = await db.profiles.find(
-        {"is_demo": True, "created_at": {"$lt": cutoff_iso}},
-        {"_id": 0, "id": 1},
-    ).to_list(500)
-    if not expired:
-        return 0
-    user_ids = [u["id"] for u in expired]
-    counts = await cascade_delete_users(db, user_ids)
-    return counts.get("profiles", 0)
+    from user_cleanup import full_delete_user
+    doc = await db.app_settings.find_one({"key": "demo_ttl_days"})
+    try:
+        days = max(1, int(doc["value"])) if doc else 7
+    except (TypeError, ValueError):
+        days = 7
+    cutoff_iso = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
+    expired = await db.profiles.find({"is_demo": True, "created_at": {"$lt": cutoff_iso}}, {"_id": 0, "id": 1}).to_list(500)
+    n = 0
+    for u in expired:
+        n += (await full_delete_user(db, u["id"])).get("profiles", 0)
+    return n
+
+
+async def demo_cleanup_loop():
+    """Daily: delete demo accounts older than `demo_ttl_days` (admin setting, default 7)."""
+    import asyncio
+    import logging
+    from db_helper import get_db
+    log = logging.getLogger("demo_cleanup")
+    while True:
+        try:
+            db = get_db()
+            day = datetime.now(timezone.utc).date().isoformat()
+            try:
+                await db.job_locks.insert_one({"_id": f"demo_cleanup:{day}", "at": datetime.now(timezone.utc).isoformat()})
+                log.info("demo cleanup: deleted %s demo account(s)", await _cleanup_expired_demos(db))
+            except Exception as e:
+                if "duplicate key" not in str(e).lower():
+                    log.warning("demo cleanup failed: %s", e)
+        except Exception as e:
+            log.warning("demo cleanup loop error: %s", e)
+        await asyncio.sleep(3600)
 
 
 async def _rate_limit_check(db) -> None:

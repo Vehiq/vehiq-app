@@ -57,12 +57,13 @@ export default function PublicProfile() {
   const [data, setData] = useState(null);
   const [state, setState] = useState("loading");
   const [previewMode, setPreviewMode] = useState(false);
+  const [retry, setRetry] = useState(0);
 
   useEffect(() => {
     setState("loading");
-    api.get(`/users/${slug}`, { params: previewMode ? { as_public: 1 } : {} }).then((r) => { setData(r.data); setState("ok"); })
+    api.get(`/users/${slug}`, { params: previewMode ? { as_public: 1 } : {}, timeout: 15000 }).then((r) => { setData(r.data); setState("ok"); })
       .catch((e) => setState(e?.response?.status === 403 ? "private" : e?.response?.status === 404 ? "404" : "error"));
-  }, [slug, previewMode]);
+  }, [slug, previewMode, retry]);
 
   if (state === "404") return <NotFound />;
   if (state === "loading") return (<><PublicHeader /><div className="animate-pulse text-center text-vehiq-muted py-16">…</div></>);
@@ -71,6 +72,8 @@ export default function PublicProfile() {
       <div className="text-center py-16 px-4" data-testid="public-profile-private">
         <Lock size={36} className="mx-auto text-vehiq-gold/50" />
         <div className="vehiq-display text-2xl text-vehiq-text mt-3">{state === "private" ? t("pp.private") : t("common.error")}</div>
+        {state === "error" && <button onClick={() => setRetry((n) => n + 1)} className="vehiq-btn-secondary mt-4 text-xs mr-2" data-testid="public-status-retry">{t("pst.retry")}</button>}
+        <Link to="/" className="vehiq-btn-primary mt-4 text-xs inline-block" data-testid="public-status-home">{t("pst.home")}</Link>
         {previewMode && <button onClick={() => setPreviewMode(false)} className="vehiq-btn-secondary mt-4 text-xs" data-testid="toggle-preview-back">{t("publicProfile.switchToOwner")}</button>}
       </div>
     </>

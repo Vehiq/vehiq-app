@@ -672,7 +672,8 @@
     "addVehicle": "Add vehicle",
     "addService": "Add service entry",
     "addListing": "Create listing",
-    "newThread": "New thread"
+    "newThread": "New thread",
+    "askAi": "Ask the AI Mechanic"
   },
   "share": {
     "share": "Share",
@@ -929,7 +930,7 @@
     "phone": "Contact phone",
     "email": "Contact email",
     "freeLimit": "Free account limit",
-    "freeServiceNote": "On the Free plan you can have 1 active service listing. Premium has no limit.",
+    "freeServiceNote": "In the test version you can have 1 active service listing.",
     "close": "Close",
     "soon": "Coming soon",
     "egCoverage": "e.g. Warsaw or \"nationwide\"",
@@ -968,7 +969,7 @@
     "left_other": "{{count}} cars left",
     "owner": "Owner",
     "yours": "Yours",
-    "freeNote": "Free: 1 active car in swaps. Premium — no limit.",
+    "freeNote": "Beta: 1 active car in swaps.",
     "remove": "Remove",
     "pass": "Maybe later",
     "talk": "Let's talk"
@@ -1069,18 +1070,21 @@
     "required": "This field is required"
   },
   "limits": {
-    "vehiclesTitle": "FREE plan car limit",
-    "vehiclesText": "On the FREE plan you can keep {{limit}} cars in your garage (sold cars don't count).",
-    "photosTitle": "FREE plan photo limit",
-    "photosText": "On the FREE plan you can add {{limit}} photos per car.",
-    "aiTitle": "AI Mechanic – weekly limit",
-    "aiText": "You've used this week's AI Mechanic question. The next one is available from Monday.",
-    "premiumSoon": "Premium coming soon",
-    "notifyMe": "Let me know when it launches",
-    "saved": "Saved – we'll let you know by email",
+    "vehiclesTitle": "Beta: up to {{limit}} cars",
+    "vehiclesText": "In the test version you can keep up to {{limit}} active cars in your garage. Have more? Let us know – we'll write when we lift this limit.",
+    "photosTitle": "Beta: up to {{limit}} photos per car",
+    "photosText": "Pick your best shots. Want to add more? Let us know – we'll write when we lift this limit.",
+    "aiTitle": "AI Mechanic in beta",
+    "aiText": "In the test version you get 1 question per week. The next one is available from Monday. Want more? Let us know.",
+    "premiumSoon": "",
+    "notifyMe": "Let me know",
+    "saved": "Saved – we'll write when we lift the limit.",
     "aiAvailable": "This week's question: available",
     "aiUsed": "You've used this week's AI Mechanic question. The next one is available from Monday.",
-    "aiWeekly": "1 AI Mechanic question per week"
+    "aiWeekly": "1 AI Mechanic question per week",
+    "ai_descriptionTitle": "AI descriptions in beta",
+    "ai_descriptionText": "In the test version you get 3 descriptions per month. Want more? Let us know.",
+    "aiBeta": "Beta: 1 question per week"
   },
   "terms": {
     "title": "Due dates",
@@ -1097,5 +1101,36 @@
       "service": "Service",
       "other": "Other"
     }
+  },
+  "lst2": {
+    "noPhoto": "No photo",
+    "rentTerms": "Rental terms",
+    "seller": "Seller"
+  },
+  "pst": {
+    "notFound": "Not found",
+    "error": "Couldn't load the page",
+    "retry": "Try again",
+    "home": "Home page"
+  },
+  "verify": {
+    "banner": "Confirm your email – we sent a link to {{email}}.",
+    "resend": "Send again",
+    "sent": "We sent a new link",
+    "modalTitle": "Confirm your email to publish",
+    "modalText": "Listings, messages, forum posts and events require a confirmed email address. Click the link we sent to {{email}}.",
+    "resendLink": "Resend link",
+    "ok": "Email address confirmed",
+    "bad": "The link is invalid or has expired",
+    "checking": "Checking the link…",
+    "toGarage": "Go to garage"
+  },
+  "aidesc": {
+    "button": "Write description with AI",
+    "note": "What should the AI know?",
+    "notePh": "e.g. condition, damage, reason for selling, what was replaced",
+    "disclaimer": "Check the description before publishing – the seller is responsible for the listing.",
+    "needCar": "Pick a car from your garage so the AI can write a description",
+    "busy": "AI is writing…"
   }
 }

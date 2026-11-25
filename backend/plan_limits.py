@@ -5,7 +5,7 @@ from zoneinfo import ZoneInfo
 
 from fastapi import HTTPException
 
-DEFAULTS = {"max_vehicles_per_user": 7, "max_photos_per_vehicle": 7}
+DEFAULTS = {"max_vehicles_per_user": 8, "max_photos_per_vehicle": 7}
 AI_WEEKLY_LIMIT = 1
 
 

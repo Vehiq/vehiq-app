@@ -10,6 +10,9 @@ from db_helper import get_db
 from auth_utils import get_current_user
 from security import limiter
 import anthropic
+import logging
+from rate_guard import rate_limit
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/ai", tags=["ai"])
 
@@ -268,3 +271,93 @@ async def clear_chat(vehicle_id: str, user=Depends(get_current_user)):
     db = get_db()
     await db.ai_chats.delete_one({"vehicle_id": vehicle_id, "user_id": user["id"]})
     return {"ok": True}
+
+
+# ---------------- Paczka 8: AI sales description for listings ----------------
+DESC_MONTHLY_LIMIT = 3
+# 600 tokens is too tight for ~1000 Polish characters (≈ 1 token / 2.5 chars + headroom) → 900 for descriptions only.
+DESC_MAX_TOKENS = max(MAX_TOKENS, 900)
+DESC_INSTRUCTIONS = {
+    "pl": ("Jesteś doświadczonym sprzedawcą aut. Napisz opis ogłoszenia sprzedaży auta po polsku. "
+           "Pisz konkretnie, motoryzacyjnie, bez przesady i bez wykrzykników. Długość 600–1000 znaków. "
+           "Struktura: 1 zdanie otwierające; najważniejsze dane auta; historia serwisowa; stan auta wyłącznie na podstawie notatki "
+           "sprzedającego (uszkodzenia i wady opisz wprost); zakończenie z zaproszeniem na oględziny. "
+           "NIE WYMYŚLAJ faktów, których nie ma w danych (wyposażenia, stanu, napraw, bezwypadkowości, liczby właścicieli). "
+           "Jeśli czegoś nie wiadomo — pomiń. Nie podawaj kosztów napraw, VIN, numeru rejestracyjnego ani danych osobowych. "
+           "Zwróć sam tekst opisu, bez nagłówków i formatowania Markdown."),
+    "en": ("You are an experienced car seller. Write a car-for-sale listing description in English. "
+           "Be specific and factual, no hype, no exclamation marks. Length 600–1000 characters. "
+           "Structure: one opening sentence; key car data; service history; condition based only on the seller's note "
+           "(state damage and faults plainly); closing invitation to view the car. "
+           "DO NOT INVENT facts not present in the data (equipment, condition, repairs, accident-free status, number of owners). "
+           "If something is unknown, leave it out. No repair costs, VIN, plate number or personal data. "
+           "Return only the description text, no headings or Markdown."),
+}
+
+
+class DescribeIn(BaseModel):
+    vehicle_id: str
+    note: str = ""
+    price: Optional[float] = None
+
+
+def _desc_facts(v: dict, entries: list, total: int, note: str, price) -> str:
+    keys = [("make", "Marka"), ("model", "Model"), ("year", "Rok"), ("engine", "Silnik"), ("power_hp", "Moc (KM)"),
+            ("fuel", "Paliwo"), ("transmission", "Skrzynia"), ("body_type", "Nadwozie"), ("mileage_current", "Przebieg (km)")]
+    lines = [f"{label}: {v.get(k)}" for k, label in keys if v.get(k) not in (None, "", 0)]
+    lines.append(f"Liczba wpisów serwisowych: {total}")
+    for e in entries:
+        what = e.get("title") or e.get("service_type") or e.get("type") or ""
+        lines.append(f"- {str(e.get('date') or '')[:10]}, {e.get('mileage') or '?'} km, {what}")
+    if price:
+        lines.append(f"Cena: {price:.0f} PLN")
+    lines.append(f"Notatka sprzedającego: {note.strip()[:600] or '(brak)'}")
+    return "\n".join(lines)
+
+
+@router.get("/describe/quota")
+async def describe_quota(user=Depends(get_current_user)):
+    from plan_limits import is_admin_user
+    if is_admin_user(user):
+        return {"unlimited": True}
+    month = datetime.now(timezone.utc).strftime("%Y-%m")
+    used = await get_db().ai_descriptions.find_one({"user_id": user["id"], "month": month}) or {}
+    return {"unlimited": False, "limit": DESC_MONTHLY_LIMIT, "remaining": max(0, DESC_MONTHLY_LIMIT - int(used.get("count") or 0))}
+
+
+@router.post("/describe", dependencies=[Depends(rate_limit("ai_describe", 10, 3600))])
+async def describe_listing(payload: DescribeIn, user=Depends(get_current_user)):
+    from plan_limits import is_admin_user
+    db = get_db()
+    lang = "en" if user.get("language") == "en" else "pl"
+    v = await db.vehicles.find_one({"id": payload.vehicle_id, "user_id": user["id"]}, {"_id": 0})
+    if not v:
+        raise HTTPException(status_code=404, detail="Vehicle not found")
+    now = datetime.now(timezone.utc)
+    month, day = now.strftime("%Y-%m"), now.strftime("%Y-%m-%d")
+    if not is_admin_user(user):
+        used = await db.ai_descriptions.find_one({"user_id": user["id"], "month": month}) or {}
+        if (used.get("count") or 0) >= DESC_MONTHLY_LIMIT:
+            raise HTTPException(status_code=402, detail={"code": "ai_description_limit_reached", "limit": DESC_MONTHLY_LIMIT})
+    daily = await db.ai_usage_daily.find_one({"day": day}) or {}
+    if (daily.get("count") or 0) >= GLOBAL_DAILY_LIMIT:
+        raise HTTPException(status_code=503, detail=UNAVAILABLE[lang])
+    proj = {"_id": 0, "date": 1, "mileage": 1, "title": 1, "service_type": 1, "type": 1}
+    total = await db.service_entries.count_documents({"vehicle_id": v["id"]})
+    entries = await db.service_entries.find({"vehicle_id": v["id"]}, proj).sort("date", -1).to_list(5)
+    facts = _desc_facts(v, entries, total, payload.note, payload.price)
+    try:
+        client = anthropic.AsyncAnthropic(api_key=ANTHROPIC_API_KEY)
+        resp = await client.messages.create(model=MODEL_NAME, max_tokens=DESC_MAX_TOKENS, system=DESC_INSTRUCTIONS[lang],
+                                            messages=[{"role": "user", "content": facts}])
+    except Exception as e:
+        logger.error(f"AI describe failed: {e}")
+        raise HTTPException(status_code=503, detail=UNAVAILABLE[lang])
+    text = "".join(b.text for b in resp.content if getattr(b, "type", None) == "text").strip()
+    u = getattr(resp, "usage", None)
+    tin, tout = (getattr(u, "input_tokens", 0) or 0), (getattr(u, "output_tokens", 0) or 0)
+    pin, pout = _price(MODEL_NAME)
+    inc = {"count": 1, "input_tokens": tin, "output_tokens": tout, "cost_usd": tin / 1e6 * pin + tout / 1e6 * pout}
+    await db.ai_descriptions.update_one({"user_id": user["id"], "month": month}, {"$inc": {"count": 1}}, upsert=True)
+    await db.ai_usage_daily.update_one({"day": day}, {"$inc": inc}, upsert=True)
+    return {"description": text}

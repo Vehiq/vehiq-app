@@ -88,6 +88,8 @@ async def get_event(slug_or_id: str, viewer=Depends(get_optional_user)):
 
 @router.post("", dependencies=[Depends(rate_limit("event", 5, 86400))])
 async def create_event(payload: EventIn, user=Depends(get_current_user)):
+    from auth_utils import require_verified
+    require_verified(user)
     db = get_db()
     if payload.type not in EVENT_TYPES:
         raise HTTPException(status_code=400, detail="Invalid type")

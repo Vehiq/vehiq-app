@@ -33,6 +33,13 @@ export default function Dashboard() {
     return () => { cancelled = true; };
   }, []);
 
+  // FAB "Zapytaj AI Mechanika" outside a car → open AI tab of the first active car.
+  useEffect(() => {
+    if (!vehicles || !window.location.search.includes("ai=1")) return;
+    const first = vehicles.find((v) => !["archived", "sold"].includes(v.status));
+    navigate(first ? `/garage/${first.id}?tab=ai` : "/garage", { replace: true });
+  }, [vehicles, navigate]);
+
   const isArchived = (v) => ["archived", "sold"].includes(v?.status);
   const filtered = vehicles ? vehicles.filter((v) => (tab === "archive" ? isArchived(v) : !isArchived(v))) : null;
   const activeCount = vehicles ? vehicles.filter((v) => !isArchived(v)).length : 0;
@@ -57,14 +64,6 @@ export default function Dashboard() {
       {/* Reminders strip */}
       <RemindersStrip reminders={dash?.reminders} loading={!dash} />
 
-      {/* Stats */}
-      {stats && (
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-          <Stat label={t("garage.totalVehicles")} value={stats.total_vehicles} />
-          <Stat label={t("garage.totalKm")} value={`${(stats.total_km || 0).toLocaleString("pl-PL")} km`} />
-          <Stat label={t("garage.totalSpent")} value={`${(stats.total_spent || 0).toLocaleString("pl-PL", { maximumFractionDigits: 0 })} PLN`} />
-        </div>
-      )}
 
       {/* Main two-column layout */}
       <div className="grid grid-cols-1 xl:grid-cols-[1fr_320px] gap-8">
@@ -120,6 +119,14 @@ export default function Dashboard() {
               >
                 {t("garage.loadMore", { count: Math.min(12, filtered.length - visibleCount) })}
               </button>
+            </div>
+          )}
+          {/* Paczka 8: summary tiles below the cars */}
+          {stats && (
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mt-8" data-testid="garage-stats">
+              <Stat label={t("garage.totalVehicles")} value={stats.total_vehicles} />
+              <Stat label={t("garage.totalKm")} value={`${(stats.total_km || 0).toLocaleString("pl-PL")} km`} />
+              <Stat label={t("garage.totalSpent")} value={`${(stats.total_spent || 0).toLocaleString("pl-PL", { maximumFractionDigits: 0 })} PLN`} />
             </div>
           )}
         </section>

@@ -48,11 +48,11 @@ async def join_waitlist(payload: WaitlistIn, user=Depends(get_optional_user)):
     from email_render import render, app_url, lang_of
     _l = lang_of((user or {}).get("language") or getattr(payload, "language", None))
     en = _l == "en"
-    subj, html, _ = render("generic", _l, subject="You're on the Sharago Premium waitlist" if en else "Jesteś na liście oczekujących Sharago Premium",
+    subj, html, _ = render("generic", _l, subject="Thanks – we'll let you know" if en else "Dzięki – damy znać",
                            preheader="We'll let you know by email." if en else "Damy znać mailem.",
                            user_name=(user or {}).get("name") or "", title="Thank you!" if en else "Dziękujemy!",
-                           paragraphs=["We've added you to the waitlist. We'll email you when Sharago Premium launches." if en
-                                       else "Zapisaliśmy Cię na listę oczekujących. Powiadomimy Cię mailem, gdy Sharago Premium będzie dostępne."],
+                           paragraphs=["Thanks! We'll write to you when we lift the beta limits." if en
+                                       else "Dzięki! Napiszemy do Ciebie, gdy zniesiemy limity wersji beta."],
                            button_url=f"{app_url(_l)}/garage", button_label="Back to garage" if en else "Wróć do garażu")
     fire_and_forget(send_email(payload.email, subj, html))
 

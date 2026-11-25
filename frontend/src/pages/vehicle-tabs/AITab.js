@@ -35,7 +35,8 @@ export default function AITab({ vehicle }) {
     }
     // Use `block: "nearest"` so if the chat is already in view we don't
     // scroll the page around it either.
-    endRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    const box = endRef.current?.parentElement;
+    if (box && box.scrollHeight > box.clientHeight) box.scrollTop = box.scrollHeight;
   }, [messages, busy]);
 
   const send = async (e) => {
@@ -89,7 +90,7 @@ export default function AITab({ vehicle }) {
       <PremiumLimitModal kind="ai" open={showLimit} onClose={() => setShowLimit(false)} vehicleId={vehicle.id} limit={1} />
       {quota && !quota.unlimited && (
         <div className={`text-xs mb-2 ${quota.remaining > 0 ? "text-vehiq-gold" : "text-vehiq-muted"}`} data-testid="ai-quota">
-          {quota.remaining > 0 ? t("limits.aiAvailable") : <button type="button" onClick={() => setShowLimit(true)} className="underline" data-testid="ai-quota-used">{t("limits.aiUsed")}</button>}
+          {quota.remaining > 0 ? `${t("limits.aiBeta")} · ${t("limits.aiAvailable")}` : <button type="button" onClick={() => setShowLimit(true)} className="underline" data-testid="ai-quota-used">{t("limits.aiUsed")}</button>}
         </div>
       )}
       <div className="flex justify-between items-end flex-wrap gap-3">

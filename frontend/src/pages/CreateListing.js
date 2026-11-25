@@ -1,3 +1,5 @@
+import AiListingDescription from "@/components/AiListingDescription";
+import PremiumLimitModal from "@/components/PremiumLimitModal";
 import i18n from "@/i18n";
 import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams, useParams } from "react-router-dom";
@@ -22,6 +24,14 @@ export default function CreateListing() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [draftHint, setDraftHint] = useState("");
+  const [lim, setLim] = useState(null);
+  const [photoLimitHit, setPhotoLimitHit] = useState(0);
+  useEffect(() => { api.get("/vehicles/limits").then((r) => setLim(r.data)).catch(() => {}); }, []);
+  const capPhotos = (arr) => {
+    const max = lim && !lim.unlimited ? lim.max_photos || 7 : (lim ? Infinity : 7);
+    if (arr.length > max) { setPhotoLimitHit(max); return arr.slice(0, max); }
+    return arr;
+  };
   const { id: editId } = useParams(); // Bug 23 (Iter 51): edit mode via /marketplace/:id/edit
   const isEdit = !!editId;
   const [vehicles, setVehicles] = useState([]);
@@ -120,7 +130,7 @@ export default function CreateListing() {
               model: v.model || "",
               year: v.year || "",
               mileage: v.mileage_current || "",
-              photos: full, // Bug 22: all garage photos pre-selected
+              photos: capPhotos(full), // Paczka 8: max photo limit (7) from the garage
             }));
             applyDraft(v.id);
           }).catch(() => { /* silent — form still usable */ });
@@ -178,7 +188,7 @@ export default function CreateListing() {
       if (full.length) {
         // Bug 22: pre-select ALL garage photos by default — user can uncheck
         // any they don't want in the listing via the checkbox gallery below.
-        setForm((prev) => ({ ...prev, photos: full }));
+        setForm((prev) => ({ ...prev, photos: capPhotos(full) }));
       }
     } catch { /* keep seed cover — user can also upload more */ }
   };
@@ -362,6 +372,7 @@ export default function CreateListing() {
 
   return (
     <form onSubmit={submit} className="max-w-3xl mx-auto space-y-6 animate-fade-in" data-testid="create-listing">
+      <PremiumLimitModal kind="photos" open={!!photoLimitHit} onClose={() => setPhotoLimitHit(0)} limit={photoLimitHit} />
       <button type="button" onClick={() => navigate(-1)} className="text-sm text-vehiq-muted hover:text-vehiq-gold inline-flex items-center gap-1">
         <ArrowLeft size={14} /> {t("common.back")}
       </button>
@@ -613,6 +624,7 @@ export default function CreateListing() {
           <label className="vehiq-overline mb-2 block">{t("marketplace.description")}</label>
           <textarea value={form.description} placeholder={draftHint} onChange={(e) => setForm({...form, description: e.target.value})} className="vehiq-input" rows={6} data-testid="listing-description" />
           {draftHint && <div className="text-xs text-vehiq-muted mt-1" data-testid="listing-draft-hint">{draftHint}</div>}
+          {form.type === "car" && <AiListingDescription vehicleId={form.vehicle_id} price={form.price} onResult={(d) => setForm((f) => ({ ...f, description: d }))} />}
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {!(form.category === "rental_car" || form.category === "rental_garage" || isServiceType) && (

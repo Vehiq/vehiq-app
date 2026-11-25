@@ -126,7 +126,7 @@ def test_vehicle_limit_and_photo_limit():
     u = new_user()
     h = u["h"]
     ids = []
-    for i in range(7):
+    for i in range(8):  # Paczka 8: beta limit 8 cars
         r = requests.post(f"{API}/vehicles", json={"make": f"TESTL{i}", "model": "m", "mileage_current": 1}, headers=h)
         assert r.status_code == 200, r.text
         ids.append(r.json()["id"])

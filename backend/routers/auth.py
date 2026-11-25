@@ -78,6 +78,7 @@ def _public_user(u: dict) -> dict:
     return {
         "id": u["id"],
         "email": u["email"],
+        "email_verified": u.get("email_verified") is not False,
         "name": u.get("name"),
         "avatar": avatar_url,
         "has_avatar": has_avatar,
@@ -159,6 +160,7 @@ async def register(payload: RegisterIn, request: Request):
         "suspend_reason": None,
         "marketing_consent": payload.accept_marketing,
         "auth_provider": "email",
+        "email_verified": False,
         "onboarded": False,
         "tooltips_seen": False,
         "privacy_settings": DEFAULT_PRIVACY.copy(),
@@ -173,9 +175,7 @@ async def register(payload: RegisterIn, request: Request):
         await link_referral_on_signup(db, user_id, payload.referral_code, payload.referral_source)
         user["referred_by"] = payload.referral_code.strip().upper()
     # Welcome email (non-blocking)
-    _lang = lang_of(user)
-    fire_and_forget(send_template(user["email"], "welcome", _lang, user_name=user.get("name") or "",
-                                  add_car_url=f"{_site_url(_lang)}/garage/new"))
+    fire_and_forget(_send_verification(db, user))
 
     token = user_token({"id": user_id})
     return {"token": token, "user": _public_user(user)}
@@ -490,15 +490,15 @@ async def google_callback(code: Optional[str] = None, state: Optional[str] = Non
         if user.get("suspended"):
             return _callback_error_redirect("account_suspended")
         link_extra: dict = {}
-        if user.get("password_hash") and not user.get("google_id") and not user.get("email_verified"):
+        if user.get("password_hash") and not user.get("google_id") and user.get("email_verified") is False:
             # Pre-hijack protection: Google proves email ownership, the earlier password signup did not.
             # Drop that unverified password and end its sessions; the owner can set a new one via reset.
-            link_extra = {"password_hash": None, "email_verified": True}
+            link_extra = {"password_hash": None}
             await db.profiles.update_one({"id": user["id"]}, {"$inc": {"token_version": 1}})
             user["token_version"] = int(user.get("token_version") or 0) + 1
         await db.profiles.update_one(
             {"id": user["id"]},
-            {"$set": {**link_extra,
+            {"$set": {**link_extra, "email_verified": True,
                 "avatar": picture or user.get("avatar"),
                 "google_id": google_id or user.get("google_id"),
                 "auth_provider": user.get("auth_provider") or "google",
@@ -529,6 +529,7 @@ async def google_callback(code: Optional[str] = None, state: Optional[str] = Non
             "marketing_consent": False,
             "auth_provider": "google",
             "google_id": google_id,
+            "email_verified": True,
             "onboarded": False,
             "tooltips_seen": False,
             "privacy_settings": DEFAULT_PRIVACY.copy(),
@@ -671,3 +672,54 @@ async def upload_avatar(payload: AvatarIn, user=Depends(get_current_user)):
         {"$set": {"avatar": val, "updated_at": datetime.now(timezone.utc).isoformat()}},
     )
     return {"avatar": val, "avatar_url": val}
+
+
+
+# ---------------- Paczka 8: soft e-mail verification ----------------
+import hashlib as _hashlib
+import secrets as _secrets
+
+
+async def _send_verification(db, user: dict):
+    token = _secrets.token_urlsafe(32)
+    now = datetime.now(timezone.utc)
+    await db.email_verifications.update_many({"user_id": user["id"], "used": False}, {"$set": {"used": True}})
+    await db.email_verifications.insert_one({
+        "token_hash": _hashlib.sha256(token.encode()).hexdigest(), "user_id": user["id"], "used": False,
+        "created_at": now.isoformat(), "expires_at": (now + timedelta(hours=24)).isoformat(),
+    })
+    lang = lang_of(user)
+    return await send_template(user["email"], "verify_email", lang, user_name=user.get("name") or "",
+                               verify_url=f"{_site_url(lang)}/verify-email?token={token}", expires_hours=24)
+
+
+class VerifyIn(BaseModel):
+    token: str
+
+
+@router.post("/verify-email")
+async def verify_email(payload: VerifyIn):
+    db = get_db()
+    h = _hashlib.sha256(payload.token.encode()).hexdigest()
+    now = datetime.now(timezone.utc).isoformat()
+    rec = await db.email_verifications.find_one_and_update(
+        {"token_hash": h, "used": False, "expires_at": {"$gt": now}}, {"$set": {"used": True, "used_at": now}})
+    if not rec:
+        raise HTTPException(status_code=400, detail="Invalid or expired link")
+    u = await db.profiles.find_one({"id": rec["user_id"]}, {"_id": 0, "id": 1, "email": 1, "name": 1, "language": 1, "email_verified": 1})
+    if not u:
+        raise HTTPException(status_code=400, detail="Invalid or expired link")
+    if u.get("email_verified") is False:
+        await db.profiles.update_one({"id": u["id"]}, {"$set": {"email_verified": True, "email_verified_at": now}})
+        lang = lang_of(u)
+        fire_and_forget(send_template(u["email"], "welcome", lang, user_name=u.get("name") or "",
+                                      add_car_url=f"{_site_url(lang)}/garage/new"))
+    return {"ok": True}
+
+
+@router.post("/verify-email/resend", dependencies=[Depends(rate_limit("verify_resend", 3, 3600))])
+async def resend_verification(user=Depends(get_current_user)):
+    if user.get("email_verified") is not False:
+        return {"ok": True, "already_verified": True}
+    ok, err = await _send_verification(get_db(), user)
+    return {"ok": ok}

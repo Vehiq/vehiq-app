@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { CalendarClock, Trash2 } from "lucide-react";
 import api from "@/lib/api";
+import { trackEvent } from "@/hooks/usePageTracking";
 
 const TYPES = ["przeglad", "OC", "AC", "olej", "opony", "service", "other"];
 
@@ -16,7 +17,7 @@ export default function VehicleTerms({ vehicleId }) {
   const add = async (e) => {
     e.preventDefault();
     if (!form.due_date) { toast.error(t("forms.required")); return; }
-    try { await api.post("/reminders", { vehicle_id: vehicleId, ...form }); setForm({ ...form, due_date: "" }); load(); toast.success(t("common.saved", { defaultValue: "OK" })); }
+    try { await api.post("/reminders", { vehicle_id: vehicleId, ...form }); setForm({ ...form, due_date: "" }); load(); trackEvent("reminder_set", { type: form.type }); toast.success(t("common.saved", { defaultValue: "OK" })); }
     catch { toast.error(t("common.error")); }
   };
   const del = async (id) => { try { await api.delete(`/reminders/${id}`); load(); } catch { toast.error(t("common.error")); } };

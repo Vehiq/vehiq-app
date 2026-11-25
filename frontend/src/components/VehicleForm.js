@@ -177,7 +177,7 @@ export default function VehicleForm({ initial, onSaved }) {
         // Iter 41: GA4 conversion event — only for NEW vehicles.
         try {
           const { trackEvent } = await import("@/hooks/usePageTracking");
-          trackEvent("add_vehicle", { make: payload.make, model: payload.model });
+          trackEvent("vehicle_added", { visibility: payload.visibility });
         } catch { /* noop */ }
       }
       // Iter 41: bust cached garage listings so the just-added/edited car

@@ -424,16 +424,62 @@ async def dashboard(admin=Depends(get_admin)):
     }
 
 
+def _user_type(u: dict) -> str:
+    if u.get("role") == "admin":
+        return "admin"
+    if u.get("is_demo"):
+        return "demo"
+    if u.get("auth_provider") == "google" or u.get("google_id"):
+        return "google"
+    return "regular"
+
+
 @router.get("/users")
-async def list_users(q: Optional[str] = None, admin=Depends(get_admin)):
+async def list_users(q: Optional[str] = None, inactive_days: Optional[int] = None, only_demo: bool = False,
+                     admin=Depends(get_admin)):
+    import re as _re
     db = get_db()
-    f = {}
+    f: dict = {"deleted_at": {"$in": [None, ""]}}
     if q:
-        f = {"$or": [{"name": {"$regex": q, "$options": "i"}}, {"email": {"$regex": q, "$options": "i"}}]}
-    users = await db.profiles.find(f, {"_id": 0, "password_hash": 0}).sort("created_at", -1).to_list(1000)
+        rq = _re.escape(q)
+        f["$or"] = [{"name": {"$regex": rq, "$options": "i"}}, {"email": {"$regex": rq, "$options": "i"}}]
+    if only_demo:
+        f["is_demo"] = True
+    if inactive_days:
+        cutoff = (datetime.now(timezone.utc) - timedelta(days=inactive_days)).isoformat()
+        f["$and"] = [{"$or": [{"last_active": {"$lt": cutoff}}, {"last_active": None}]}]
+    users = await db.profiles.find(f, {"_id": 0, "password_hash": 0, "avatar": 0}).sort("created_at", -1).to_list(2000)
+    counts = {d["_id"]: d["n"] async for d in db.vehicles.aggregate([{"$group": {"_id": "$user_id", "n": {"$sum": 1}}}])}
+    now = datetime.now(timezone.utc)
     for u in users:
-        u["vehicle_count"] = await db.vehicles.count_documents({"user_id": u["id"]})
+        u["vehicle_count"] = counts.get(u["id"], 0)
+        u["type"] = _user_type(u)
+        la = u.get("last_active") or u.get("created_at")
+        try:
+            u["inactive_days"] = (now - datetime.fromisoformat(str(la).replace("Z", "+00:00"))).days if la else None
+        except ValueError:
+            u["inactive_days"] = None
     return users
+
+
+class BulkDeleteIn(BaseModel):
+    user_ids: list[str]
+
+
+@router.post("/users/bulk-delete")
+async def bulk_delete_users(payload: BulkDeleteIn, admin=Depends(get_admin)):
+    """Manual only. Admin accounts are skipped."""
+    from user_cleanup import full_delete_user
+    db = get_db()
+    deleted, skipped = 0, 0
+    for uid in payload.user_ids[:500]:
+        u = await db.profiles.find_one({"id": uid}, {"_id": 0, "id": 1, "role": 1})
+        if not u or u.get("role") == "admin":
+            skipped += 1
+            continue
+        await full_delete_user(db, uid)
+        deleted += 1
+    return {"ok": True, "deleted": deleted, "skipped": skipped}
 
 
 class UserUpdateIn(BaseModel):
@@ -463,7 +509,11 @@ async def _cascade_delete_user(db, user_id: str) -> dict:
 @router.delete("/users/{user_id}")
 async def delete_user(user_id: str, admin=Depends(get_admin)):
     db = get_db()
-    deleted = await _cascade_delete_user(db, user_id)
+    u = await db.profiles.find_one({"id": user_id}, {"_id": 0, "role": 1})
+    if u and u.get("role") == "admin":
+        raise HTTPException(status_code=400, detail="Admin accounts cannot be deleted here")
+    from user_cleanup import full_delete_user
+    deleted = await full_delete_user(db, user_id)
     return {"ok": True, "deleted": deleted}
 
 
@@ -700,25 +750,7 @@ async def admin_test_email(payload: TestEmailIn, admin=Depends(get_admin)):
     return {"success": ok, "error": err or None, "to": payload.to}
 
 
-class RetentionRunIn(BaseModel):
-    kind: Optional[str] = "all"  # all|d1|d7|monthly
-    period: Optional[str] = None  # forces monthly for a specific period e.g. 2026-04
-
-
-@router.post("/retention/run")
-async def admin_run_retention(payload: RetentionRunIn, admin=Depends(get_admin)):
-    """Manually trigger retention email checks (D+1 / D+7 / monthly). Useful for testing or backfills."""
-    import retention
-    if payload.kind == "d1":
-        await retention._run_d1()
-    elif payload.kind == "d7":
-        await retention._run_d7()
-    elif payload.kind == "monthly":
-        await retention._run_monthly(force_period=payload.period)
-    else:
-        await retention.run_once()
-    return {"ok": True}
-
+# Activation / retention e-mails: manual trigger removed in Paczka 8 (see retention.py to restore).
 
 
 # ---------- Storage (Cloudflare R2) ----------

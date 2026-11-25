@@ -100,7 +100,17 @@ async def get_current_user(authorization: Optional[str] = Header(None)) -> dict:
         raise HTTPException(status_code=401, detail="Session expired")
     if user.get("suspended"):
         raise HTTPException(status_code=403, detail="Account suspended")
+    # Paczka 8: "last activity" — at most one write per user per hour.
+    now = datetime.now(timezone.utc)
+    if str(user.get("last_active") or "") < (now - timedelta(hours=1)).isoformat():
+        await db.profiles.update_one({"id": user["id"]}, {"$set": {"last_active": now.isoformat()}})
     return user
+
+
+def require_verified(user: dict):
+    """Soft e-mail verification: only explicit email_verified=False blocks publishing (legacy accounts = verified)."""
+    if user.get("email_verified") is False and user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail={"code": "email_not_verified", "email": user.get("email")})
 
 
 async def get_optional_user(authorization: Optional[str] = Header(None)) -> Optional[dict]:

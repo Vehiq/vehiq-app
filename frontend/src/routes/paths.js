@@ -12,6 +12,7 @@ export const ROUTES = {
   authCallback: "/auth/callback",
   passwordReset: "/password-reset",
   passwordResetConfirm: "/password-reset/confirm",
+  verifyEmail: "/verify-email",
   onboarding: "/onboarding",
   legal: "/legal/:slug",
   publicVehicle: "/vehicles/:slug",

@@ -376,6 +376,8 @@ async def get_listing(listing_id: str, authorization: Optional[str] = Header(Non
 
 @router.post("/listings", dependencies=[Depends(rate_limit("listing", 10, 86400))])
 async def create_listing(payload: ListingIn, user=Depends(get_current_user)):
+    from auth_utils import require_verified
+    require_verified(user)
     db = get_db()
     valid_types = {"car", "parts", "swap", "full_parts", "project", "rental", "service"}
     if payload.type not in valid_types:
@@ -566,6 +568,8 @@ async def get_messages(listing_id: str, other_id: str, user=Depends(get_current_
 
 @router.post("/messages", dependencies=[Depends(rate_limit("message", 30, 3600))])
 async def send_message(payload: MessageIn, user=Depends(get_current_user)):
+    from auth_utils import require_verified
+    require_verified(user)
     db = get_db()
     if payload.receiver_id == user["id"]:
         raise HTTPException(status_code=400, detail="Cannot message yourself")

@@ -8,7 +8,7 @@ const FEATURE_KEYS = [
   "registrations_enabled", "gps_tracking_enabled", "maintenance_mode",
 ];
 const LIMIT_KEYS = [
-  "max_vehicles_per_user", "max_photos_per_vehicle", "max_listings_per_user", "max_forum_posts_per_day"
+  "max_vehicles_per_user", "max_photos_per_vehicle", "max_listings_per_user", "max_forum_posts_per_day", "demo_ttl_days"
 ];
 
 export default function AdminSettings() {

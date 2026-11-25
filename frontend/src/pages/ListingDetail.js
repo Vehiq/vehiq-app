@@ -1,3 +1,4 @@
+import PublicStatus, { errorKind, PUBLIC_TIMEOUT } from "@/components/PublicStatus";
 import { useEffect, useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
@@ -12,18 +13,19 @@ export default function ListingDetail() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [listing, setListing] = useState(null);
+  const [retry, setRetry] = useState(0);
   const [error, setError] = useState(null);
   const [active, setActive] = useState(0);
   const [msg, setMsg] = useState("");
 
   useEffect(() => {
     setError(null);
-    api.get(`/marketplace/listings/${id}`)
+    api.get(`/marketplace/listings/${id}`, { timeout: PUBLIC_TIMEOUT })
       .then(r => setListing(r.data))
-      .catch(e => setError(e?.response?.data?.detail || e?.message || "Not found"));
-  }, [id]);
+      .catch(e => setError(errorKind(e)));
+  }, [id, retry]);
 
-  if (error) return <div className="text-red-400" data-testid="listing-error">{t("common.error")}: {error}</div>;
+  if (error) return <PublicStatus kind={error} entity="listing" onRetry={() => setRetry((n) => n + 1)} />;
   if (!listing) return <div className="text-vehiq-muted">{t("common.loading")}</div>;
   const isOwner = user?.id === listing.user_id;
 
@@ -53,7 +55,7 @@ export default function ListingDetail() {
         <div className="lg:col-span-2 space-y-4">
           <div className="vehiq-card overflow-hidden">
             <div className="aspect-[16/10] bg-vehiq-bg">
-              {listing.photos?.[active] ? <img src={listing.photos[active]} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-vehiq-muted">No photo</div>}
+              {listing.photos?.[active] ? <img src={listing.photos[active]} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-vehiq-muted">{t("lst2.noPhoto")}</div>}
             </div>
             {listing.photos?.length > 1 && (
               <div className="p-3 flex gap-2 overflow-auto">
@@ -83,7 +85,7 @@ export default function ListingDetail() {
 
           {(listing.category === "rental_car" || listing.category === "rental_garage") && listing.rental && (
             <div className="vehiq-card p-6 space-y-4" data-testid="listing-rental-block">
-              <div className="vehiq-overline inline-flex items-center gap-2">Warunki wynajmu</div>
+              <div className="vehiq-overline inline-flex items-center gap-2">{t("lst2.rentTerms")}</div>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3" data-testid="listing-rental-prices">
                 {listing.rental.price_per_day != null && (
                   <RentalPrice label={t("ui.rentDay")} amount={listing.rental.price_per_day} highlight />
@@ -152,7 +154,7 @@ export default function ListingDetail() {
         <div className="space-y-4">
           {listing.seller && (
             <div className="vehiq-card p-5">
-              <div className="vehiq-overline mb-2">Seller</div>
+              <div className="vehiq-overline mb-2">{t("lst2.seller")}</div>
               <div className="flex items-center gap-3">
                 {listing.seller.avatar ? <img src={listing.seller.avatar} className="h-12 w-12 rounded-full" alt="" /> : <div className="h-12 w-12 rounded-full bg-vehiq-gold-dim text-vehiq-gold flex items-center justify-center font-bold">{listing.seller.name?.[0]}</div>}
                 <div>

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import PublicStatus, { errorKind, PUBLIC_TIMEOUT } from "@/components/PublicStatus";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import api from "@/lib/api";
@@ -32,6 +33,7 @@ export default function PublicVehicle() {
   const navigate = useNavigate();
   const [v, setV] = useState(null);
   const [error, setError] = useState(null);
+  const [retry, setRetry] = useState(0);
   const [activePhoto, setActivePhoto] = useState(0);
   const [copied, setCopied] = useState(false);
   const [viewCount, setViewCount] = useState(0);
@@ -43,8 +45,9 @@ export default function PublicVehicle() {
     const url = isServiceHistory
       ? `/vehicles/historia/${token}`
       : `/vehicles/public/by-slug/${slug}`;
+    setError(null);
     api
-      .get(url)
+      .get(url, { timeout: PUBLIC_TIMEOUT })
       .then((r) => {
         if (cancelled) return;
         setV(r.data);
@@ -64,13 +67,12 @@ export default function PublicVehicle() {
       })
       .catch((err) => {
         if (cancelled) return;
-        const st = err?.response?.status;
-        setError(st === 403 ? "private" : st === 404 ? "not-found" : "error");
+        setError(errorKind(err));
       });
     return () => {
       cancelled = true;
     };
-  }, [slug, token, isServiceHistory]);
+  }, [slug, token, isServiceHistory, retry]);
 
   // Set OG-style document meta dynamically
   useEffect(() => {
@@ -122,30 +124,7 @@ export default function PublicVehicle() {
     }
   };
 
-  if (error === "private") {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-vehiq-bg text-center px-4" data-testid="public-vehicle-private">
-        <div>
-          <CarIcon size={48} className="mx-auto text-vehiq-gold/40" />
-          <h1 className="vehiq-display text-3xl text-vehiq-text mt-4">{t("pv.privateTitle")}</h1>
-          <p className="text-vehiq-muted mt-2">{t("pv.privateDesc")}</p>
-          <Link to="/" className="vehiq-btn-primary inline-block mt-6">Sharago</Link>
-        </div>
-      </div>
-    );
-  }
-  if (error === "not-found" || error === "error") {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-vehiq-bg text-center px-4" data-testid="public-vehicle-404">
-        <div>
-          <CarIcon size={48} className="mx-auto text-vehiq-gold/40" />
-          <h1 className="vehiq-display text-3xl text-vehiq-text mt-4">{t("share.notFoundTitle")}</h1>
-          <p className="text-vehiq-muted mt-2">{t("share.notFoundDesc")}</p>
-          <Link to="/" className="vehiq-btn-primary inline-block mt-6">Sharago</Link>
-        </div>
-      </div>
-    );
-  }
+  if (error) return <PublicStatus kind={error} onRetry={() => setRetry((n) => n + 1)} />;
   if (!v) {
     return <div className="min-h-screen flex items-center justify-center bg-vehiq-bg text-vehiq-muted">{t("common.loading")}</div>;
   }

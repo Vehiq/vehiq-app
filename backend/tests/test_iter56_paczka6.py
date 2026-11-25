@@ -176,6 +176,10 @@ def test_forum_thread_rate_limit():
     u = new_user()
     uid = requests.get(f"{API}/auth/me", headers=u["h"]).json()["id"]
     CREATED["users"].append(uid)
+    # Paczka 8: publishing requires a confirmed e-mail.
+    import os
+    from pymongo import MongoClient
+    MongoClient(os.environ["MONGO_URL"])[os.environ["DB_NAME"]].profiles.update_one({"id": uid}, {"$set": {"email_verified": True}})
     codes = []
     for i in range(11):
         r = requests.post(f"{API}/forum/threads", json={"category": "general", "title": f"TEST_P6 thread {i}",

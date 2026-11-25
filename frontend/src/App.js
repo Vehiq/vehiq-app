@@ -76,6 +76,7 @@ const AdminFoundingMembers = lazy(() => import("@/pages/admin/AdminFoundingMembe
 const AdminReferrals = lazy(() => import("@/pages/admin/AdminReferrals"));
 const AdminBusinesses = lazy(() => import("@/pages/admin/AdminBusinesses"));
 const AdminWaitlist = lazy(() => import("@/pages/admin/AdminWaitlist"));
+const VerifyEmailPage = lazy(() => import("@/pages/VerifyEmailPage"));
 const AdminEmails = lazy(() => import("@/pages/admin/AdminEmails"));
 
 import api from "@/lib/api";
@@ -217,6 +218,7 @@ function App() {
           <Route path={ROUTES.publicHistory} element={<PublicVehicle />} />
           <Route path={ROUTES.vehicleShort} element={<VehicleShort />} />
           <Route path={ROUTES.publicProfile} element={<PublicProfile />} />
+          <Route path={ROUTES.verifyEmail} element={<VerifyEmailPage />} />
           <Route path={ROUTES.listing} element={<ListingRoute />}><Route index element={<ListingDetail />} /></Route>
 
           {/* Blog (public) */}

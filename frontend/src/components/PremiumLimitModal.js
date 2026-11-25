@@ -3,9 +3,10 @@ import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { Sparkles, X, Check } from "lucide-react";
 import api from "@/lib/api";
+import { trackEvent } from "@/hooks/usePageTracking";
 import { useAuth } from "@/contexts/AuthContext";
 
-// Plan-limit modal (vehicles / photos / ai): explanation + one-click Premium waitlist sign-up.
+// Beta-limit modal (vehicles / photos / ai): explanation + one-click Premium waitlist sign-up.
 export default function PremiumLimitModal({ kind, open, onClose, vehicleId, limit }) {
   const { t } = useTranslation();
   const { user } = useAuth();
@@ -19,6 +20,7 @@ export default function PremiumLimitModal({ kind, open, onClose, vehicleId, limi
       await api.post("/waitlist/premium", { email: user.email, trigger: kind, vehicle_id: vehicleId || null });
       setSaved(true);
       toast.success(t("limits.saved"));
+      trackEvent("waitlist_joined", { source: kind });
     } catch { toast.error(t("common.error")); } finally { setBusy(false); }
   };
   return (
@@ -28,7 +30,6 @@ export default function PremiumLimitModal({ kind, open, onClose, vehicleId, limi
         <Sparkles className="text-vehiq-gold" size={24} />
         <h3 className="vehiq-display text-2xl text-vehiq-text mt-2">{t(`limits.${kind}Title`)}</h3>
         <p className="text-sm text-vehiq-muted mt-2" data-testid="limit-modal-text">{t(`limits.${kind}Text`, { limit })}</p>
-        <div className="mt-4 text-sm text-vehiq-gold font-medium">{t("limits.premiumSoon")}</div>
         {saved ? (
           <div className="mt-4 inline-flex items-center gap-2 text-sm text-vehiq-text" data-testid="limit-modal-saved"><Check size={16} className="text-vehiq-gold" /> {t("limits.saved")}</div>
         ) : (

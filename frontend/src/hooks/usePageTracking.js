@@ -17,12 +17,17 @@
 import { useEffect } from "react";
 import { useLocation } from "react-router-dom";
 
+let lastTracked = null;
+
 export function usePageTracking() {
   const location = useLocation();
   useEffect(() => {
     if (typeof window === "undefined") return;
     const gtag = window.gtag;
     if (typeof gtag !== "function") return;
+    const path = location.pathname + location.search;
+    if (lastTracked === path) return; // StrictMode / re-render: no double page_view
+    lastTracked = path;
     try {
       gtag("event", "page_view", {
         page_path: location.pathname + location.search,

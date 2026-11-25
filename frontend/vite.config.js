@@ -61,6 +61,8 @@ export default defineConfig(({ mode }) => {
     // `process.env.REACT_APP_BACKEND_URL` references keep working.
     define: {
       'process.env.REACT_APP_BACKEND_URL': JSON.stringify(env.REACT_APP_BACKEND_URL || ''),
+      // Paczka GA4: was missing → gtag.js was never loaded in production builds.
+      'process.env.REACT_APP_GA4_MEASUREMENT_ID': JSON.stringify(env.REACT_APP_GA4_MEASUREMENT_ID || process.env.REACT_APP_GA4_MEASUREMENT_ID || ''),
       'process.env.NODE_ENV': JSON.stringify(mode === 'production' ? 'production' : 'development'),
     },
   }

@@ -672,7 +672,8 @@
     "addVehicle": "Dodaj pojazd",
     "addService": "Dodaj wpis serwisowy",
     "addListing": "Wystaw ogłoszenie",
-    "newThread": "Nowy wątek"
+    "newThread": "Nowy wątek",
+    "askAi": "Zapytaj AI Mechanika"
   },
   "share": {
     "share": "Udostępnij",
@@ -929,7 +930,7 @@
     "phone": "Telefon kontaktowy",
     "email": "E-mail kontaktowy",
     "freeLimit": "Limit darmowego konta",
-    "freeServiceNote": "W planie Free możesz mieć 1 aktywne ogłoszenie usługi. Premium — bez limitu.",
+    "freeServiceNote": "W wersji testowej możesz mieć 1 aktywne ogłoszenie usługi.",
     "close": "Zamknij",
     "soon": "Wkrótce",
     "egCoverage": "np. Warszawa lub \"cała Polska\"",
@@ -970,7 +971,7 @@
     "left_other": "Zostało jeszcze {{count}} aut",
     "owner": "Właściciel",
     "yours": "Twoje",
-    "freeNote": "Free: 1 aktywne auto na giełdzie zamian. Premium — bez limitu.",
+    "freeNote": "Wersja beta: 1 aktywne auto na giełdzie zamian.",
     "remove": "Usuń",
     "pass": "Innym razem",
     "talk": "Pogadajmy"
@@ -1071,18 +1072,21 @@
     "required": "To pole jest wymagane"
   },
   "limits": {
-    "vehiclesTitle": "Limit aut w planie FREE",
-    "vehiclesText": "W planie FREE możesz mieć {{limit}} aut w garażu (sprzedane się nie liczą).",
-    "photosTitle": "Limit zdjęć w planie FREE",
-    "photosText": "W planie FREE możesz dodać {{limit}} zdjęć do jednego auta.",
-    "aiTitle": "AI Mechanik – limit tygodniowy",
-    "aiText": "Twoje pytanie do AI Mechanika na ten tydzień zostało wykorzystane. Kolejne od poniedziałku.",
-    "premiumSoon": "Premium już wkrótce",
-    "notifyMe": "Daj mi znać, gdy ruszy",
-    "saved": "Zapisane – damy znać mailem",
+    "vehiclesTitle": "Wersja beta: do {{limit}} aut",
+    "vehiclesText": "W wersji testowej możesz mieć w garażu do {{limit}} aktywnych aut. Masz więcej? Daj znać – napiszemy, gdy zniesiemy ten limit.",
+    "photosTitle": "Wersja beta: do {{limit}} zdjęć na auto",
+    "photosText": "Wybierz najlepsze ujęcia. Chcesz dodawać więcej? Daj znać – napiszemy, gdy zniesiemy ten limit.",
+    "aiTitle": "AI Mechanik w wersji beta",
+    "aiText": "W wersji testowej masz 1 pytanie tygodniowo. Kolejne od poniedziałku. Chcesz więcej? Daj znać.",
+    "premiumSoon": "",
+    "notifyMe": "Daj mi znać",
+    "saved": "Zapisane – napiszemy, gdy zniesiemy limit.",
     "aiAvailable": "Pytanie na ten tydzień: dostępne",
     "aiUsed": "Twoje pytanie do AI Mechanika na ten tydzień zostało wykorzystane. Kolejne od poniedziałku.",
-    "aiWeekly": "1 pytanie do AI Mechanika tygodniowo"
+    "aiWeekly": "1 pytanie do AI Mechanika tygodniowo",
+    "ai_descriptionTitle": "Opisy AI w wersji beta",
+    "ai_descriptionText": "W wersji testowej masz 3 opisy miesięcznie. Chcesz więcej? Daj znać.",
+    "aiBeta": "Wersja beta: 1 pytanie tygodniowo"
   },
   "terms": {
     "title": "Terminy",
@@ -1099,5 +1103,36 @@
       "service": "Serwis",
       "other": "Inny termin"
     }
+  },
+  "lst2": {
+    "noPhoto": "Brak zdjęcia",
+    "rentTerms": "Warunki wynajmu",
+    "seller": "Sprzedający"
+  },
+  "pst": {
+    "notFound": "Nie znaleziono",
+    "error": "Nie udało się wczytać strony",
+    "retry": "Spróbuj ponownie",
+    "home": "Strona główna"
+  },
+  "verify": {
+    "banner": "Potwierdź adres e-mail – wysłaliśmy link na {{email}}.",
+    "resend": "Wyślij ponownie",
+    "sent": "Wysłaliśmy nowy link",
+    "modalTitle": "Potwierdź e-mail, żeby publikować",
+    "modalText": "Ogłoszenia, wiadomości, posty na forum i wydarzenia wymagają potwierdzonego adresu e-mail. Kliknij link, który wysłaliśmy na {{email}}.",
+    "resendLink": "Wyślij link ponownie",
+    "ok": "Adres e-mail potwierdzony",
+    "bad": "Link jest nieprawidłowy lub wygasł",
+    "checking": "Sprawdzamy link…",
+    "toGarage": "Przejdź do garażu"
+  },
+  "aidesc": {
+    "button": "Napisz opis z AI",
+    "note": "Co AI ma wiedzieć?",
+    "notePh": "np. stan, uszkodzenia, powód sprzedaży, co wymienione",
+    "disclaimer": "Sprawdź opis przed publikacją – za treść ogłoszenia odpowiada sprzedający.",
+    "needCar": "Wybierz auto z garażu, żeby AI napisało opis",
+    "busy": "AI pisze opis…"
   }
 }

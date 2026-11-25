@@ -110,6 +110,8 @@ async def get_thread(thread_id: str):
 
 @router.post("/threads", dependencies=[Depends(rate_limit("forum_thread", 10, 3600))])
 async def create_thread(payload: ThreadIn, user=Depends(get_current_user)):
+    from auth_utils import require_verified
+    require_verified(user)
     db = get_db()
     if payload.category not in CATEGORIES:
         raise HTTPException(status_code=400, detail="Invalid category")
@@ -167,6 +169,8 @@ async def list_comments(thread_id: str):
 
 @router.post("/comments", dependencies=[Depends(rate_limit("forum_comment", 30, 3600))])
 async def create_comment(payload: CommentIn, user=Depends(get_current_user)):
+    from auth_utils import require_verified
+    require_verified(user)
     db = get_db()
     t = await db.forum_threads.find_one({"id": payload.thread_id})
     if not t:
