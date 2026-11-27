@@ -1,3 +1,4 @@
+import { consumeNext } from "@/lib/nextPath";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
@@ -35,7 +36,7 @@ export default function Onboarding() {
 
   const skipAll = async () => {
     await markOnboarded();
-    navigate("/garage");
+    navigate(consumeNext("/garage"));
   };
 
   const handlePhoto = async (e) => {
@@ -263,7 +264,7 @@ function SuccessScreen({ vehicle, t, navigate }) {
         <button onClick={() => navigate(`/garage/${vehicle.id}`)} className="vehiq-btn-primary inline-flex items-center gap-2" data-testid="onboarding-go-vehicle">
           {t("onboarding.openVehicle")} <ArrowRight size={14} />
         </button>
-        <button onClick={() => navigate("/garage")} className="vehiq-btn-secondary" data-testid="onboarding-go-garage">
+        <button onClick={() => navigate(consumeNext("/garage"))} className="vehiq-btn-secondary" data-testid="onboarding-go-garage">
           {t("onboarding.backToGarage")}
         </button>
       </div>

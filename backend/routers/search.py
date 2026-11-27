@@ -122,7 +122,7 @@ async def global_search(
 
     async def _workshops():
         # Iter 54: only activated + non-deleted B2B accounts show in search.
-        f = {"activated": True}
+        f = {"activated": True, "verified": True, "hidden": {"$ne": True}}
         if rx:
             f["$or"] = [{"name": rx}, {"city": rx}, {"specializations": rx}]
         items = await db.business_accounts.find(

@@ -1135,5 +1135,19 @@
     "disclaimer": "Sprawdź opis przed publikacją – za treść ogłoszenia odpowiada sprzedający.",
     "needCar": "Wybierz auto z garażu, żeby AI napisało opis",
     "busy": "AI pisze opis…"
+  },
+  "biz": {
+    "registered": "Firma zarejestrowana",
+    "alreadyHas": "Masz już konto firmowe – otwieramy panel",
+    "tooManyAttempts": "Za dużo prób rejestracji. Spróbuj jutro.",
+    "registerFailed": "Nie udało się zarejestrować",
+    "hiddenBanner": "Profil niewidoczny publicznie – czeka na weryfikację",
+    "privateVehicleInfo": "To auto jest prywatne. Właściciel może udostępnić Twojej firmie historię serwisową.",
+    "requestAccess": "Poproś o dostęp",
+    "accessRequested": "Prośba wysłana do właściciela",
+    "accessPending": "Prośba o dostęp czeka na decyzję właściciela",
+    "accessRetryLater": "Właściciel odrzucił prośbę. Ponowna prośba możliwa od {{date}}.",
+    "accessDailyLimit": "Limit 20 próśb o dostęp na dobę został wykorzystany",
+    "accessFailed": "Nie udało się wysłać prośby"
   }
 }

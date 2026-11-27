@@ -399,7 +399,6 @@ async def create_listing(payload: ListingIn, user=Depends(get_current_user)):
         plan = (user.get("plan") or "free").lower()
         is_business = (
             (payload.rental and payload.rental.owner_type == "business")
-            or user.get("business")
             or plan in {"premium", "business", "b2b"}
         )
         if not is_business and plan == "free":
@@ -420,7 +419,7 @@ async def create_listing(payload: ListingIn, user=Depends(get_current_user)):
     # Free-tier limit for service listings — 1 active service. Premium unlimited.
     if is_service:
         plan = (user.get("plan") or "free").lower()
-        if plan == "free" and not user.get("business"):
+        if plan == "free":
             active_services = await db.listings.count_documents({
                 "user_id": user["id"],
                 "status": "active",

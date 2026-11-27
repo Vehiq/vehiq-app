@@ -16,6 +16,7 @@ from Stripe (single source of truth). On checkout.session.completed the user's
 from __future__ import annotations
 
 import os
+import logging
 from datetime import datetime, timezone
 from typing import Optional
 
@@ -27,6 +28,7 @@ from auth_utils import get_current_user
 from db_helper import get_db
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 stripe.api_key = os.environ.get("STRIPE_SECRET_KEY") or "sk_test_emergent"
 STRIPE_WEBHOOK_SECRET = os.environ.get("STRIPE_WEBHOOK_SECRET", "")
 
@@ -50,12 +52,7 @@ class CheckoutRequest(BaseModel):
 
 @router.post("/payments/checkout")
 async def create_checkout(req: CheckoutRequest, user=Depends(get_current_user)):
-    prices = stripe.Price.list(lookup_keys=[req.lookup_key], active=True, limit=1).data
-    if not prices:
-        raise HTTPException(status_code=400, detail=f"Nieznana cena: {req.lookup_key}")
-    price = prices[0]
     plan_slug, is_b2b = PLAN_MAP.get(req.lookup_key, ("premium", False))
-
     md = {
         "user_id": user["id"],
         "lookup_key": req.lookup_key,
@@ -64,7 +61,14 @@ async def create_checkout(req: CheckoutRequest, user=Depends(get_current_user)):
     if is_b2b:
         if not req.business_id:
             raise HTTPException(status_code=400, detail="business_id wymagany dla planu B2B")
+        biz = await get_db().business_accounts.find_one({"id": req.business_id}, {"_id": 0, "owner_user_id": 1})
+        if not biz or biz.get("owner_user_id") != user["id"]:
+            raise HTTPException(status_code=403, detail="Nie jesteś właścicielem tej firmy")
         md["business_id"] = req.business_id
+    prices = stripe.Price.list(lookup_keys=[req.lookup_key], active=True, limit=1).data
+    if not prices:
+        raise HTTPException(status_code=400, detail=f"Nieznana cena: {req.lookup_key}")
+    price = prices[0]
 
     # Managed payments (SMP) — GB sandbox is eligible; auto-fallback on 400.
     kwargs = dict(
@@ -95,7 +99,7 @@ async def create_checkout(req: CheckoutRequest, user=Depends(get_current_user)):
         "user_id": user["id"],
         "lookup_key": req.lookup_key,
         "plan_slug": plan_slug,
-        "business_id": req.business_id,
+        "business_id": md.get("business_id"),
         "amount": (price.unit_amount or 0) * req.quantity,
         "currency": price.currency,
         "status": "initiated",
@@ -219,6 +223,10 @@ async def _finalise_session(session_id: str, session_obj, db) -> None:
             pass
 
     if business_id:
+        biz = await db.business_accounts.find_one({"id": business_id}, {"_id": 0, "owner_user_id": 1})
+        if not biz or not user_id or biz.get("owner_user_id") != user_id:
+            logger.warning("payment %s: payer is not the owner of business %s — plan not activated", session_id, business_id)
+            return
         await db.business_accounts.update_one(
             {"id": business_id},
             {"$set": {
@@ -229,7 +237,7 @@ async def _finalise_session(session_id: str, session_obj, db) -> None:
                 "plan_expires_at": period_end,
                 "activated": True,
                 "activated_at": datetime.now(timezone.utc).isoformat(),
-                "activation_trigger": md.get("activation_trigger") or "subscription",
+                "activation_trigger": "payment",
                 "updated_at": datetime.now(timezone.utc).isoformat(),
             }},
         )

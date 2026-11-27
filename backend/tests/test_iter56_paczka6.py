@@ -122,9 +122,9 @@ def test_business_activate_authz_and_unverified_entry():
     assert r.status_code == 200, r.text
     bid = (r.json().get("business") or r.json()).get("id")
     CREATED["businesses"].append(bid)
-    assert requests.post(f"{API}/business/{bid}/activate").status_code == 401
-    assert requests.post(f"{API}/business/{bid}/activate", headers=other["h"]).status_code == 403
-    assert requests.post(f"{API}/business/{bid}/activate", headers=owner["h"]).status_code == 200
+    # Paczka 11: self-activation endpoint removed (admin / verified QR scan / payment only).
+    for h in ({}, other["h"], owner["h"]):
+        assert requests.post(f"{API}/business/{bid}/activate", headers=h).status_code in (404, 405)
     e = requests.post(f"{API}/business/service-entry", json={"vehicle_id": "x", "date": "2025-01-01", "type": "oil",
                                                               "title": "TEST", "cost": 1, "mileage": 1}, headers=owner["h"])
     assert e.status_code in (403, 422), e.text

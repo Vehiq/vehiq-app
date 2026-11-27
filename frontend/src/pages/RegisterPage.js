@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { nextFromParams, rememberNext } from "@/lib/nextPath";
 import { useTranslation, Trans } from "react-i18next";
 import { useAuth } from "@/contexts/AuthContext";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
@@ -62,6 +63,7 @@ export default function RegisterPage() {
       // doesn't double-credit anyone.
       try { localStorage.removeItem(REF_STORAGE_KEY); localStorage.removeItem(REF_SOURCE_KEY); } catch (_) { /* ignore */ }
       toast.success(t("common.success"));
+      rememberNext(nextFromParams(searchParams));
       navigate("/onboarding");
     } catch (err) {
       const { apiErrorMessage } = await import("@/lib/api");
@@ -150,7 +152,7 @@ export default function RegisterPage() {
 
           <div className="text-center mt-6 text-sm text-vehiq-muted">
             {t("auth.haveAccount")}{" "}
-            <Link to="/login" className="text-vehiq-gold hover:text-vehiq-gold-hover" data-testid="register-login-link">{t("auth.login")}</Link>
+            <Link to={nextFromParams(searchParams) ? `/login?next=${encodeURIComponent(nextFromParams(searchParams))}` : "/login"} className="text-vehiq-gold hover:text-vehiq-gold-hover" data-testid="register-login-link">{t("auth.login")}</Link>
           </div>
         </div>
       </div>

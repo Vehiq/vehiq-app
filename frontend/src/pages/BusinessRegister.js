@@ -1,15 +1,15 @@
 import { useState, useEffect } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams, Navigate, useLocation } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import api from "@/lib/api";
 import { toast } from "sonner";
-import { Store, Wrench, Sparkles, Truck, MoreHorizontal, CheckCircle2 } from "lucide-react";
+import { Store, Wrench, Sparkles, Truck, MoreHorizontal } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
 
 /**
  * B2B account registration form (Iter 53).
  *
- * Public — provisions a `business_accounts` doc with plan_status="pending".
- * Activation is deferred until the first meaningful action (QR scan / first
- * listing) so accounts can be created freely without ceremony.
+ * Logged-in users only (guests go to login and come back here). One business per owner.
  */
 
 const BUSINESS_TYPES = [
@@ -22,6 +22,9 @@ const BUSINESS_TYPES = [
 
 export default function BusinessRegister() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const { t } = useTranslation();
+  const { user, loading, refresh } = useAuth();
   const [params] = useSearchParams();
   const [form, setForm] = useState({
     type: "workshop",
@@ -34,12 +37,15 @@ export default function BusinessRegister() {
     address: "",
   });
   const [busy, setBusy] = useState(false);
-  const [done, setDone] = useState(null); // {id, slug}
 
   useEffect(() => {
     const t = params.get("type");
     if (t && BUSINESS_TYPES.some((x) => x.v === t)) setForm((f) => ({ ...f, type: t }));
   }, [params]);
+
+  useEffect(() => {
+    if (user?.email) setForm((f) => (f.email ? f : { ...f, email: user.email }));
+  }, [user?.email]);
 
   const submit = async (e) => {
     e.preventDefault();
@@ -49,36 +55,26 @@ export default function BusinessRegister() {
     }
     setBusy(true);
     try {
-      const { data } = await api.post("/business/register", form);
-      setDone(data);
-      toast.success("Firma zarejestrowana");
+      await api.post("/business/register", form);
+      toast.success(t("biz.registered"));
+      try { await refresh(); } catch { /* ignore */ }
+      navigate("/business/onboarding", { replace: true });
     } catch (err) {
-      toast.error(err?.response?.data?.detail || "Nie udało się zarejestrować");
+      const st = err?.response?.status;
+      if (st === 409) {
+        toast.error(t("biz.alreadyHas"));
+        navigate("/business/dashboard", { replace: true });
+      } else if (st === 429) {
+        toast.error(t("biz.tooManyAttempts"));
+      } else {
+        toast.error(err?.response?.data?.detail || t("biz.registerFailed"));
+      }
     } finally { setBusy(false); }
   };
 
-  if (done) {
-    return (
-      <div className="min-h-screen flex items-center justify-center p-6" data-testid="business-register-done">
-        <div className="vehiq-card p-8 max-w-md w-full text-center space-y-4">
-          <div className="h-14 w-14 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center mx-auto">
-            <CheckCircle2 size={28} />
-          </div>
-          <h1 className="vehiq-display text-3xl text-vehiq-text">Zarejestrowano!</h1>
-          <p className="text-sm text-vehiq-muted leading-relaxed">
-            Wysłaliśmy powitanie na Twój e-mail. Konto zostanie aktywowane automatycznie po pierwszym skanie QR z auta klienta.
-          </p>
-          <button
-            onClick={() => navigate(`/business/${done.slug}`)}
-            className="vehiq-btn-primary w-full py-2.5"
-            data-testid="business-register-view"
-          >
-            Zobacz profil firmy
-          </button>
-        </div>
-      </div>
-    );
-  }
+  if (loading) return <div className="min-h-screen flex items-center justify-center text-vehiq-muted" data-testid="business-register-loading">…</div>;
+  if (!user) return <Navigate to={`/login?next=${encodeURIComponent(location.pathname + location.search)}`} replace />;
+  if (user.business_id) return <Navigate to="/business/dashboard" replace />;
 
   return (
     <div className="max-w-2xl mx-auto p-6" data-testid="business-register-page">

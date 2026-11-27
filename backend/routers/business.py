@@ -12,13 +12,14 @@ Iter 54b:
 from __future__ import annotations
 import re
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from typing import Optional, List
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Header
 from pydantic import BaseModel, EmailStr, Field, field_validator
 
-from auth_utils import get_current_user, get_optional_user
+from auth_utils import get_current_user, get_admin
+from rate_guard import hit_key_limit
 from db_helper import get_db
 from sanitizer import sanitize_plain
 from email_service import fire_and_forget, send_email, send_template, _wrap_html, _H2, _P, _btn, APP_URL
@@ -27,6 +28,42 @@ from email_render import render as _render
 router = APIRouter()
 
 BUSINESS_TYPES = {"workshop", "dealer", "detailing", "towing", "other"}
+ACTIVATION_TRIGGERS = {"qr_scan", "admin", "payment"}
+PUBLIC_FIELDS = ("name", "type", "slug", "address", "city", "phone", "website", "description",
+                 "specializations", "logo_url", "opening_hours", "verified")
+PUBLIC_BIZ_Q = {"verified": True, "activated": True, "hidden": {"$ne": True}}
+ACCESS_DAILY_LIMIT = 20
+ACCESS_RETRY_DAYS = 30
+
+
+def is_public_business(b: dict) -> bool:
+    return bool(b.get("verified") and b.get("activated") and not b.get("hidden"))
+
+
+def is_member(b: dict, user: Optional[dict]) -> bool:
+    return bool(user and (user.get("id") == b.get("owner_user_id") or user.get("id") in (b.get("staff_user_ids") or [])))
+
+
+async def _viewer(authorization: Optional[str] = Header(None)) -> dict:
+    """Optional viewer: {"user": profile|None, "admin": bool}."""
+    if not authorization:
+        return {"user": None, "admin": False}
+    try:
+        return {"user": await get_current_user(authorization), "admin": False}
+    except Exception:
+        pass
+    try:
+        await get_admin(authorization)
+        return {"user": None, "admin": True}
+    except Exception:
+        return {"user": None, "admin": False}
+
+
+async def _visible_business(db, slug: str, viewer: dict, projection=None) -> dict:
+    doc = await db.business_accounts.find_one({"slug": slug}, {"_id": 0})
+    if not doc or not (is_public_business(doc) or viewer["admin"] or is_member(doc, viewer["user"])):
+        raise HTTPException(status_code=404, detail="Nie znaleziono firmy")
+    return doc
 
 # Iter 55 (Bug 32): proper Polish-diacritic → ASCII transliteration so
 # slugs stay URL-safe. Previous version used `\w` in unicode mode which
@@ -59,7 +96,7 @@ class BusinessRegisterIn(BaseModel):
     type: str = "workshop"
     name: str = Field(..., min_length=2, max_length=120)
     city: str = Field(..., min_length=2, max_length=80)
-    email: EmailStr
+    email: Optional[EmailStr] = None
     phone: Optional[str] = None
     nip: Optional[str] = None
     website: Optional[str] = None
@@ -76,11 +113,12 @@ class BusinessRegisterIn(BaseModel):
 
 
 @router.post("/business/register")
-async def register_business(payload: BusinessRegisterIn, user=Depends(get_optional_user)):
-    """Register a new business account. Free — activation is deferred until
-    the first meaningful action (QR scan, first listing, first contact).
-    """
+async def register_business(payload: BusinessRegisterIn, user=Depends(get_current_user)):
+    """Register a business owned by the logged-in user (one per owner, 3 attempts/day)."""
     db = get_db()
+    await hit_key_limit("business_register", user["id"], 3, 86400)
+    if await db.business_accounts.find_one({"owner_user_id": user["id"]}, {"_id": 1}):
+        raise HTTPException(status_code=409, detail="Masz już konto firmowe")
     base_slug = _slugify(payload.name)
     slug = await _unique_slug(db, base_slug)
 
@@ -93,7 +131,7 @@ async def register_business(payload: BusinessRegisterIn, user=Depends(get_option
         "address": sanitize_plain(payload.address),
         "city": sanitize_plain(payload.city),
         "phone": sanitize_plain(payload.phone),
-        "email": payload.email.lower(),
+        "email": (payload.email or user["email"]).lower(),
         "website": sanitize_plain(payload.website),
         "description": sanitize_plain(payload.description),
         "specializations": [sanitize_plain(s)[:40] for s in payload.specializations][:10],
@@ -106,28 +144,26 @@ async def register_business(payload: BusinessRegisterIn, user=Depends(get_option
         "activation_trigger": None,
         "stripe_customer_id": None,
         "stripe_subscription_id": None,
-        "owner_user_id": (user or {}).get("id"),
+        "owner_user_id": user["id"],
         "staff_user_ids": [],
         "verified": False,
+        "hidden": False,
         "created_at": datetime.now(timezone.utc).isoformat(),
         "updated_at": datetime.now(timezone.utc).isoformat(),
     }
     await db.business_accounts.insert_one(doc)
+    await db.profiles.update_one(
+        {"id": user["id"]},
+        {"$set": {"business_id": doc["id"], "business_role": "owner"}},
+    )
 
-    # If the caller has an account, link it and set role=owner.
-    if user:
-        await db.profiles.update_one(
-            {"id": user["id"]},
-            {"$set": {"business_id": doc["id"], "business_role": "owner"}},
-        )
-
-    # Welcome email
+    # Welcome email goes ONLY to the account e-mail, never to the form address.
     subj, html, _ = _render("generic", "pl", subject=f"Witaj w Sharago — {doc['name']}", preheader="Rejestracja warsztatu zakończona.",
                             title="Dziękujemy za rejestrację!",
                             paragraphs=[f"Twój warsztat / firma {doc['name']} został zarejestrowany bezpłatnie.",
-                                        "Aby aktywować konto, wystarczy zeskanować pierwszy kod QR z auta klienta lub dodać pierwsze ogłoszenie usług — zrobimy to automatycznie."],
-                            button_url=f"{APP_URL}/business/{doc['slug']}", button_label="Przejdź do panelu")
-    fire_and_forget(send_email(doc["email"], subj, html))
+                                        "Profil pojawi się publicznie po weryfikacji przez Sharago i aktywacji konta."],
+                            button_url=f"{APP_URL}/business/dashboard", button_label="Przejdź do panelu")
+    fire_and_forget(send_email(user["email"], subj, html))
 
     return {"id": doc["id"], "slug": doc["slug"], "activated": False}
 
@@ -143,7 +179,7 @@ async def list_businesses_public(
 ):
     """Public list of activated B2B accounts with filters. Iter 54b."""
     db = get_db()
-    f = {"activated": True}
+    f = dict(PUBLIC_BIZ_Q)
     if type:
         f["type"] = type
     if city:
@@ -151,7 +187,7 @@ async def list_businesses_public(
     if specialization:
         f["specializations"] = {"$regex": re.escape(specialization), "$options": "i"}
     if q:
-        rx = {"$regex": re.escape(q), "$options": "i"}
+        rx = {"$regex": re.escape(q[:64]), "$options": "i"}
         f["$or"] = [{"name": rx}, {"city": rx}, {"specializations": rx}]
     limit = max(1, min(int(limit), 60))
     skip = max(0, (page - 1) * limit)
@@ -169,34 +205,29 @@ async def list_businesses_public(
 
 
 @router.get("/business/{slug}")
-async def get_business(slug: str, user=Depends(get_optional_user)):
-    """Public business profile view."""
+async def get_business(slug: str, viewer=Depends(_viewer)):
+    """Public profile: only verified + activated + not hidden. Owner/staff/admin always."""
     db = get_db()
-    doc = await db.business_accounts.find_one({"slug": slug}, {"_id": 0})
-    if not doc:
-        raise HTTPException(status_code=404, detail="Nie znaleziono firmy")
-    doc["is_owner"] = bool(user and user.get("id") == doc.get("owner_user_id"))
-    # Do not leak sensitive fields (email/nip) if viewer isn't the owner.
-    if not doc["is_owner"]:
-        for k in ("email", "nip", "stripe_customer_id", "stripe_subscription_id",
-                  "owner_user_id", "staff_user_ids"):
-            doc.pop(k, None)
-    return doc
+    doc = await _visible_business(db, slug, viewer)
+    is_owner = is_member(doc, viewer["user"])
+    if is_owner or viewer["admin"]:
+        out = dict(doc)
+    else:
+        out = {k: doc.get(k) for k in PUBLIC_FIELDS}
+    out["is_owner"] = is_owner
+    out["public_visible"] = is_public_business(doc)
+    return out
 
 
 @router.get("/business/{slug}/history")
-async def get_business_public_history(slug: str, limit: int = 30):
+async def get_business_public_history(slug: str, limit: int = 30, viewer=Depends(_viewer)):
     """Sanitized public service-entry feed for a workshop — Iter 54b.
 
     Shows what the workshop has serviced (make/model/year + type + date) —
     NO client PII, NO cost, NO vehicle owner name.
     """
     db = get_db()
-    # Iter 55 (Bug 32): drop the `activated: True` requirement so newly-
-    # registered workshops still resolve; empty history renders as "no entries".
-    biz = await db.business_accounts.find_one({"slug": slug}, {"_id": 0, "id": 1})
-    if not biz:
-        raise HTTPException(status_code=404, detail="Nie znaleziono firmy")
+    biz = await _visible_business(db, slug, viewer)
     limit = max(1, min(int(limit), 100))
     entries = await (
         db.service_entries.find(
@@ -228,15 +259,10 @@ async def get_business_public_history(slug: str, limit: int = 30):
 
 
 @router.get("/business/{slug}/stats")
-async def get_business_stats(slug: str):
+async def get_business_stats(slug: str, viewer=Depends(_viewer)):
     """Public stats for the workshop profile page (Iter 55, task 6)."""
     db = get_db()
-    biz = await db.business_accounts.find_one(
-        {"slug": slug},
-        {"_id": 0, "id": 1, "activated_at": 1, "created_at": 1},
-    )
-    if not biz:
-        raise HTTPException(status_code=404, detail="Nie znaleziono firmy")
+    biz = await _visible_business(db, slug, viewer)
     # Count distinct vehicle_ids and service_entries where business_id matches
     pipeline = [
         {"$match": {"business_id": biz["id"]}},
@@ -268,34 +294,6 @@ async def get_business_stats(slug: str):
         "top_makes": top_makes,
         "on_sharago_since": biz.get("activated_at") or biz.get("created_at"),
     }
-
-
-@router.post("/business/{business_id}/activate")
-async def activate_business(business_id: str, trigger: str = "qr_scan", user=Depends(get_current_user)):
-    """Idempotent activation — only the business owner/staff (admins use /admin/businesses/{id}/activate)."""
-    db = get_db()
-    doc = await db.business_accounts.find_one({"id": business_id}, {"_id": 0, "activated": 1, "email": 1, "name": 1, "owner_user_id": 1, "staff_user_ids": 1})
-    if not doc:
-        raise HTTPException(status_code=404, detail="Nie znaleziono firmy")
-    if doc.get("owner_user_id") != user["id"] and user["id"] not in (doc.get("staff_user_ids") or []):
-        raise HTTPException(status_code=403, detail="Brak uprawnień")
-    if doc.get("activated"):
-        return {"ok": True, "already_activated": True}
-    await db.business_accounts.update_one(
-        {"id": business_id},
-        {"$set": {
-            "activated": True,
-            "activated_at": datetime.now(timezone.utc).isoformat(),
-            "activation_trigger": trigger,
-            "plan_status": "active",
-            "updated_at": datetime.now(timezone.utc).isoformat(),
-        }},
-    )
-    subj, html, _ = _render("generic", "pl", subject=f"Twój warsztat {doc['name']} jest aktywny!", preheader="Konto aktywne.",
-                            title="Konto aktywne", paragraphs=["Twój warsztat pojawia się teraz w wynikach wyszukiwania Sharago."],
-                            button_url=f"{APP_URL}/business", button_label="Otwórz panel")
-    fire_and_forget(send_email(doc["email"], subj, html))
-    return {"ok": True, "already_activated": False}
 
 
 class BusinessProfileIn(BaseModel):
@@ -337,9 +335,8 @@ async def update_business_profile(
 
 
 def _is_profile_complete(biz: dict) -> bool:
-    return bool(
-        biz.get("logo_url") and biz.get("opening_hours") and (biz.get("specializations") or [])
-    )
+    # Logo not required until file upload exists (Paczka 12).
+    return bool(biz.get("opening_hours") and (biz.get("specializations") or []))
 
 
 
@@ -358,8 +355,8 @@ async def _get_business_for_user(user: dict) -> Optional[dict]:
 
 
 async def activate_business_on_scan(db, business: dict) -> dict:
-    """Idempotent auto-activation when a workshop scans a vehicle QR."""
-    if business.get("activated"):
+    """Idempotent auto-activation when a VERIFIED workshop scans a vehicle QR."""
+    if business.get("activated") or not business.get("verified"):
         return business
     now = datetime.now(timezone.utc).isoformat()
     await db.business_accounts.update_one(
@@ -387,36 +384,22 @@ async def activate_business_on_scan(db, business: dict) -> dict:
     return business
 
 
-async def request_vehicle_access(db, business: dict, vehicle: dict) -> dict:
-    """Create or refresh a workshop_vehicle_access record. Returns the doc."""
-    now = datetime.now(timezone.utc).isoformat()
-    existing = await db.workshop_vehicle_access.find_one(
-        {"business_id": business["id"], "vehicle_id": vehicle["id"]},
-        {"_id": 0},
-    )
-    if existing:
-        # Touch last_scanned_at; keep status.
-        await db.workshop_vehicle_access.update_one(
-            {"id": existing["id"]},
-            {"$set": {"last_scanned_at": now, "updated_at": now}},
-        )
-        existing["last_scanned_at"] = now
-        return existing
-    doc = {
-        "id": str(uuid.uuid4()),
-        "business_id": business["id"],
-        "business_name": business.get("name"),
-        "business_slug": business.get("slug"),
-        "vehicle_id": vehicle["id"],
-        "owner_user_id": vehicle.get("user_id"),
-        "status": "pending",  # pending | approved | denied
-        "active": False,
-        "created_at": now,
-        "updated_at": now,
-        "last_scanned_at": now,
-    }
-    await db.workshop_vehicle_access.insert_one(doc)
-    # Notify owner
+async def verified_business_for_user(user: Optional[dict]) -> Optional[dict]:
+    """Business of the caller only when verified and not hidden (else treated as a guest)."""
+    biz = await _get_business_for_user(user)
+    if biz and biz.get("verified") and not biz.get("hidden") and is_member(biz, user):
+        return biz
+    return None
+
+
+async def has_approved_access(db, business: Optional[dict], vehicle_id: str) -> bool:
+    if not business:
+        return False
+    return bool(await db.workshop_vehicle_access.find_one(
+        {"business_id": business["id"], "vehicle_id": vehicle_id, "status": "approved", "active": True}, {"_id": 1}))
+
+
+async def _notify_owner_access(db, business: dict, vehicle: dict) -> None:
     try:
         owner = await db.profiles.find_one(
             {"id": vehicle.get("user_id")},
@@ -434,7 +417,81 @@ async def request_vehicle_access(db, business: dict, vehicle: dict) -> dict:
                                           unsubscribe_url=unsubscribe_url(owner["id"], "unsub_messages")))
     except Exception:
         pass
+
+
+async def request_vehicle_access(db, business: dict, vehicle: dict) -> dict:
+    """Create / re-open an access request. Rules: one pending per (business, vehicle),
+    max 20 new requests per business per day, re-request 30 days after a denial/revoke,
+    exactly one owner e-mail per request."""
+    now_dt = datetime.now(timezone.utc)
+    now = now_dt.isoformat()
+    existing = await db.workshop_vehicle_access.find_one(
+        {"business_id": business["id"], "vehicle_id": vehicle["id"]},
+        {"_id": 0},
+    )
+    if existing and existing.get("status") in ("pending", "approved"):
+        await db.workshop_vehicle_access.update_one(
+            {"id": existing["id"]},
+            {"$set": {"last_scanned_at": now, "updated_at": now}},
+        )
+        existing["last_scanned_at"] = now
+        return existing
+    if existing:
+        closed = existing.get("denied_at") or existing.get("revoked_at") or existing.get("updated_at")
+        try:
+            closed_dt = datetime.fromisoformat(closed)
+        except Exception:
+            closed_dt = now_dt
+        if now_dt - closed_dt < timedelta(days=ACCESS_RETRY_DAYS):
+            retry_at = (closed_dt + timedelta(days=ACCESS_RETRY_DAYS)).isoformat()
+            return {**existing, "retry_after": retry_at}
+    since = (now_dt - timedelta(days=1)).isoformat()
+    sent_today = await db.workshop_vehicle_access.count_documents(
+        {"business_id": business["id"], "requested_at": {"$gt": since}})
+    if sent_today >= ACCESS_DAILY_LIMIT:
+        raise HTTPException(status_code=429, detail="access_request_daily_limit")
+    if existing:
+        upd = {"status": "pending", "active": False, "requested_at": now, "updated_at": now, "last_scanned_at": now}
+        await db.workshop_vehicle_access.update_one({"id": existing["id"]}, {"$set": upd})
+        await _notify_owner_access(db, business, vehicle)
+        return {**existing, **upd}
+    doc = {
+        "id": str(uuid.uuid4()),
+        "business_id": business["id"],
+        "business_name": business.get("name"),
+        "business_slug": business.get("slug"),
+        "vehicle_id": vehicle["id"],
+        "owner_user_id": vehicle.get("user_id"),
+        "status": "pending",  # pending | approved | denied | revoked
+        "active": False,
+        "created_at": now,
+        "requested_at": now,
+        "updated_at": now,
+        "last_scanned_at": now,
+    }
+    await db.workshop_vehicle_access.insert_one(doc)
+    doc.pop("_id", None)
+    await _notify_owner_access(db, business, vehicle)
     return doc
+
+
+class AccessRequestIn(BaseModel):
+    short_id: str = Field(..., min_length=6, max_length=40)
+
+
+@router.post("/business/access/request")
+async def business_access_request(payload: AccessRequestIn, user=Depends(get_current_user)):
+    """Explicit 'Poproś o dostęp' from the limited private-vehicle view (verified businesses only)."""
+    db = get_db()
+    biz = await verified_business_for_user(user)
+    if not biz:
+        raise HTTPException(status_code=403, detail="Brak zweryfikowanego konta firmowego")
+    from routers.public_share import _find_vehicle_by_short_id
+    v = await _find_vehicle_by_short_id(payload.short_id)
+    if not v or v.get("user_id") == user["id"]:
+        raise HTTPException(status_code=404, detail="Nie znaleziono pojazdu")
+    acc = await request_vehicle_access(db, biz, v)
+    return {"status": acc.get("status"), "retry_after": acc.get("retry_after")}
 
 
 class AccessRespondIn(BaseModel):

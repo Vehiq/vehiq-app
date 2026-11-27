@@ -143,9 +143,34 @@ ERASE_DELETE = [
     ("reminders", "user_id"), ("fuel_logs", "user_id"), ("mileage_logs", "user_id"),
     ("project_items", "user_id"), ("listings", "user_id"), ("swap_listings", "user_id"),
     ("swap_interactions", "user_id"), ("swap_matches", "user_ids"), ("vehicle_shares", "user_id"),
-    ("services", "user_id"), ("part_alerts", "user_id"), ("notifications", "user_id"),
+    ("services", "user_id"), ("services", "owner_id"), ("service_reviews", "user_id"), ("part_alerts", "user_id"), ("notifications", "user_id"),
     ("ai_chats", "user_id"), ("vehicle_views", "user_id"), ("premium_waitlist", "user_id"),
 ]
+
+
+async def _erase_owned_businesses(db, user_id: str) -> int:
+    """Delete businesses owned by the user (+ R2 logo, access rows). Their entries in
+    customers' cars stay as vehicle history, detached from the deleted business."""
+    from storage import get_storage
+    n = 0
+    async for b in db.business_accounts.find({"owner_user_id": user_id}, {"_id": 0, "id": 1, "logo_url": 1}):
+        logo = b.get("logo_url")
+        if logo:
+            try:
+                st = await get_storage()
+                if st and (st.public_url and logo.startswith(st.public_url)):
+                    st.delete(logo)
+            except Exception:
+                pass
+        await db.workshop_vehicle_access.delete_many({"business_id": b["id"]})
+        await db.service_entries.update_many(
+            {"business_id": b["id"]},
+            {"$set": {"business_id": None, "business_name": "Warsztat (konto usunięte)"}})
+        await db.profiles.update_many({"business_id": b["id"]}, {"$unset": {"business_id": "", "business_role": ""}})
+        await db.business_accounts.delete_one({"id": b["id"]})
+        n += 1
+    await db.profiles.update_one({"id": user_id}, {"$unset": {"business_id": "", "business_role": ""}})
+    return n
 
 
 async def erase_user_data(db, user_id: str, now_iso: str) -> dict:
@@ -158,11 +183,17 @@ async def erase_user_data(db, user_id: str, now_iso: str) -> dict:
             if isinstance(ph, dict):
                 photos_deleted += int(bool(await delete_vehicle_photo(ph)))
         await db.workshop_vehicle_access.delete_many({"vehicle_id": v["id"]})
-    for coll in ("listings", "services", "service_entries"):
-        async for d in db[coll].find({"user_id": user_id}, {"_id": 0, "photos": 1}):
+    for coll, q in (("listings", {"user_id": user_id}), ("service_entries", {"user_id": user_id}),
+                    ("services", {"$or": [{"user_id": user_id}, {"owner_id": user_id}]})):
+        async for d in db[coll].find(q, {"_id": 0, "photos": 1}):
             for ph in d.get("photos") or []:
                 if isinstance(ph, dict):
                     photos_deleted += int(bool(await delete_entity_photo(ph)))
+    own_service_ids = [d["id"] async for d in db.services.find({"$or": [{"user_id": user_id}, {"owner_id": user_id}]}, {"_id": 0, "id": 1})]
+    if own_service_ids:
+        await db.service_reviews.delete_many({"service_id": {"$in": own_service_ids}})
+    reviewed_ids = [d["service_id"] async for d in db.service_reviews.find({"user_id": user_id}, {"_id": 0, "service_id": 1})]
+    counts["businesses"] = await _erase_owned_businesses(db, user_id)
     counts["r2_photos"] = photos_deleted
     for coll, field in ERASE_DELETE:
         try:
@@ -171,6 +202,10 @@ async def erase_user_data(db, user_id: str, now_iso: str) -> dict:
                 counts[coll] = res.deleted_count
         except Exception:
             pass
+    if reviewed_ids:
+        from routers.services import _recompute_rating
+        for sid in set(reviewed_ids) - set(own_service_ids):
+            await _recompute_rating(db, sid)
     # Messages stay for the other party, content removed.
     await db.messages.update_many({"sender_id": user_id}, {"$set": {"content": "[usunięte]", "anonymized_at": now_iso}})
     # Referrals: keep the row for the referrer's counter, drop the link to this person.
@@ -184,11 +219,12 @@ async def erase_user_data(db, user_id: str, now_iso: str) -> dict:
             "email": f"deleted-{user_id[:8]}@removed.sharago",
             "name": "Użytkownik usunięty",
             "username": None, "slug": None, "bio": None, "avatar": None, "location": None, "phone": None,
-            "google_id": None, "password_hash": None, "referral_code": None,
+            "google_id": None, "password_hash": None,
             "marketing_consent": False,
             "privacy_settings": {"profile_public": False, "vehicles_public": False, "searchable": False},
         },
-         "$unset": {"deleted_email": "", "deleted_name": ""},
+         # referral_code has a unique sparse index: unset (not null) or the 2nd deletion collides.
+         "$unset": {"deleted_email": "", "deleted_name": "", "referral_code": ""},
          "$inc": {"token_version": 1}},
     )
     return counts

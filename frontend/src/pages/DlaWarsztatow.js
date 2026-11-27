@@ -17,7 +17,7 @@ export default function DlaWarsztatow() {
   const { user } = useAuth();
   const ctaHref = user
     ? (user.business_id ? "/business/dashboard" : "/register/business?type=workshop")
-    : "/register?next=/register/business%3Ftype%3Dworkshop";
+    : "/login?next=/register/business%3Ftype%3Dworkshop";
   const ctaLabel = user
     ? (user.business_id ? "Otwórz panel warsztatu" : "Zarejestruj warsztat bezpłatnie")
     : "Zarejestruj warsztat bezpłatnie";

@@ -51,24 +51,17 @@ def smoke_token():
 @pytest.fixture(scope="session")
 def fresh_user():
     """Create a fresh user (vehicle owner A)."""
-    email = f"TEST_owner_{uuid.uuid4().hex[:8]}@qa.pl"
-    password = "TestPass1234!"
-    r = requests.post(f"{API}/auth/register", json={"email": email, "password": password, "name": "TEST Owner"}, timeout=15)
-    assert r.status_code in (200, 201), f"register failed: {r.text}"
-    tok = r.json().get("token") or r.json().get("access_token")
-    assert tok, f"no token in register response {r.json()}"
-    return {"email": email, "password": password, "token": tok, "id": r.json().get("user", {}).get("id")}
+    from tests.db_users import make_user, PWD
+    u = make_user("test_owner")
+    return {"email": u["email"], "password": PWD, "token": u["token"], "id": u["id"]}
 
 
 @pytest.fixture(scope="session")
-def workshop_user():
-    """Create user B with a business_account (workshop)."""
-    email = f"TEST_ws_{uuid.uuid4().hex[:8]}@qa.pl"
-    password = "TestPass1234!"
-    r = requests.post(f"{API}/auth/register", json={"email": email, "password": password, "name": "TEST WS Owner"}, timeout=15)
-    assert r.status_code in (200, 201), r.text
-    tok = r.json().get("token") or r.json().get("access_token")
-    uid = r.json().get("user", {}).get("id")
+def workshop_user(admin_token):
+    """Create user B with a business_account (workshop), verified by admin (Paczka 11 rule)."""
+    from tests.db_users import make_user
+    u = make_user("test_ws")
+    email, tok, uid = u["email"], u["token"], u["id"]
 
     # Register business under this user
     biz_name = f"TEST WS {uuid.uuid4().hex[:6]}"
@@ -77,6 +70,9 @@ def workshop_user():
         headers={"Authorization": f"Bearer {tok}"}, timeout=15)
     assert br.status_code == 200, br.text
     biz = br.json()
+    vr = requests.patch(f"{API}/admin/businesses/{biz['id']}/verify", params={"verified": "true"},
+                        headers={"Authorization": f"Bearer {admin_token}"}, timeout=15)
+    assert vr.status_code == 200, vr.text
     return {"email": email, "token": tok, "id": uid, "business_id": biz["id"], "business_slug": biz["slug"]}
 
 
@@ -90,7 +86,7 @@ def owned_vehicle(fresh_user):
     v = r.json()
     vid = v.get("id")
     # Ensure searchable/public
-    requests.put(f"{API}/vehicles/{vid}", json={"privacy": {"profile_visible": True}, "searchable": True}, headers=h, timeout=15)
+    requests.put(f"{API}/vehicles/{vid}", json={"visibility": "public", "privacy": {"profile_visible": True}, "searchable": True}, headers=h, timeout=15)
     return {"id": vid, "short_id": vid[:8]}
 
 
@@ -290,8 +286,10 @@ class TestMarketplacePartsAndService:
         assert d.get("part", {}).get("part_condition") == "used"
         assert d.get("part", {}).get("part_oem") == "12417797510"
 
-    def test_create_service_listing(self, smoke_token):
-        h = {"Authorization": f"Bearer {smoke_token}"}
+    def test_create_service_listing(self):
+        # Paczka 11: free tier allows 1 active service listing → use a fresh account.
+        from tests.db_users import make_user
+        h = make_user("test_svc")["h"]
         payload = {
             "type": "service",
             "category": "service",

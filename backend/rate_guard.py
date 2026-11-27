@@ -10,6 +10,17 @@ from security import client_ip
 _indexed = False
 
 
+async def hit_key_limit(scope: str, key: str, limit: int, window_s: int) -> None:
+    """Per-key (e.g. user id) variant of rate_limit; raises 429 when exceeded."""
+    db = get_db()
+    now = datetime.now(timezone.utc)
+    res = await db.rate_hits.insert_one({"scope": scope, "ip": f"key:{key}", "created_at": now})
+    n = await db.rate_hits.count_documents({"scope": scope, "ip": f"key:{key}", "created_at": {"$gt": now - timedelta(seconds=window_s)}})
+    if n > limit:
+        await db.rate_hits.delete_one({"_id": res.inserted_id})
+        raise HTTPException(status_code=429, detail="Too many requests. Please try again later.")
+
+
 def rate_limit(scope: str, limit: int, window_s: int):
     async def dep(request: Request):
         global _indexed

@@ -24,6 +24,12 @@ class ServiceEntryIn(BaseModel):
     attachments: Optional[List[str]] = []
 
 
+def _locked_msg(user: dict) -> str:
+    if (user.get("language") or "pl") == "en":
+        return "Entry confirmed by a workshop – it cannot be changed or deleted"
+    return "Wpis potwierdzony przez warsztat – nie można go zmienić ani usunąć"
+
+
 async def _check_owner(db, vehicle_id, user_id):
     v = await db.vehicles.find_one({"id": vehicle_id, "user_id": user_id})
     if not v:
@@ -68,7 +74,7 @@ async def update(entry_id: str, payload: ServiceEntryIn, user=Depends(get_curren
     if not e:
         raise HTTPException(status_code=404, detail="Entry not found")
     if e.get("business_id"):
-        raise HTTPException(status_code=403, detail="Workshop-confirmed entries cannot be edited by the owner")
+        raise HTTPException(status_code=403, detail=_locked_msg(user))
     update = payload.model_dump(exclude_unset=True)
     await db.service_entries.update_one({"id": entry_id}, {"$set": update})
     fresh = await db.service_entries.find_one({"id": entry_id}, {"_id": 0})
@@ -81,6 +87,8 @@ async def delete(entry_id: str, user=Depends(get_current_user)):
     e = await db.service_entries.find_one({"id": entry_id, "user_id": user["id"]})
     if not e:
         raise HTTPException(status_code=404, detail="Entry not found")
+    if e.get("business_id"):
+        raise HTTPException(status_code=403, detail=_locked_msg(user))
     await db.service_entries.delete_one({"id": entry_id})
     return {"ok": True}
 

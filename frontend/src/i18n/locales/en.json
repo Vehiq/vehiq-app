@@ -1133,5 +1133,19 @@
     "disclaimer": "Check the description before publishing – the seller is responsible for the listing.",
     "needCar": "Pick a car from your garage so the AI can write a description",
     "busy": "AI is writing…"
+  },
+  "biz": {
+    "registered": "Business registered",
+    "alreadyHas": "You already have a business account – opening the dashboard",
+    "tooManyAttempts": "Too many registration attempts. Try again tomorrow.",
+    "registerFailed": "Registration failed",
+    "hiddenBanner": "Profile not publicly visible – awaiting verification",
+    "privateVehicleInfo": "This car is private. The owner can share its service history with your business.",
+    "requestAccess": "Request access",
+    "accessRequested": "Request sent to the owner",
+    "accessPending": "Access request awaiting the owner's decision",
+    "accessRetryLater": "The owner declined. You can ask again from {{date}}.",
+    "accessDailyLimit": "Daily limit of 20 access requests reached",
+    "accessFailed": "Could not send the request"
   }
 }

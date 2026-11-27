@@ -50,18 +50,20 @@ class TestWaitlist:
 
 
 # --------- B2B registration + activation ---------
+def _new_user_token():
+    from tests.db_users import make_user
+    return make_user("qa_w")["h"]
+
+
 class TestBusiness:
     _biz_id = None
     _biz_slug = None
+    _h = None
 
     def test_register_workshop(self):
-        payload = {
-            "type": "workshop",
-            "name": f"TEST QA Warsztat {uuid.uuid4().hex[:6]}",
-            "city": "Warszawa",
-            "email": f"qa-w-{uuid.uuid4().hex[:6]}@test.pl",
-        }
-        r = requests.post(f"{BASE}/api/business/register", json=payload, timeout=15)
+        TestBusiness._h = _new_user_token()
+        payload = {"type": "workshop", "name": f"TEST QA Warsztat {uuid.uuid4().hex[:6]}", "city": "Warszawa"}
+        r = requests.post(f"{BASE}/api/business/register", json=payload, headers=TestBusiness._h, timeout=15)
         assert r.status_code == 200, r.text
         d = r.json()
         assert "id" in d and "slug" in d and d["activated"] is False
@@ -70,35 +72,38 @@ class TestBusiness:
 
     def test_register_invalid_type(self):
         r = requests.post(f"{BASE}/api/business/register",
-                          json={"type": "invalid", "name": "X Y", "city": "Wro", "email": "x@y.com"}, timeout=15)
+                          json={"type": "invalid", "name": "X Y", "city": "Wro"}, headers=_new_user_token(), timeout=15)
         assert r.status_code in (400, 422), r.text
 
     def test_duplicate_slug_suffix(self):
         name = f"TEST DupSlug {uuid.uuid4().hex[:6]}"
         r1 = requests.post(f"{BASE}/api/business/register",
-                           json={"type": "dealer", "name": name, "city": "Wroclaw", "email": f"a-{uuid.uuid4().hex[:6]}@test.pl"}, timeout=15)
+                           json={"type": "dealer", "name": name, "city": "Wroclaw"}, headers=_new_user_token(), timeout=15)
         r2 = requests.post(f"{BASE}/api/business/register",
-                           json={"type": "dealer", "name": name, "city": "Wroclaw", "email": f"b-{uuid.uuid4().hex[:6]}@test.pl"}, timeout=15)
+                           json={"type": "dealer", "name": name, "city": "Wroclaw"}, headers=_new_user_token(), timeout=15)
         assert r1.status_code == 200 and r2.status_code == 200
         s1, s2 = r1.json()["slug"], r2.json()["slug"]
         assert s1 != s2
         assert s2.startswith(s1) and s2.endswith("-1")
 
-    def test_get_public_business(self):
+    def test_get_business_owner_sees_unverified(self):
         assert TestBusiness._biz_slug
-        r = requests.get(f"{BASE}/api/business/{TestBusiness._biz_slug}", timeout=15)
+        r = requests.get(f"{BASE}/api/business/{TestBusiness._biz_slug}", headers=TestBusiness._h, timeout=15)
         assert r.status_code == 200
         d = r.json()
-        assert "is_owner" in d and d["is_owner"] is False
+        assert d["is_owner"] is True and d["public_visible"] is False
+        # Strangers: unverified → 404
+        assert requests.get(f"{BASE}/api/business/{TestBusiness._biz_slug}", timeout=15).status_code == 404
 
-    def test_activate_idempotent(self):
+    def test_activate_idempotent(self, admin_token):
+        """Paczka 11: owner self-activation removed; admin activation is idempotent."""
         assert TestBusiness._biz_id
-        r1 = requests.post(f"{BASE}/api/business/{TestBusiness._biz_id}/activate?trigger=qr_scan", timeout=15)
-        assert r1.status_code == 200
-        assert r1.json() == {"ok": True, "already_activated": False}
-        r2 = requests.post(f"{BASE}/api/business/{TestBusiness._biz_id}/activate?trigger=qr_scan", timeout=15)
-        assert r2.status_code == 200
-        assert r2.json() == {"ok": True, "already_activated": True}
+        r0 = requests.post(f"{BASE}/api/business/{TestBusiness._biz_id}/activate?trigger=qr_scan", headers=TestBusiness._h, timeout=15)
+        assert r0.status_code in (404, 405), r0.text
+        h = {"Authorization": f"Bearer {admin_token}"}
+        for _ in range(2):
+            r = requests.patch(f"{BASE}/api/admin/businesses/{TestBusiness._biz_id}/activate", headers=h, timeout=15)
+            assert r.status_code == 200 and r.json() == {"ok": True}
 
 
 # --------- Stripe checkout ---------
@@ -223,9 +228,8 @@ class TestAdmin:
 
     def test_admin_activate_and_verify(self, admin_token):
         # Register a fresh biz to mutate
-        reg = requests.post(f"{BASE}/api/business/register",
-                            json={"type": "detailing", "name": f"TEST Admin {uuid.uuid4().hex[:6]}", "city": "Krakow",
-                                  "email": f"adm-{uuid.uuid4().hex[:6]}@test.pl"}, timeout=15)
+        reg = requests.post(f"{BASE}/api/business/register", headers=_new_user_token(),
+                            json={"type": "detailing", "name": f"TEST Admin {uuid.uuid4().hex[:6]}", "city": "Krakow"}, timeout=15)
         assert reg.status_code == 200
         bid = reg.json()["id"]
         h = {"Authorization": f"Bearer {admin_token}"}

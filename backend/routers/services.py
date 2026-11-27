@@ -71,15 +71,16 @@ async def list_services(
     if category and category != "all":
         f["category"] = category
     if q:
+        qre = re.escape(q[:64])
         f["$or"] = [
-            {"name": {"$regex": q, "$options": "i"}},
-            {"description": {"$regex": q, "$options": "i"}},
-            {"services": {"$regex": q, "$options": "i"}},
+            {"name": {"$regex": qre, "$options": "i"}},
+            {"description": {"$regex": qre, "$options": "i"}},
+            {"services": {"$regex": qre, "$options": "i"}},
         ]
     if brand:
         f["brands"] = {"$regex": f"^{re.escape(brand)}$", "$options": "i"}
     if city:
-        f["location.city"] = {"$regex": city, "$options": "i"}
+        f["location.city"] = {"$regex": re.escape(city[:64]), "$options": "i"}
     items = await db.services.find(f, {"_id": 0}).sort([("featured", -1), ("created_at", -1)]).to_list(max(1, min(limit, 200)))
     # Apply Haversine if coords given
     if lat is not None and lng is not None:

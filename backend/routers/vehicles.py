@@ -919,8 +919,10 @@ async def get_public_vehicle(slug: str, user=Depends(get_optional_user)):
         raise HTTPException(status_code=404, detail="Vehicle not found")
     is_owner = bool(user and user.get("id") == v.get("user_id"))
     if not is_owner and not is_vehicle_public(v):
-        # Exists but private / sold → distinct message on the page ("Auto jest prywatne").
-        raise HTTPException(status_code=403, detail="vehicle_private")
+        # Private / sold: only a verified business with approved, active access sees it.
+        from routers.business import verified_business_for_user, has_approved_access
+        if not await has_approved_access(db, await verified_business_for_user(user), v["id"]):
+            raise HTTPException(status_code=403, detail="vehicle_private")
     privacy = v.get("privacy") or {}
 
     photos = v.get("photos") or []

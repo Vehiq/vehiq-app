@@ -85,7 +85,7 @@ async def create_swap_listing(payload: SwapListingIn, user=Depends(get_current_u
 
     # Free-tier limit: 1 active swap listing. Premium / demo bypass.
     plan = (user.get("plan") or "free").lower()
-    if plan == "free" and not user.get("business"):
+    if plan == "free":
         active = await _get_user_active_listing_count(db, user["id"])
         if active >= 1:
             raise HTTPException(

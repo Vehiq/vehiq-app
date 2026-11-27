@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { nextFromParams } from "@/lib/nextPath";
 import { useTranslation, Trans } from "react-i18next";
 import { useAuth } from "@/contexts/AuthContext";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
@@ -10,6 +11,8 @@ export default function LoginPage() {
   const { t } = useTranslation();
   const { login, loginAsDemo } = useAuth();
   const navigate = useNavigate();
+  const [params] = useSearchParams();
+  const next = nextFromParams(params);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
@@ -21,7 +24,7 @@ export default function LoginPage() {
     try {
       await login(email, password);
       toast.success(t("common.success"));
-      navigate("/garage");
+      navigate(next || "/garage");
     } catch (err) {
       toast.error(t("auth.loginFailed"));
     } finally {
@@ -49,7 +52,7 @@ export default function LoginPage() {
     // Sharago-owned Google OAuth — server handles full flow (state CSRF + token exchange).
     const backend = process.env.REACT_APP_BACKEND_URL || "";
     const origin = encodeURIComponent(window.location.origin);
-    window.location.href = `${backend.replace(/\/$/, "")}/api/auth/google?next=/garage&origin=${origin}`;
+    window.location.href = `${backend.replace(/\/$/, "")}/api/auth/google?next=${encodeURIComponent(next || "/garage")}&origin=${origin}`;
   };
 
   return (
@@ -105,7 +108,7 @@ export default function LoginPage() {
             <Link to="/password-reset" className="block text-vehiq-muted hover:text-vehiq-gold" data-testid="login-forgot-link">{t("auth.forgotPassword")}</Link>
             <div>
               {t("auth.noAccount")}{" "}
-              <Link to="/register" className="text-vehiq-gold hover:text-vehiq-gold-hover" data-testid="login-register-link">{t("auth.register")}</Link>
+              <Link to={next ? `/register?next=${encodeURIComponent(next)}` : "/register"} className="text-vehiq-gold hover:text-vehiq-gold-hover" data-testid="login-register-link">{t("auth.register")}</Link>
             </div>
             <div className="pt-2 border-t border-vehiq-border/50 mt-2">
               {t("ui.loginBusinessQ")}{" "}

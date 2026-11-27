@@ -71,29 +71,42 @@ async def get_public_vehicle_short(short_id: str, user=Depends(get_current_user_
         raise HTTPException(status_code=404, detail="Vehicle not found")
     privacy = v.get("privacy") or {}
     from visibility import is_vehicle_public
-    if not is_vehicle_public(v) and not (user and (user.get("id") == v.get("user_id") or user.get("account_type") == "business"
-                                                     or await get_db().business_accounts.find_one({"owner_user_id": user.get("id")}, {"_id": 1}))):
-        # Private / sold cars: only the owner or a workshop (QR scan → access request) may resolve the short link.
-        raise HTTPException(status_code=403, detail="vehicle_private")
+    from routers.business import (
+        verified_business_for_user, activate_business_on_scan, request_vehicle_access, has_approved_access,
+    )
+    db = get_db()
+    is_owner = bool(user and user.get("id") == v.get("user_id"))
+    # Unverified business accounts are treated exactly like guests.
+    biz = None if is_owner else await verified_business_for_user(user)
+    is_public = is_vehicle_public(v)
+    if not is_public and not is_owner and not await has_approved_access(db, biz, v["id"]):
+        if not biz:
+            raise HTTPException(status_code=403, detail="vehicle_private")
+        if not biz.get("activated"):
+            await activate_business_on_scan(db, biz)
+        acc = await db.workshop_vehicle_access.find_one(
+            {"business_id": biz["id"], "vehicle_id": v["id"]}, {"_id": 0, "status": 1})
+        return {
+            "limited": True,
+            "short_id": v["id"][:8],
+            "make": v.get("make"),
+            "model": v.get("model"),
+            "year": v.get("year"),
+            "access_status": (acc or {}).get("status"),
+        }
 
     workshop_action = None
-    if user and v.get("user_id") != user.get("id"):
+    if biz:
         try:
-            from routers.business import (
-                _get_business_for_user, activate_business_on_scan, request_vehicle_access,
+            if not biz.get("activated"):
+                biz = await activate_business_on_scan(db, biz)
+                workshop_action = "activated_and_requested"
+            access = await request_vehicle_access(db, biz, v)
+            workshop_action = workshop_action or (
+                "already_approved" if access.get("status") == "approved" else "access_requested"
             )
-            biz = await _get_business_for_user(user)
-            if biz:
-                db = get_db()
-                if not biz.get("activated"):
-                    biz = await activate_business_on_scan(db, biz)
-                    workshop_action = "activated_and_requested"
-                access = await request_vehicle_access(db, biz, v)
-                workshop_action = workshop_action or (
-                    "already_approved" if access.get("status") == "approved" else "access_requested"
-                )
         except Exception:
-            # Never fail public vehicle lookup because of B2B side-effects.
+            # Never fail public vehicle lookup because of B2B side-effects (incl. daily limit).
             workshop_action = None
 
     # Compose a safe, public-only view

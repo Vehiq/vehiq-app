@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import api from "@/lib/api";
-import { ShieldCheck, MapPin, Globe, Phone, Mail, Wrench, ArrowLeft } from "lucide-react";
+import { ShieldCheck, MapPin, Globe, Phone, Wrench, ArrowLeft, EyeOff } from "lucide-react";
 import useDocumentHead from "@/lib/useDocumentHead";
 
 const TYPE_LABELS = {
@@ -14,6 +15,7 @@ const TYPE_LABELS = {
 
 export default function WorkshopProfile() {
   const { slug } = useParams();
+  const { t } = useTranslation();
   const [biz, setBiz] = useState(null);
   const [history, setHistory] = useState([]);
   const [stats, setStats] = useState(null);
@@ -56,6 +58,12 @@ export default function WorkshopProfile() {
         <Link to="/warsztaty" className="inline-flex items-center gap-1 text-sm text-vehiq-muted hover:text-vehiq-gold" data-testid="workshop-back">
           <ArrowLeft size={14} /> Wszystkie warsztaty
         </Link>
+
+        {biz.public_visible === false && (
+          <div className="vehiq-card p-4 border border-amber-500/40 bg-amber-500/10 text-sm text-amber-300 flex items-center gap-2" data-testid="workshop-hidden-banner">
+            <EyeOff size={16} className="shrink-0" /> {t("biz.hiddenBanner")}
+          </div>
+        )}
 
         <header className="vehiq-card p-6 space-y-4" data-testid="workshop-header">
           <div className="flex items-start gap-4">
@@ -109,7 +117,7 @@ export default function WorkshopProfile() {
             )}
             {biz.address && (
               <div className="inline-flex items-center gap-2 text-sm text-vehiq-muted" data-testid="workshop-address">
-                <Mail size={14} /> {biz.address}
+                <MapPin size={14} /> {biz.address}
               </div>
             )}
           </div>

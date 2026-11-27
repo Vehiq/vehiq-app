@@ -1064,7 +1064,7 @@ async def admin_activate_business(business_id: str, admin=Depends(get_admin)):
         {"$set": {
             "activated": True,
             "activated_at": datetime.now(timezone.utc).isoformat(),
-            "activation_trigger": "admin_override",
+            "activation_trigger": "admin",
             "plan_status": "active",
             "updated_at": datetime.now(timezone.utc).isoformat(),
         }},
@@ -1083,6 +1083,39 @@ async def admin_verify_business(business_id: str, verified: bool = True, admin=D
     if res.matched_count == 0:
         raise HTTPException(status_code=404, detail="Nie znaleziono firmy")
     return {"ok": True, "verified": bool(verified)}
+
+
+class BusinessOwnerIn(BaseModel):
+    email: EmailStr
+
+
+@router.patch("/businesses/{business_id}/owner")
+async def admin_assign_business_owner(business_id: str, payload: BusinessOwnerIn, admin=Depends(get_admin)):
+    """Assign a business to an existing user (sets owner + profile linkage)."""
+    db = get_db()
+    b = await db.business_accounts.find_one({"id": business_id}, {"_id": 0, "id": 1})
+    if not b:
+        raise HTTPException(status_code=404, detail="Nie znaleziono firmy")
+    u = await db.profiles.find_one({"email": payload.email.lower(), "deleted_at": None}, {"_id": 0, "id": 1, "business_id": 1})
+    if not u:
+        raise HTTPException(status_code=404, detail="Nie znaleziono użytkownika")
+    other = await db.business_accounts.find_one({"owner_user_id": u["id"], "id": {"$ne": business_id}}, {"_id": 1})
+    if other or (u.get("business_id") and u["business_id"] != business_id):
+        raise HTTPException(status_code=409, detail="Użytkownik ma już inną firmę")
+    now = datetime.now(timezone.utc).isoformat()
+    await db.business_accounts.update_one({"id": business_id}, {"$set": {"owner_user_id": u["id"], "updated_at": now}})
+    await db.profiles.update_one({"id": u["id"]}, {"$set": {"business_id": business_id, "business_role": "owner"}})
+    return {"ok": True, "owner_user_id": u["id"]}
+
+
+@router.delete("/service-entries/{entry_id}")
+async def admin_delete_service_entry(entry_id: str, admin=Depends(get_admin)):
+    """Admin may remove any service entry, incl. workshop-confirmed ones."""
+    db = get_db()
+    res = await db.service_entries.delete_one({"id": entry_id})
+    if res.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Entry not found")
+    return {"ok": True}
 
 
 # ---------------- Premium waitlist (Iter 53) ----------------

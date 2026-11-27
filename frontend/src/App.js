@@ -122,7 +122,7 @@ function PageTracker() {
 function PrivateRoute({ children }) {
   const { user, loading } = useAuth();
   if (loading) return <div className="min-h-screen flex items-center justify-center bg-vehiq-bg text-vehiq-muted">Loading…</div>;
-  if (!user) return <Navigate to="/login" replace />;
+  if (!user) return <Navigate to={`/login?next=${encodeURIComponent(window.location.pathname + window.location.search)}`} replace />;
   // Force first-time onboarding for new users (skip already on /onboarding)
   if (user.onboarded === false && window.location.pathname !== "/onboarding") {
     return <Navigate to="/onboarding" replace />;
@@ -278,6 +278,7 @@ function App() {
             <Route path={ROUTES.event} element={<EventDetail />} />
             <Route path={ROUTES.quickFuel} element={<QuickFuelPage />} />
             {/* Iter 54b — B2B dashboard for workshops */}
+            <Route path="/business" element={<Navigate to={ROUTES.businessDashboard} replace />} />
             <Route path={ROUTES.businessDashboard} element={<BusinessDashboard />} />
             <Route path={ROUTES.businessOnboarding} element={<BusinessOnboarding />} />
           </Route>
