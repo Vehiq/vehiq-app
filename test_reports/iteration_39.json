@@ -1,0 +1,47 @@
+{
+  "summary": "Frontend-only E2E test of PACZKA 12 part B (businesses) using Playwright at 1920x1080 and 375px. Most of it works: catalog filters and empty state, the public workshop page (buttons, address, map, hours with today highlighted, open-now badge, brands, AutoRepair JSON-LD), the dashboard tabs, stats and checklist, profile form (pin confirm toast, invalid postal code error toast), the driver access-code modal (code ZSZ-EXX in a valid format, QR, Kopiuj), workshop redeem in lowercase without the dash, the quick entry with translated types, the Wpisy list, the driver stamp with no edit/delete buttons, the notification, revoke and the 'Dostęp odebrany' state, the admin toggle and businesses columns/summary, the plan frame with 'Zapisano ✓', and EN for the dashboard and catalog. Found 3 functional bugs: (1) after a city search the URL drops ?miasto, so reloading does not restore the search; (2) the mobile Map view renders blank, with only one tile; (3) a race in catalog fetches can show the 46 unfiltered results instead of the city results.",
+  "backend_issues": {"critical": [], "minor": [
+    {"endpoint": "PATCH /api/business/{id}/profile", "issue": "Invalid postal code returns a raw Pydantic message 'Value error, postal_code must be 00-000 for PL', which the frontend shows as-is in English to PL users"}
+  ]},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "WorkshopList URL sync", "issue": "Typing 'Kraków' and clicking catalog-city-search gives URL ?r=25 with no miasto. lookup() sets {miasto,r}, then the [point,radius,type] effect calls setParams(p => …) and overwrites it. In react-router v7 the functional updater gets the searchParams from the render closure, which do not have miasto yet. Result: reloading shows the empty input and all 46 businesses with no distance. Opening /warsztaty?miasto=Kraków&r=25 directly does work. Fix: build the params in one place, e.g. only set r inside lookup and skip the effect's setParams when a lookup just pushed, or use window.location.search / a ref.", "selector": "[data-testid=catalog-city-search]", "priority": "HIGH"},
+      {"component": "WorkshopList mobile map", "issue": "At 375px, clicking catalog-view-map shows the Leaflet container with only one tile in the top-left corner and the rest blank. The map was created inside a display:none container and map.invalidateSize() is never called when the view changes. Fix: call invalidateSize on view change, e.g. a child using useMap with a setTimeout, or mount MapView only when it is visible.", "selector": "[data-testid=catalog-view-map]", "priority": "HIGH"},
+      {"component": "WorkshopList fetch race", "issue": "fetchPage has no stale-response guard (no AbortController or request id). If the user searches before the first no-point fetch returns, the slower no-point response (46 items, no distance_km) overwrites the city result. Reproduced once on the first run. The first mount also sends the no-point search twice.", "selector": "[data-testid=catalog-results-count]", "priority": "MEDIUM"},
+      {"component": "MapView (catalog)", "issue": "When a search returns 0 items (e.g. Suwałki at 5 km), the map does not move to the new point and stays on Kraków. FitBounds only runs when there are items, and the MapContainer center prop is ignored after mount. mapItems is also a new array on every render, so FitBounds resets the user's pan/zoom on any re-render, including each keystroke in the city input.", "selector": ".leaflet-container", "priority": "MEDIUM"},
+      {"component": "WorkshopProfile header (public /warsztaty/:slug)", "issue": "These strings are hardcoded in Polish and stay Polish in EN: 'Wszystkie warsztaty', 'Zweryfikowany', 'Specjalizacje', the TYPE_LABELS type name ('Warsztat') and the document title. WorkshopDetails below is translated correctly.", "selector": "pages/WorkshopProfile.js lines 10,42,60,83,101", "priority": "MEDIUM"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Access code modal", "issues": ["'Ważny do' uses toLocaleString() with the browser locale, giving US format 11/28/2026, 8:49 PM in the PL UI. Pass i18n.language.", "The modal box starts at y=12, so a 12px strip of the page shows above the overlay. This suggests a transformed ancestor is affecting position:fixed. Consider a portal."]},
+      {"screen": "Driver History entry by workshop", "issues": ["The workshop name appears twice: a '· QA Warsztat P11 99b8' line and then the stamp 'Potwierdzone przez QA Warsztat P11 99b8'."]},
+      {"screen": "Catalog EN", "issues": ["Distance always uses the pl-PL format ('0,9 km') even in EN."]},
+      {"screen": "Business dashboard", "issues": ["The checklist heading reads 'Profil gotowy' even when items are still open. Consider 'Gotowość profilu' or showing x/5.", "The quick entry date uses a native <input type=date> (mm/dd/yyyy in en-US browsers) instead of the shadcn calendar. Default date comes from toISOString (UTC), so it can be yesterday between 00:00 and 01:00/02:00 PL time.", "The code input placeholder 'np. ABC-DEF' inherits tracking-[0.3em] and looks odd."]},
+      {"screen": "Vehicle access list", "issues": ["'Odbierz dostęp' revokes immediately, with no confirmation."]},
+      {"screen": "Admin Firmy", "issues": ["The table is slightly wider than its container (1676 vs 1630px) and the last action button (NIP) is cut off without a visible scroll cue.", "The list holds 178 'TEST P12 WS …' businesses created by backend pytest runs that never cleaned them up. The summary counters include them.", "The NIP button's testid is admin-biz-shownip-*, not admin-biz-nip-* (that testid exists only on the NIP display)."]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Fix WorkshopList so ?miasto survives a city search (setParams race in the effect overwrites lookup's params)",
+    "Fix the mobile catalog map: call map.invalidateSize() when switching to the Map view (or mount it on demand)",
+    "Add a stale-response guard to WorkshopList.fetchPage (AbortController or request counter)",
+    "MapView: re-center on viewerCoords when there are 0 items; memoize mapItems so FitBounds does not reset the map on every render",
+    "Translate the hardcoded PL strings in WorkshopProfile.js (back link, Zweryfikowany, Specjalizacje, type labels, title)",
+    "Localize the backend postal-code validation message or map it to bizp.form.* on the frontend",
+    "Make tests/test_paczka12.py clean up the TEST P12 businesses/users it creates (178 leftovers visible in admin)"
+  ],
+  "critical_code_review_comments": [
+    "WorkshopList: two setParams calls in one tick (lookup plus the effect) with the functional updater; RR v7 resolves against stale params",
+    "WorkshopList: no request cancellation; the fetch effect also runs a no-point search on mount even when ?miasto is present (wasted request plus race)",
+    "BusinessDashboard QuickEntry: date default uses UTC toISOString",
+    "VehicleWorkshopAccess: the QR object URL is revoked on close, but not if the component unmounts while the modal is open (minor leak)"
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "not tested (frontend only)", "frontend": "~85% (core flows pass; 2 HIGH UI bugs)"},
+  "seed_data_creation": "No accounts created. Created 1 access code for Audi RS4 B7 (redeemed, then revoked through the UI), 1 workshop service entry (id c6499ddc-…, deleted from Mongo by id afterwards) and 1 premium_waitlist record from the plan CTA (id 00a25029-…, deleted by id). The profile pin was confirmed with no change. The b2b_pricing_visible toggle was turned ON and then back OFF; DB value is 'false'. The workshop's 'Audi RS4 B7 · Dostęp odebrany' access record remains.",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Cookie consent key: localStorage 'sharago_cookie_consent' = JSON {necessary,analytics,marketing}. The owner vehicle page is /garage/:id (/vehicles/:id is the public view). Dismiss the first-use tooltips with the 'Pomiń wszystkie' text. Admin: POST /api/admin/login, then set localStorage 'sharago_admin_token' and go straight to /gv91-admin/settings. For logged-in users the language follows the profile (user.language), so switch with language-switcher-button and lang-option-en rather than localStorage. Today (Fri 27 Nov 2026, ~20:50) the workshop shows 'Zamknięte', which is correct. Leave b2b_pricing_visible OFF.",
+  "rca of the issue": "Bug 1 (miasto lost): lookup() calls setParams({miasto,r}), then setPoint triggers the effect, which calls setParams(p=>{n.set('r')}). The second navigation is computed from the pre-lookup searchParams, so miasto is dropped. Bug 2 (blank mobile map): Leaflet measures a 0x0 container under 'hidden' and never re-measures. Fix with invalidateSize."
+}

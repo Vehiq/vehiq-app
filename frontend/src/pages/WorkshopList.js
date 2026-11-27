@@ -1,4 +1,4 @@
-import { useEffect, useState, lazy, Suspense } from "react";
+import { useEffect, useMemo, useRef, useState, lazy, Suspense } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
@@ -25,24 +25,27 @@ export default function WorkshopList() {
   const [data, setData] = useState({ items: [], total: 0, page: 1 });
   const [loading, setLoading] = useState(false);
   const [view, setView] = useState("list");
+  const reqId = useRef(0);
   useDocumentHead({ title: `${t("bizp.catalog.title")} | Sharago`, description: t("bizp.catalog.subtitle") });
 
   const fetchPage = async (pt, page, append) => {
+    const my = ++reqId.current;
     setLoading(true);
     try {
       const q = { radius_km: radius, page, limit: 20, ...(type ? { type } : {}), ...(pt ? { lat: pt.lat, lng: pt.lng } : {}) };
       const { data: d } = await api.get("/business/search", { params: q });
+      if (my !== reqId.current) return; // stale response
       setData((prev) => ({ ...d, items: append ? [...prev.items, ...d.items] : d.items }));
       if (page === 1) trackEvent("business_search", { radius_km: radius, type: type || "all", origin: pt?.origin || "none", results_count: d.total });
-    } catch { toast.error(t("common.error")); } finally { setLoading(false); }
+    } catch { if (my === reqId.current) toast.error(t("common.error")); } finally { if (my === reqId.current) setLoading(false); }
   };
 
   const lookup = async (q, push = true) => {
     try {
       const { data: g } = await api.get("/geo/lookup", { params: { q: q.trim().slice(0, 64) } });
       const pt = { lat: g.lat, lng: g.lng, origin: /^\d{2}-?\d{3}$/.test(q.trim()) ? "postal" : "city" };
-      setPoint(pt);
-      if (push) setParams({ miasto: q.trim(), r: String(radius), ...(type ? { typ: type } : {}) }, { replace: true });
+      setPoint({ ...pt, label: q.trim() });
+      if (push) setParams({ miasto: q.trim(), r: String(radius) }, { replace: true });
     } catch { toast.error(t("bizp.catalog.notFound")); }
   };
 
@@ -56,12 +59,14 @@ export default function WorkshopList() {
   useEffect(() => { if (params.get("miasto")) lookup(params.get("miasto"), false); /* eslint-disable-next-line */ }, []);
   useEffect(() => {
     saveRadius(radius);
-    if (point?.origin === "city" || point?.origin === "postal") setParams((p) => { const n = new URLSearchParams(p); n.set("r", String(radius)); return n; }, { replace: true });
+    if (point?.label) setParams({ miasto: point.label, r: String(radius) }, { replace: true });
+    if (params.get("miasto") && !point) return; // wait for the city lookup from the URL
     fetchPage(point, 1, false);
     /* eslint-disable-next-line */
   }, [point, radius, type]);
 
-  const mapItems = data.items.map((b) => ({ ...b, location: toLatLng(b) })).filter((b) => b.location);
+  const mapItems = useMemo(() => data.items.map((b) => ({ ...b, location: toLatLng(b) })).filter((b) => b.location), [data.items]);
+  const viewer = useMemo(() => (point ? { lat: point.lat, lng: point.lng } : null), [point]);
 
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 space-y-6" data-testid="workshop-list">
@@ -119,7 +124,8 @@ export default function WorkshopList() {
         </div>
         <div className={`${view === "list" ? "hidden lg:block" : ""}`}>
           <Suspense fallback={<div className="h-[480px] vehiq-card" />}>
-            <MapView items={mapItems} linkPrefix="/warsztaty" viewerCoords={point ? { lat: point.lat, lng: point.lng } : null} height={480} />
+            {/* key={view}: remount when shown on mobile so Leaflet measures a visible container */}
+            <MapView key={view} items={mapItems} linkPrefix="/warsztaty" viewerCoords={viewer} height={480} />
           </Suspense>
         </div>
       </div>

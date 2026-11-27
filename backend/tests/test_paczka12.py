@@ -15,6 +15,28 @@ API = f"{BASE}/api"
 P_LAT, P_LNG = 54.30, 23.30  # remote test point (no real businesses around)
 
 
+def _cleanup():
+    """Remove TEST P12 data only (narrow prefixes)."""
+    uids = [u["id"] for u in DB.profiles.find({"email": {"$regex": "^test_p12"}}, {"id": 1})]
+    bids = [b["id"] for b in DB.business_accounts.find({"$or": [{"slug": {"$regex": "^test-p12-"}}, {"owner_user_id": {"$in": uids}}]}, {"id": 1})]
+    vids = [v["id"] for v in DB.vehicles.find({"user_id": {"$in": uids}}, {"id": 1})]
+    DB.service_entries.delete_many({"vehicle_id": {"$in": vids}})
+    DB.workshop_vehicle_access.delete_many({"business_id": {"$in": bids}})
+    DB.vehicle_access_codes.delete_many({"vehicle_id": {"$in": vids}})
+    DB.business_stats.delete_many({"business_id": {"$in": bids}})
+    DB.notifications.delete_many({"user_id": {"$in": uids}})
+    DB.premium_waitlist.delete_many({"email": {"$regex": "^test_p12"}})
+    DB.vehicles.delete_many({"id": {"$in": vids}})
+    DB.business_accounts.delete_many({"id": {"$in": bids}})
+    DB.profiles.delete_many({"id": {"$in": uids}})
+
+
+@pytest.fixture(scope="module", autouse=True)
+def _cleanup_after_module():
+    yield
+    _cleanup()
+
+
 @pytest.fixture(scope="module")
 def admin_h():
     r = requests.post(f"{API}/admin/login", json={"email": "kontakt@sharago.com", "password": "VehiqAdmin2026!"}, timeout=15)

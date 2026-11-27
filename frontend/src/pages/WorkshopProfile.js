@@ -5,6 +5,7 @@ import api from "@/lib/api";
 import { ShieldCheck, MapPin, Globe, Phone, Wrench, ArrowLeft, EyeOff } from "lucide-react";
 import useDocumentHead from "@/lib/useDocumentHead";
 import WorkshopDetails from "@/components/WorkshopDetails";
+import { serviceTypeLabel } from "@/lib/labels";
 
 const TYPE_LABELS = {
   workshop: "Warsztat",
@@ -39,25 +40,25 @@ export default function WorkshopProfile() {
     return () => { alive = false; };
   }, [slug]);
   useDocumentHead(biz ? {
-    title: `${biz.name} — ${TYPE_LABELS[biz.type] || "Warsztat"} | Sharago`,
-    description: (biz.description || `${biz.name} — ${biz.city}. ${TYPE_LABELS[biz.type] || "Firma motoryzacyjna"} na Sharago.`).slice(0, 160),
+    title: `${biz.name} — ${t(`bizp.types.${biz.type}`, { defaultValue: biz.type })} | Sharago`,
+    description: (biz.description || `${biz.name} — ${biz.city}. ${t(`bizp.types.${biz.type}`, { defaultValue: biz.type })} · Sharago`).slice(0, 160),
   } : {});
 
   if (err) return (
     <div className="min-h-screen flex items-center justify-center text-vehiq-muted" data-testid="workshop-not-found">
       <div className="text-center space-y-3">
         <div>{err}</div>
-        <Link to="/warsztaty" className="text-vehiq-gold hover:underline text-sm">← Wróć do listy</Link>
+        <Link to="/warsztaty" className="text-vehiq-gold hover:underline text-sm">← {t("bizp.profile.allWorkshops")}</Link>
       </div>
     </div>
   );
-  if (!biz) return <div className="min-h-screen flex items-center justify-center text-vehiq-muted" data-testid="workshop-loading">Ładowanie…</div>;
+  if (!biz) return <div className="min-h-screen flex items-center justify-center text-vehiq-muted" data-testid="workshop-loading">…</div>;
 
   return (
     <div className="min-h-screen bg-vehiq-bg text-vehiq-text" data-testid="workshop-profile-page">
       <div className="max-w-4xl mx-auto px-4 py-8 space-y-6">
         <Link to="/warsztaty" className="inline-flex items-center gap-1 text-sm text-vehiq-muted hover:text-vehiq-gold" data-testid="workshop-back">
-          <ArrowLeft size={14} /> Wszystkie warsztaty
+          <ArrowLeft size={14} /> {t("bizp.profile.allWorkshops")}
         </Link>
 
         {biz.public_visible === false && (
@@ -80,14 +81,14 @@ export default function WorkshopProfile() {
                 <h1 className="vehiq-display text-3xl sm:text-4xl">{biz.name}</h1>
                 {biz.verified && (
                   <span className="inline-flex items-center gap-1 text-xs text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 rounded-full px-2 py-0.5 mt-2" data-testid="workshop-verified">
-                    <ShieldCheck size={12} /> Zweryfikowany
+                    <ShieldCheck size={12} /> {t("bizp.catalog.verified")}
                   </span>
                 )}
               </div>
               <div className="text-sm text-vehiq-muted mt-1 flex items-center gap-3 flex-wrap">
                 <span className="inline-flex items-center gap-1"><MapPin size={13} /> {biz.city}</span>
                 <span>·</span>
-                <span>{TYPE_LABELS[biz.type] || biz.type}</span>
+                <span>{t(`bizp.types.${biz.type}`, { defaultValue: biz.type })}</span>
               </div>
             </div>
           </div>
@@ -98,7 +99,7 @@ export default function WorkshopProfile() {
 
           {biz.specializations && biz.specializations.length > 0 && (
             <div>
-              <div className="vehiq-overline mb-2">Specjalizacje</div>
+              <div className="vehiq-overline mb-2">{t("bizp.profile.specs")}</div>
               <div className="flex flex-wrap gap-2" data-testid="workshop-specializations">
                 {biz.specializations.map((s, i) => (
                   <span key={i} className="text-xs px-3 py-1 rounded-full bg-vehiq-bg text-vehiq-text border border-vehiq-border">
@@ -132,10 +133,10 @@ export default function WorkshopProfile() {
 
         {stats && (
           <section className="grid grid-cols-3 gap-3" data-testid="workshop-stats">
-            <StatCard label="Obsłużonych aut" value={stats.vehicles_served || 0} testid="workshop-stat-vehicles" />
-            <StatCard label="Wpisów serwisowych" value={stats.service_entries || 0} testid="workshop-stat-entries" />
+            <StatCard label={t("bizp.profile.statCars")} value={stats.vehicles_served || 0} testid="workshop-stat-vehicles" />
+            <StatCard label={t("bizp.profile.statEntries")} value={stats.service_entries || 0} testid="workshop-stat-entries" />
             <StatCard
-              label="Na Sharago od"
+              label={t("bizp.profile.statSince")}
               value={stats.on_sharago_since ? new Date(stats.on_sharago_since).toLocaleDateString("pl-PL", { month: "short", year: "numeric" }) : "—"}
               testid="workshop-stat-since"
             />
@@ -144,12 +145,12 @@ export default function WorkshopProfile() {
 
         <section className="vehiq-card p-6" data-testid="workshop-history">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="vehiq-display text-2xl">Historia serwisowa</h2>
-            <span className="text-xs text-vehiq-muted">Publiczna, anonimowa</span>
+            <h2 className="vehiq-display text-2xl">{t("bizp.profile.history")}</h2>
+            <span className="text-xs text-vehiq-muted">{t("bizp.profile.historyNote")}</span>
           </div>
           {history.length === 0 ? (
             <p className="text-sm text-vehiq-muted text-center py-6" data-testid="workshop-history-empty">
-              Ten warsztat nie ma jeszcze publicznych wpisów.
+              {t("bizp.profile.historyEmpty")}
             </p>
           ) : (
             <ul className="divide-y divide-vehiq-border">
@@ -157,10 +158,10 @@ export default function WorkshopProfile() {
                 <li key={h.id} className="py-3 flex items-start justify-between gap-4" data-testid="workshop-history-row">
                   <div>
                     <div className="text-sm text-vehiq-text font-medium">
-                      {h.vehicle ? `${h.vehicle.make || "—"} ${h.vehicle.model || ""} ${h.vehicle.year || ""}`.trim() : "Pojazd"}
+                      {h.vehicle ? `${h.vehicle.make || "—"} ${h.vehicle.model || ""} ${h.vehicle.year || ""}`.trim() : t("bizp.dash.car")}
                     </div>
                     <div className="text-xs text-vehiq-muted mt-0.5">
-                      {h.service_type || h.type || "—"}
+                      {serviceTypeLabel(h.service_type || h.type)}
                     </div>
                   </div>
                   <div className="text-xs text-vehiq-muted whitespace-nowrap">{(h.date || "").slice(0, 10)}</div>

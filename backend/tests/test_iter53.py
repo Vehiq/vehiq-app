@@ -142,7 +142,11 @@ class TestStripe:
         r = requests.post(f"{BASE}/api/payments/checkout",
                           json={"lookup_key": "sharago_workshop_monthly", "origin_url": "https://sharago.pl"},
                           headers=h, timeout=30)
-        assert r.status_code == 400, r.text
+        # Paczka 12 B10: with b2b_pricing_visible off (default) business plans are blocked first (403);
+        # when the switch is on, a missing business_id is still 400.
+        from tests.db_users import DB
+        on = (DB.app_settings.find_one({"key": "b2b_pricing_visible"}) or {}).get("value") in (True, "true", "1", 1)
+        assert r.status_code == (400 if on else 403), r.text
 
 
 # --------- Photo limit ---------

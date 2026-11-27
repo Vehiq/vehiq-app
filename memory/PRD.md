@@ -2347,3 +2347,18 @@ Backend curl E2E — wszystkie zielone (slugify PL, business register, GET/{slug
 - Frontend: login/register ?next= (lib/nextPath.js, Onboarding consumes), PrivateRoute passes next, /business → /business/dashboard, BusinessRegister auth-guard + redirect to /business/onboarding, WorkshopProfile banner + MapPin, VehicleShort limited view.
 - Tests: tests/test_paczka11.py (23), tests/db_users.py helper; test_iter53/54b/56 updated.
 - Known: services distance filter after .to_list(60) (later); BusinessRegister/BusinessOnboarding texts PL-only; Stripe test key expired & SMTP auth failing in preview.
+
+## 2026-11 — Paczka 10+12
+### A (entries, translations, AI, marketplace)
+- A1 finding: no backend rule blocked own entries; HistoryTab simply had no edit/delete UI and timeline events carried no ownership info. No ownership-transfer mechanism exists (mark-sold only archives; optional vehicles.owned_since honoured if set).
+- service.py: PUT/PATCH/DELETE via _editable_entry (own entry, current owner, created_at >= owned_since, not business_id) → 403 PL/EN; edited_at/edited_by; hard delete + service_entry_audit row; admin PATCH/DELETE /api/admin/service-entries/{id} (audited). timeline events: editable, edited_at, business_* stamp fields.
+- lib/labels.js (serviceTypes.* + vehicle.fuels.* with humanized fallback) used in HistoryTab, PublicVehicle, VehicleProfile header, SwapPage, pdfExport (pdfExport is not wired to any UI).
+- AITab: react-markdown with skipHtml; model label removed from ai.subtitle.
+- Listings: promo_consent / promo_consent_at / promo_consent_withdrawn_at; admin filter ?promo_consent= and column.
+### B (businesses)
+- business_accounts: street, postal_code (00-000), city, voivodeship (16), country, location GeoJSON + 2dsphere, location_source, location_confirmed_at, geocoded_from, brands (≤30 from app list), opening_hours {mon..sun:[{open,close}]} ≤2 slots, logo (R2).
+- geocode.py (Nominatim, UA Sharago/1.0, 1 req/s lock, geocode_cache TTL 90d). routers/business_geo.py: /geo/lookup (30/min/IP), /business/search ($geoNear+$facet, radii 5/10/25/50/100, ≤20), /business/{slug}/event, /business/me/overview, /business/me/entries, /business/{id}/logo, /vehicles/{id}/access-code, /business/access/code, /access-code/qr/{code}, /business-config. business_stats per PL day.
+- Switch app_settings.b2b_pricing_visible (default off): checkout B2B + waitlist plan_* → 403 except admin users; plan frame in dashboard.
+- Frontend: WorkshopList (catalog), WorkshopDetails, BusinessProfileForm (shared with onboarding), BusinessDashboard tabs, VehicleWorkshopAccess (code modal + access list), WorkshopStamp, admin businesses columns/actions, settings toggle, middleware OG for /warsztaty/:slug, sitemap entries.
+- scripts/migrate_business_location.py (dry-run default, --apply idempotent).
+- Tests: test_paczka10.py (7), test_paczka12.py (10, self-cleaning).

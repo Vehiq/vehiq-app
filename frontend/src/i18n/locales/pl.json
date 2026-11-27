@@ -1238,7 +1238,14 @@
         "fri": "Piątek",
         "sat": "Sobota",
         "sun": "Niedziela"
-      }
+      },
+      "allWorkshops": "Wszystkie warsztaty",
+      "statCars": "Obsłużonych aut",
+      "statEntries": "Wpisów serwisowych",
+      "statSince": "Na Sharago od",
+      "history": "Historia serwisowa",
+      "historyNote": "Publiczna, anonimowa",
+      "historyEmpty": "Ta firma nie ma jeszcze publicznych wpisów."
     },
     "dash": {
       "tabs": {
@@ -1317,7 +1324,9 @@
       "save": "Zapisz profil",
       "saved": "Profil zapisany",
       "choose": "Wybierz",
-      "toDashboard": "Przejdź do panelu"
+      "toDashboard": "Przejdź do panelu",
+      "postalInvalid": "Kod pocztowy w formacie 00-000",
+      "hoursInvalid": "Godziny: format HH:MM, otwarcie przed zamknięciem"
     },
     "code": {
       "button": "Daj dostęp warsztatowi",

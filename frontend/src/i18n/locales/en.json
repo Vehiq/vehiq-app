@@ -1236,7 +1236,14 @@
         "fri": "Friday",
         "sat": "Saturday",
         "sun": "Sunday"
-      }
+      },
+      "allWorkshops": "All workshops",
+      "statCars": "Cars serviced",
+      "statEntries": "Service entries",
+      "statSince": "On Sharago since",
+      "history": "Service history",
+      "historyNote": "Public, anonymous",
+      "historyEmpty": "This business has no public entries yet."
     },
     "dash": {
       "tabs": {
@@ -1315,7 +1322,9 @@
       "save": "Save profile",
       "saved": "Profile saved",
       "choose": "Choose",
-      "toDashboard": "Go to dashboard"
+      "toDashboard": "Go to dashboard",
+      "postalInvalid": "Postal code must be 00-000",
+      "hoursInvalid": "Hours: HH:MM, opening before closing"
     },
     "code": {
       "button": "Give a workshop access",

@@ -34,6 +34,12 @@ const goldIcon = (color = "#2B7FE8") =>
     iconAnchor: [11, 11],
   });
 
+function Recenter({ coords }) {
+  const map = useMap();
+  useEffect(() => { map.setView([coords.lat, coords.lng], 11); }, [coords, map]);
+  return null;
+}
+
 function FitBounds({ items }) {
   const map = useMap();
   useEffect(() => {
@@ -92,6 +98,7 @@ export default function MapView({ items = [], linkPrefix = "/services", center =
           );
         })}
         <FitBounds items={validItems} />
+        {validItems.length === 0 && viewerCoords && <Recenter coords={viewerCoords} />}
       </MapContainer>
     </div>
   );

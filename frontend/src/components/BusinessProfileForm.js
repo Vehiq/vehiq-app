@@ -47,7 +47,8 @@ export default function BusinessProfileForm({ biz, onSaved }) {
       onSaved?.(data.business);
     } catch (e) {
       const d = e?.response?.data?.detail;
-      toast.error(Array.isArray(d) ? d.map((x) => x.msg).join("; ") : d || t("common.error"));
+      const msg = Array.isArray(d) ? d.map((x) => x.msg).join("; ") : d || "";
+      toast.error(/postal_code/.test(msg) ? t("bizp.form.postalInvalid") : /opening_hours/.test(msg) ? t("bizp.form.hoursInvalid") : msg || t("common.error"));
     } finally { setBusy(false); }
   };
 
