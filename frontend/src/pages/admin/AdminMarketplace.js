@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useEffect, useState } from "react";
 import adminApi from "@/lib/adminApi";
 
@@ -5,6 +6,7 @@ const PAGE_SIZE = 20;
 
 export default function AdminMarketplace() {
   const [data, setData] = useState({ items: [], total: 0, offset: 0, limit: PAGE_SIZE });
+  const { t } = useTranslation();
   const [tab, setTab] = useState("all"); // all | reported | orphaned | sale | rental
   const [offset, setOffset] = useState(0);
   const [busy, setBusy] = useState(false);
@@ -15,6 +17,7 @@ export default function AdminMarketplace() {
     if (tab === "orphaned") params.orphaned = true;
     if (tab === "sale") params.type = "sale";
     if (tab === "rental") params.type = "rental";
+    if (tab === "promo") params.promo_consent = true;
     try {
       const r = await adminApi.get("/admin/listings", { params });
       setData(r.data);
@@ -79,6 +82,7 @@ export default function AdminMarketplace() {
         {tabBtn("rental", "Rental")}
         {tabBtn("reported", "Reported")}
         {tabBtn("orphaned", "No owner")}
+        {tabBtn("promo", t("lst.adminPromoFilter"))}
       </div>
       <div className="bg-[#162035] border border-[#1E2A42] rounded overflow-x-auto">
         <table className="w-full text-sm">
@@ -90,12 +94,13 @@ export default function AdminMarketplace() {
               <th className="p-3">Price</th>
               <th className="p-3">Status</th>
               <th className="p-3">Reports</th>
+              <th className="p-3">{t("lst.adminPromoCol")}</th>
               <th className="p-3">Actions</th>
             </tr>
           </thead>
           <tbody>
             {data.items.length === 0 && (
-              <tr><td colSpan={7} className="p-4 text-[#9CA1C2] text-center">No listings on this page.</td></tr>
+              <tr><td colSpan={8} className="p-4 text-[#9CA1C2] text-center">No listings on this page.</td></tr>
             )}
             {data.items.map(l => (
               <tr key={l.id} className="border-b border-[#1E2A42] last:border-0" data-testid={`admin-mkt-row-${l.id}`}>
@@ -116,6 +121,11 @@ export default function AdminMarketplace() {
                 <td className="p-3 text-[#2B7FE8] whitespace-nowrap">{l.price?.toLocaleString("pl-PL")} PLN</td>
                 <td className="p-3 text-[#9CA1C2]">{l.status}</td>
                 <td className="p-3 text-red-400">{l.report_count || 0}</td>
+                <td className="p-3 text-xs whitespace-nowrap" data-testid={`admin-mkt-promo-${l.id}`}>
+                  {l.promo_consent
+                    ? <span className="text-emerald-400">✓ {(l.promo_consent_at || "").slice(0, 10)}</span>
+                    : <span className="text-[#9CA1C2]">{l.promo_consent_withdrawn_at ? `${t("lst.adminPromoWithdrawn")} ${l.promo_consent_withdrawn_at.slice(0, 10)}` : "—"}</span>}
+                </td>
                 <td className="p-3 space-x-2 whitespace-nowrap">
                   {!l.is_orphaned && (
                     <button onClick={() => feature(l.id, !l.featured)} className="text-xs text-[#2B7FE8] hover:underline">

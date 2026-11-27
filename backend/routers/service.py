@@ -67,29 +67,82 @@ async def create(payload: ServiceEntryIn, user=Depends(get_current_user)):
     return doc
 
 
-@router.put("/{entry_id}")
-async def update(entry_id: str, payload: ServiceEntryIn, user=Depends(get_current_user)):
-    db = get_db()
-    e = await db.service_entries.find_one({"id": entry_id, "user_id": user["id"]})
-    if not e:
+class ServiceEntryPatch(BaseModel):
+    date: Optional[str] = None
+    type: Optional[str] = None
+    service_type: Optional[str] = Field(default=None, max_length=64)
+    workshop: Optional[str] = Field(default=None, max_length=200)
+    cost: Optional[float] = None
+    mileage: Optional[int] = Field(default=None, ge=0, le=5_000_000)
+    notes: Optional[str] = Field(default=None, max_length=4000)
+
+
+def _prev_owner_msg(user: dict) -> str:
+    if (user.get("language") or "pl") == "en":
+        return "Entry added by a previous owner – read only"
+    return "Wpis poprzedniego właściciela – tylko do odczytu"
+
+
+def entry_editable_by(entry: dict, vehicle: dict, user_id: str) -> bool:
+    """Owner may change only own entries from the current ownership period; never workshop entries."""
+    if entry.get("business_id") or vehicle.get("user_id") != user_id or entry.get("user_id") != user_id:
+        return False
+    since = vehicle.get("owned_since")
+    return not (since and (entry.get("created_at") or "") < since)
+
+
+async def _editable_entry(db, entry_id: str, user: dict) -> dict:
+    e = await db.service_entries.find_one({"id": entry_id}, {"_id": 0})
+    v = e and await db.vehicles.find_one({"id": e.get("vehicle_id"), "user_id": user["id"]}, {"_id": 0, "user_id": 1, "owned_since": 1})
+    if not e or not v:
         raise HTTPException(status_code=404, detail="Entry not found")
     if e.get("business_id"):
         raise HTTPException(status_code=403, detail=_locked_msg(user))
-    update = payload.model_dump(exclude_unset=True)
+    if not entry_editable_by(e, v, user["id"]):
+        raise HTTPException(status_code=403, detail=_prev_owner_msg(user))
+    return e
+
+
+async def apply_entry_patch(db, entry_id: str, update: dict, actor_id: str) -> dict:
+    if "service_type" in update and "type" not in update:
+        update["type"] = update["service_type"]
+    update["edited_at"] = datetime.now(timezone.utc).isoformat()
+    update["edited_by"] = actor_id
     await db.service_entries.update_one({"id": entry_id}, {"$set": update})
-    fresh = await db.service_entries.find_one({"id": entry_id}, {"_id": 0})
-    return fresh
+    return await db.service_entries.find_one({"id": entry_id}, {"_id": 0})
+
+
+async def delete_entry_with_audit(db, entry: dict, actor_id: str, actor_role: str) -> None:
+    """Hard delete (no trace on the vehicle page) + audit row with the full entry."""
+    await db.service_entry_audit.insert_one({
+        "id": str(uuid.uuid4()), "action": "delete", "entry_id": entry["id"], "vehicle_id": entry.get("vehicle_id"),
+        "actor_id": actor_id, "actor_role": actor_role, "at": datetime.now(timezone.utc).isoformat(),
+        "before": {k: v for k, v in entry.items() if k != "_id"},
+    })
+    await db.service_entries.delete_one({"id": entry["id"]})
+
+
+@router.put("/{entry_id}")
+async def update(entry_id: str, payload: ServiceEntryIn, user=Depends(get_current_user)):
+    db = get_db()
+    await _editable_entry(db, entry_id, user)
+    update = payload.model_dump(exclude_unset=True)
+    update.pop("vehicle_id", None)
+    return await apply_entry_patch(db, entry_id, update, user["id"])
+
+
+@router.patch("/{entry_id}")
+async def patch(entry_id: str, payload: ServiceEntryPatch, user=Depends(get_current_user)):
+    db = get_db()
+    await _editable_entry(db, entry_id, user)
+    return await apply_entry_patch(db, entry_id, payload.model_dump(exclude_unset=True), user["id"])
 
 
 @router.delete("/{entry_id}")
 async def delete(entry_id: str, user=Depends(get_current_user)):
     db = get_db()
-    e = await db.service_entries.find_one({"id": entry_id, "user_id": user["id"]})
-    if not e:
-        raise HTTPException(status_code=404, detail="Entry not found")
-    if e.get("business_id"):
-        raise HTTPException(status_code=403, detail=_locked_msg(user))
-    await db.service_entries.delete_one({"id": entry_id})
+    e = await _editable_entry(db, entry_id, user)
+    await delete_entry_with_audit(db, e, user["id"], "owner")
     return {"ok": True}
 
 

@@ -70,7 +70,8 @@ async def get_timeline(
     status, ref_id} so the frontend can render icons + click-through.
     """
     db = get_db()
-    await _owned_vehicle(db, vehicle_id, user["id"])
+    veh = await _owned_vehicle(db, vehicle_id, user["id"])
+    from routers.service import entry_editable_by
 
     events: list[dict] = []
     want = (source or "").lower()
@@ -92,6 +93,12 @@ async def get_timeline(
                 "cost": e.get("cost"),
                 "status": None,
                 "ref_id": e["id"],
+                "notes": e.get("notes"),
+                "editable": entry_editable_by(e, veh, user["id"]),
+                "edited_at": e.get("edited_at"),
+                "business_name": e.get("business_name"),
+                "business_slug": e.get("business_slug"),
+                "business_verified": bool(e.get("business_id") and e.get("business_verified", True)),
             })
 
     # 2. Project items — only 'done' surface as historical events. Planned

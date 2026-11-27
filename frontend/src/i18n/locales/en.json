@@ -295,7 +295,7 @@
   },
   "ai": {
     "title": "Sharago AI Mechanic",
-    "subtitle": "Claude Sonnet 4.5 — with your vehicle context",
+    "subtitle": "With your vehicle context",
     "placeholder": "Describe the problem with your vehicle...",
     "send": "Send",
     "thinking": "Mechanic is thinking...",
@@ -937,7 +937,11 @@
     "limitService": "On the free plan you can have <b>1 active service listing</b>. We'll lift this limit soon.",
     "limitRental": "On the free plan you can have <b>1 active rental listing</b>. We'll lift this limit soon.",
     "type": "Type",
-    "mileagePrefill": "Mileage"
+    "mileagePrefill": "Mileage",
+    "promoConsent": "I agree to Sharago promoting my listing (photos, description, link) on Sharago social media",
+    "adminPromoFilter": "Promo consent",
+    "adminPromoCol": "Promo consent",
+    "adminPromoWithdrawn": "withdrawn"
   },
   "swap": {
     "listFirst": "List your car for a swap first",
@@ -1147,5 +1151,37 @@
     "accessRetryLater": "The owner declined. You can ask again from {{date}}.",
     "accessDailyLimit": "Daily limit of 20 access requests reached",
     "accessFailed": "Could not send the request"
+  },
+  "serviceTypes": {
+    "oil_change": "Oil change",
+    "timing_belt": "Timing belt",
+    "brake_pads": "Brakes – pads",
+    "brake_discs": "Brakes – discs",
+    "tires": "Tires",
+    "inspection": "Inspection",
+    "insurance": "Insurance",
+    "battery": "Battery",
+    "suspension": "Suspension",
+    "other": "Service",
+    "fuel": "Fuel",
+    "mileage": "Mileage",
+    "planned": "Modification",
+    "parts_ordered": "Parts",
+    "budget": "Budget",
+    "oil": "Oil change",
+    "repair": "Repair",
+    "mot": "MOT"
+  },
+  "history": {
+    "edit": "Edit",
+    "delete": "Delete",
+    "deleteConfirm": "Delete this entry? This cannot be undone",
+    "editedOn": "edited {{date}}",
+    "saved": "Changes saved",
+    "deleted": "Entry deleted",
+    "confirmedBy": "Confirmed by {{name}}",
+    "save": "Save changes",
+    "cancel": "Cancel",
+    "readOnly": "Read only"
   }
 }

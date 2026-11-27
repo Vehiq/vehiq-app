@@ -39,7 +39,7 @@ export default function CreateListing() {
   const [form, setForm] = useState({
     type: "car", category: "", title: "", description: "", price: "", location: "",
     photos: [], vehicle_id: "", make: "", model: "", year: "",
-    condition: "", mileage: "", steering: "left",
+    condition: "", mileage: "", steering: "left", promo_consent: false,
     parts_category: "", parts_subcategory: "",
     desired_swaps: [],
     rental: {
@@ -95,6 +95,7 @@ export default function CreateListing() {
           rental: data.rental || f.rental,
           service: data.service || f.service,
           part: data.part || f.part,
+          promo_consent: !!data.promo_consent,
         }));
       })
       .catch(() => {
@@ -221,6 +222,7 @@ export default function CreateListing() {
         price: parseFloat(form.price) || 0,
         mileage: form.mileage ? parseInt(form.mileage) : null,
         year: form.year ? parseInt(form.year) : null,
+        promo_consent: !!form.promo_consent,
       };
       // Drop fields not relevant for current type — but ALWAYS send valid types
       if (payload.type !== "parts") { payload.parts_category = null; payload.parts_subcategory = null; }
@@ -828,6 +830,11 @@ export default function CreateListing() {
           </div>
         </div>
       )}
+
+      <label className="flex items-start gap-2 text-sm text-vehiq-text cursor-pointer" data-testid="listing-promo-consent-label">
+        <input type="checkbox" checked={!!form.promo_consent} onChange={(e) => setForm({ ...form, promo_consent: e.target.checked })} className="mt-1 h-4 w-4 accent-[#2B7FE8]" data-testid="listing-promo-consent" />
+        <span>{t("lst.promoConsent")}</span>
+      </label>
 
       <button type="submit" disabled={busy} className="vehiq-btn-primary" data-testid="listing-submit">{busy ? t("common.loading") : t("common.save")}</button>
 

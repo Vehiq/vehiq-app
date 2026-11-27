@@ -5,6 +5,7 @@ import api, { apiErrorMessage } from "@/lib/api";
 import { Send, Sparkles, Trash2, FileDown } from "lucide-react";
 import { toast } from "sonner";
 import jsPDF from "jspdf";
+import Markdown from "react-markdown";
 
 export default function AITab({ vehicle }) {
   const { t } = useTranslation();
@@ -118,8 +119,11 @@ export default function AITab({ vehicle }) {
           )}
           {messages.map((m, i) => (
             <div key={i} className={`flex flex-col ${m.role === "user" ? "items-end" : "items-start"}`}>
-              <div className={`max-w-[85%] rounded-lg px-4 py-3 text-sm whitespace-pre-wrap ${m.role === "user" ? "bg-vehiq-gold text-vehiq-bg" : "bg-vehiq-nav text-vehiq-text border border-vehiq-border"}`}>
-                {m.content}
+              <div className={`max-w-[85%] rounded-lg px-4 py-3 text-sm ${m.role === "user" ? "bg-vehiq-gold text-vehiq-bg whitespace-pre-wrap" : "bg-vehiq-nav text-vehiq-text border border-vehiq-border ai-md"}`} data-testid={`ai-msg-${m.role}`}>
+                {m.role === "user" ? m.content : (
+                  // Markdown only — raw HTML from the model is never rendered (skipHtml), unsafe URLs are stripped.
+                  <Markdown skipHtml>{m.content || ""}</Markdown>
+                )}
               </div>
               {m.role === "assistant" && Array.isArray(m.suggested_services) && m.suggested_services.length > 0 && (
                 <div className="mt-2 max-w-[85%] w-full space-y-2" data-testid="ai-suggested-services">

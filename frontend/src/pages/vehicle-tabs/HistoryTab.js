@@ -17,8 +17,12 @@ import {
   BookOpen,
   Copy,
   Check,
+  Pencil,
+  Trash2,
 } from "lucide-react";
+import { WorkshopStamp } from "@/components/WorkshopStamp";
 import api from "@/lib/api";
+import { serviceTypeLabel, editedLabel, SERVICE_TYPE_KEYS } from "@/lib/labels";
 import { toast } from "sonner";
 import { trackEvent } from "@/hooks/usePageTracking";
 
@@ -77,6 +81,7 @@ export default function HistoryTab({ vehicle, isOwner = true }) {
   const [events, setEvents] = useState(null);
   const [showForm, setShowForm] = useState(false);
   const [showShare, setShowShare] = useState(false);
+  const [editing, setEditing] = useState(null);
 
   const load = () => {
     api.get(`/vehicles/${vehicle.id}/timeline`)
@@ -94,9 +99,14 @@ export default function HistoryTab({ vehicle, isOwner = true }) {
 
   useEffect(() => { load(); /* eslint-disable-next-line */ }, [vehicle.id]);
 
-  const labelFor = (type) => {
-    const et = EVENT_TYPES[type] || EVENT_TYPES.other;
-    return et[lang] || et.pl;
+  const labelFor = (type) => serviceTypeLabel(type, lang);
+  const removeEntry = async (ev) => {
+    if (!window.confirm(t("history.deleteConfirm"))) return;
+    try {
+      await api.delete(`/service/${ev.ref_id}`);
+      toast.success(t("history.deleted"));
+      load();
+    } catch (err) { toast.error(err?.response?.data?.detail || t("common.error")); }
   };
   const IconFor = (type) => (EVENT_TYPES[type] || EVENT_TYPES.other).icon;
 
@@ -198,6 +208,23 @@ export default function HistoryTab({ vehicle, isOwner = true }) {
                       )}
                     </div>
                   )}
+                  {ev.business_name && ev.business_verified && <WorkshopStamp name={ev.business_name} slug={ev.business_slug} />}
+                  {ev.edited_at && (
+                    <div className="text-[10px] text-vehiq-muted mt-1" data-testid="history-event-edited">{editedLabel(ev.edited_at, lang)}</div>
+                  )}
+                  {isOwner && ev.editable && editing === ev.ref_id && (
+                    <AddEntryForm vehicleId={vehicle.id} lang={lang} initial={ev} onDone={() => { setEditing(null); load(); }} />
+                  )}
+                  {isOwner && ev.editable && editing !== ev.ref_id && (
+                    <div className="flex gap-3 mt-2">
+                      <button type="button" onClick={() => setEditing(ev.ref_id)} className="text-[11px] text-vehiq-gold inline-flex items-center gap-1 hover:underline" data-testid={`history-edit-${ev.ref_id}`}>
+                        <Pencil size={11} /> {t("history.edit")}
+                      </button>
+                      <button type="button" onClick={() => removeEntry(ev)} className="text-[11px] text-red-400 inline-flex items-center gap-1 hover:underline" data-testid={`history-delete-${ev.ref_id}`}>
+                        <Trash2 size={11} /> {t("history.delete")}
+                      </button>
+                    </div>
+                  )}
                 </div>
               </li>
             );
@@ -208,13 +235,18 @@ export default function HistoryTab({ vehicle, isOwner = true }) {
   );
 }
 
-const SERVICE_TYPES_FORM = [
-  "oil_change", "timing_belt", "brake_pads", "brake_discs", "tires",
-  "inspection", "insurance", "battery", "suspension", "other",
-];
+const SERVICE_TYPES_FORM = SERVICE_TYPE_KEYS;
 
-function AddEntryForm({ vehicleId, lang, onDone }) {
-  const [form, setForm] = useState({
+function AddEntryForm({ vehicleId, lang, onDone, initial = null }) {
+  const { t } = useTranslation();
+  const [form, setForm] = useState(initial ? {
+    service_type: SERVICE_TYPES_FORM.includes(initial.type) ? initial.type : "other",
+    date: (initial.date || "").slice(0, 10),
+    mileage: initial.mileage ?? "",
+    notes: initial.notes || "",
+    cost: initial.cost ?? "",
+    workshop: initial.workshop || "",
+  } : {
     service_type: "oil_change",
     date: new Date().toISOString().slice(0, 10),
     mileage: "",
@@ -227,6 +259,23 @@ function AddEntryForm({ vehicleId, lang, onDone }) {
   const submit = async (e) => {
     e.preventDefault();
     setBusy(true);
+    if (initial) {
+      try {
+        await api.patch(`/service/${initial.ref_id}`, {
+          service_type: form.service_type,
+          date: form.date,
+          mileage: form.mileage !== "" ? Number(form.mileage) : null,
+          notes: form.notes || null,
+          cost: form.cost !== "" ? Number(form.cost) : 0,
+          workshop: form.workshop || null,
+        });
+        toast.success(t("history.saved"));
+        onDone();
+      } catch (err) {
+        toast.error(err?.response?.data?.detail || t("common.error"));
+      } finally { setBusy(false); }
+      return;
+    }
     try {
       await api.post(`/vehicles/${vehicleId}/service`, {
         service_type: form.service_type,
@@ -250,10 +299,10 @@ function AddEntryForm({ vehicleId, lang, onDone }) {
   };
 
   return (
-    <form onSubmit={submit} className="rounded-lg border border-vehiq-border bg-vehiq-nav/30 p-4 space-y-3" data-testid="history-add-entry-form">
+    <form onSubmit={submit} className="rounded-lg border border-vehiq-border bg-vehiq-nav/30 p-4 space-y-3 mt-2" data-testid={initial ? "history-edit-entry-form" : "history-add-entry-form"}>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <select value={form.service_type} onChange={(e) => setForm({ ...form, service_type: e.target.value })} className="vehiq-input text-sm" data-testid="history-add-type">
-          {SERVICE_TYPES_FORM.map((k) => (<option key={k} value={k}>{(EVENT_TYPES[k] || {})[lang] || k}</option>))}
+          {SERVICE_TYPES_FORM.map((k) => (<option key={k} value={k}>{serviceTypeLabel(k, lang)}</option>))}
         </select>
         <input type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} className="vehiq-input text-sm" data-testid="history-add-date" required />
         <input type="number" inputMode="numeric" min={0} placeholder={lang === "pl" ? "Przebieg (km)" : "Mileage (km)"} value={form.mileage} onChange={(e) => setForm({ ...form, mileage: e.target.value })} className="vehiq-input text-sm" data-testid="history-add-mileage" />
@@ -261,9 +310,14 @@ function AddEntryForm({ vehicleId, lang, onDone }) {
       </div>
       <input type="text" placeholder={lang === "pl" ? "Warsztat (opcjonalnie)" : "Workshop (optional)"} value={form.workshop} onChange={(e) => setForm({ ...form, workshop: e.target.value })} className="vehiq-input text-sm w-full" data-testid="history-add-workshop" />
       <textarea rows={2} placeholder={lang === "pl" ? "Opis / notatki" : "Description / notes"} value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} className="vehiq-input text-sm w-full resize-none" data-testid="history-add-notes" />
-      <button type="submit" disabled={busy} className="vehiq-btn-primary w-full py-2 text-sm" data-testid="history-add-submit">
-        {busy ? "…" : lang === "pl" ? "Zapisz wpis" : "Save entry"}
-      </button>
+      <div className="flex gap-2">
+        <button type="submit" disabled={busy} className="vehiq-btn-primary flex-1 py-2 text-sm" data-testid={initial ? "history-edit-submit" : "history-add-submit"}>
+          {busy ? "…" : initial ? t("history.save") : lang === "pl" ? "Zapisz wpis" : "Save entry"}
+        </button>
+        {initial && (
+          <button type="button" onClick={onDone} className="vehiq-btn-secondary px-4 py-2 text-sm" data-testid="history-edit-cancel">{t("history.cancel")}</button>
+        )}
+      </div>
     </form>
   );
 }

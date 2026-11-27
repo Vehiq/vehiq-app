@@ -155,6 +155,8 @@ class ListingIn(BaseModel):
     service: Optional[ServiceDetails] = None
     # Iter 54b — parts-only nested object (type == 'parts')
     part: Optional[PartDetails] = None
+    # Paczka 10 A5: consent to promote the listing on Sharago social media (default off).
+    promo_consent: Optional[bool] = None
 
     @field_validator(
         "type", "category", "title", "description", "location", "vehicle_id",
@@ -465,6 +467,9 @@ async def create_listing(payload: ListingIn, user=Depends(get_current_user)):
         "report_count": 0,
         "is_demo": bool(user.get("is_demo")),
         "created_at": datetime.now(timezone.utc).isoformat(),
+        "promo_consent": bool(payload.promo_consent),
+        "promo_consent_at": datetime.now(timezone.utc).isoformat() if payload.promo_consent else None,
+        "promo_consent_withdrawn_at": None,
     })
     await db.listings.insert_one(doc)
     doc.pop("_id", None)
@@ -486,6 +491,14 @@ async def update_listing(listing_id: str, payload: ListingIn, user=Depends(get_c
     if not l:
         raise HTTPException(status_code=404, detail="Listing not found")
     update = payload.model_dump(exclude_unset=True)
+    if "promo_consent" in update:
+        now = datetime.now(timezone.utc).isoformat()
+        new, old = bool(update["promo_consent"]), bool(l.get("promo_consent"))
+        update["promo_consent"] = new
+        if new and not old:
+            update.update({"promo_consent_at": now, "promo_consent_withdrawn_at": None})
+        elif old and not new:
+            update["promo_consent_withdrawn_at"] = now
     await db.listings.update_one({"id": listing_id}, {"$set": update})
     fresh = await db.listings.find_one({"id": listing_id}, {"_id": 0})
     return fresh

@@ -546,6 +546,7 @@ async def list_all_listings(
     reported: bool = False,
     orphaned: bool = False,
     type: Optional[str] = None,
+    promo_consent: Optional[bool] = None,
     limit: int = 20,
     offset: int = 0,
     admin=Depends(get_admin),
@@ -566,6 +567,8 @@ async def list_all_listings(
         f["report_count"] = {"$gt": 0}
     if type:
         f["type"] = type
+    if promo_consent is not None:
+        f["promo_consent"] = True if promo_consent else {"$ne": True}
     total = await db.listings.count_documents(f)
     items = await db.listings.find(f, {"_id": 0}).sort([("report_count", -1), ("created_at", -1)]).skip(offset).limit(limit).to_list(limit)
 
@@ -1110,12 +1113,25 @@ async def admin_assign_business_owner(business_id: str, payload: BusinessOwnerIn
 
 @router.delete("/service-entries/{entry_id}")
 async def admin_delete_service_entry(entry_id: str, admin=Depends(get_admin)):
-    """Admin may remove any service entry, incl. workshop-confirmed ones."""
+    """Admin may remove any service entry, incl. workshop-confirmed ones (audited)."""
+    from routers.service import delete_entry_with_audit
     db = get_db()
-    res = await db.service_entries.delete_one({"id": entry_id})
-    if res.deleted_count == 0:
+    e = await db.service_entries.find_one({"id": entry_id}, {"_id": 0})
+    if not e:
         raise HTTPException(status_code=404, detail="Entry not found")
+    await delete_entry_with_audit(db, e, admin.get("email"), "admin")
     return {"ok": True}
+
+
+@router.patch("/service-entries/{entry_id}")
+async def admin_patch_service_entry(entry_id: str, payload: dict, admin=Depends(get_admin)):
+    """Admin may edit any service entry."""
+    from routers.service import ServiceEntryPatch, apply_entry_patch
+    db = get_db()
+    if not await db.service_entries.find_one({"id": entry_id}, {"_id": 1}):
+        raise HTTPException(status_code=404, detail="Entry not found")
+    data = ServiceEntryPatch(**payload).model_dump(exclude_unset=True)
+    return await apply_entry_patch(db, entry_id, data, admin.get("email"))
 
 
 # ---------------- Premium waitlist (Iter 53) ----------------

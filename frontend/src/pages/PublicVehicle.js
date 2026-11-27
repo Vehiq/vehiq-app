@@ -3,6 +3,8 @@ import PublicStatus, { errorKind, PUBLIC_TIMEOUT } from "@/components/PublicStat
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import api from "@/lib/api";
+import { fuelLabel, serviceTypeLabel, editedLabel } from "@/lib/labels";
+import { WorkshopStamp } from "@/components/WorkshopStamp";
 import { toast } from "sonner";
 import { Car as CarIcon, ArrowLeft, Share2, Check, Calendar, Gauge, Fuel, Palette, Wrench, Eye } from "lucide-react";
 import SocialShare from "@/components/SocialShare";
@@ -182,7 +184,7 @@ export default function PublicVehicle() {
           </div>
 
           <div>
-            <div className="vehiq-overline">{v.year || "—"} • {v.fuel?.toUpperCase() || ""}</div>
+            <div className="vehiq-overline">{v.year || "—"} • {v.fuel ? fuelLabel(v.fuel, lang) : ""}</div>
             <h1 className="vehiq-display text-3xl sm:text-5xl mt-1 break-anywhere min-w-0" data-testid="public-title">{v.make} {v.model}</h1>
             {v.owner && (
               <div className="text-xs text-vehiq-muted mt-3">
@@ -226,7 +228,7 @@ export default function PublicVehicle() {
             <ul className="grid grid-cols-2 gap-3 mt-6">
               <Spec Icon={Calendar} label={t("vehicle.year")} value={v.year || "—"} />
               <Spec Icon={Gauge} label={t("vehicle.mileage")} value={v.mileage_current != null ? fmtDistance(v.mileage_current, units) : "—"} />
-              <Spec Icon={Fuel} label={t("vehicle.fuel")} value={v.fuel || "—"} />
+              <Spec Icon={Fuel} label={t("vehicle.fuel")} value={v.fuel ? fuelLabel(v.fuel, lang) : "—"} />
               <Spec Icon={Palette} label={t("vehicle.color")} value={v.color || "—"} />
             </ul>
 
@@ -302,7 +304,11 @@ export default function PublicVehicle() {
                 {v.service_entries.slice(0, 50).map((s, i) => (
                   <li key={i} className="py-2 flex items-center gap-3 text-sm" data-testid={`public-service-${i}`}>
                     <span className="text-vehiq-muted text-xs min-w-[90px]">{s.date}</span>
-                    <span className="text-vehiq-text flex-1 truncate">{t(`service.types.${s.type}`, s.type)}</span>
+                    <span className="flex-1 min-w-0">
+                      <span className="text-vehiq-text block truncate">{serviceTypeLabel(s.service_type || s.type, lang)}</span>
+                      {s.business_name && s.business_id && s.business_verified !== false && <WorkshopStamp name={s.business_name} slug={s.business_slug} />}
+                      {s.edited_at && <span className="block text-[10px] text-vehiq-muted" data-testid={`public-service-edited-${i}`}>{editedLabel(s.edited_at, lang)}</span>}
+                    </span>
                     {v.is_owner && s.cost ? <span className="text-vehiq-gold text-xs">{fmtPrice(s.cost, units)}</span> : null}
                   </li>
                 ))}

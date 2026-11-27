@@ -295,7 +295,7 @@
   },
   "ai": {
     "title": "AI Mechanik Sharago",
-    "subtitle": "Claude Sonnet 4.5 — z kontekstem Twojego pojazdu",
+    "subtitle": "Z kontekstem Twojego pojazdu",
     "placeholder": "Opisz problem ze swoim pojazdem...",
     "send": "Wyślij",
     "thinking": "Mechanik analizuje...",
@@ -937,7 +937,11 @@
     "limitService": "W darmowym planie możesz mieć <b>1 aktywne ogłoszenie usługi</b>. Wkrótce zdejmiemy ten limit.",
     "limitRental": "W darmowym planie możesz mieć <b>1 aktywne ogłoszenie wynajmu</b>. Wkrótce zdejmiemy ten limit.",
     "type": "Typ",
-    "mileagePrefill": "Przebieg"
+    "mileagePrefill": "Przebieg",
+    "promoConsent": "Zgadzam się na promowanie mojego ogłoszenia (zdjęcia, opis, link) w mediach społecznościowych Sharago",
+    "adminPromoFilter": "Zgoda na promocję",
+    "adminPromoCol": "Zgoda na promocję",
+    "adminPromoWithdrawn": "wycofana"
   },
   "swap": {
     "listFirst": "Najpierw wystaw swoje auto do zamiany",
@@ -1149,5 +1153,37 @@
     "accessRetryLater": "Właściciel odrzucił prośbę. Ponowna prośba możliwa od {{date}}.",
     "accessDailyLimit": "Limit 20 próśb o dostęp na dobę został wykorzystany",
     "accessFailed": "Nie udało się wysłać prośby"
+  },
+  "serviceTypes": {
+    "oil_change": "Wymiana oleju",
+    "timing_belt": "Rozrząd",
+    "brake_pads": "Hamulce – klocki",
+    "brake_discs": "Hamulce – tarcze",
+    "tires": "Opony",
+    "inspection": "Przegląd",
+    "insurance": "Ubezpieczenie",
+    "battery": "Akumulator",
+    "suspension": "Zawieszenie",
+    "other": "Serwis",
+    "fuel": "Tankowanie",
+    "mileage": "Przebieg",
+    "planned": "Modyfikacja",
+    "parts_ordered": "Części",
+    "budget": "Budżet",
+    "oil": "Wymiana oleju",
+    "repair": "Naprawa",
+    "mot": "Badanie techniczne"
+  },
+  "history": {
+    "edit": "Edytuj",
+    "delete": "Usuń",
+    "deleteConfirm": "Usunąć wpis? Tej operacji nie da się cofnąć",
+    "editedOn": "edytowano {{date}}",
+    "saved": "Zapisano zmiany",
+    "deleted": "Wpis usunięty",
+    "confirmedBy": "Potwierdzone przez {{name}}",
+    "save": "Zapisz zmiany",
+    "cancel": "Anuluj",
+    "readOnly": "Tylko do odczytu"
   }
 }

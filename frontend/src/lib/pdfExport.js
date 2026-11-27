@@ -3,6 +3,8 @@
  * Uses jsPDF (already installed).
  */
 import jsPDF from "jspdf";
+import i18n from "@/i18n";
+import { serviceTypeLabel, fuelLabel } from "@/lib/labels";
 
 // Sharago brand palette (Iter 34: navy #0D1626 + blue #2B7FE8)
 const BLUE = [43, 127, 232];   // #2B7FE8
@@ -10,11 +12,6 @@ const DARK = [13, 22, 38];     // #0D1626
 const GOLD = BLUE;             // backwards-compat alias for legacy code paths in this file
 const TEXT = [34, 34, 34];
 const MUTED = [107, 112, 144];
-
-const TYPE_LABELS = {
-  pl: { oil: "Wymiana oleju", inspection: "Przegląd", repair: "Naprawa", tires: "Opony", insurance: "Ubezpieczenie", mot: "Badanie tech.", other: "Inne" },
-  en: { oil: "Oil change", inspection: "Inspection", repair: "Repair", tires: "Tires", insurance: "Insurance", mot: "MOT", other: "Other" },
-};
 
 const STR = {
   pl: {
@@ -40,7 +37,6 @@ function dateStr() { const d = new Date(); return d.toISOString().slice(0, 16).r
 
 export function exportServicePdf({ vehicle, entries, pl: plData, lang = "pl" }) {
   const L = STR[lang] || STR.pl;
-  const TL = TYPE_LABELS[lang] || TYPE_LABELS.pl;
   const doc = new jsPDF({ unit: "mm", format: "a4" });
   const W = doc.internal.pageSize.getWidth();
   const H = doc.internal.pageSize.getHeight();
@@ -94,7 +90,7 @@ export function exportServicePdf({ vehicle, entries, pl: plData, lang = "pl" }) 
   if (vehicle.plate) meta.push(`${L.plate}: ${vehicle.plate}`);
   if (vehicle.mileage_current) meta.push(`${L.mileage}: ${vehicle.mileage_current.toLocaleString("pl-PL")} km`);
   if (vehicle.engine) meta.push(vehicle.engine);
-  if (vehicle.fuel) meta.push(vehicle.fuel.toUpperCase());
+  if (vehicle.fuel) meta.push(fuelLabel(vehicle.fuel, lang));
   doc.text(meta.join("   ·   "), M, y);
 
   y += 8;
@@ -163,8 +159,8 @@ export function exportServicePdf({ vehicle, entries, pl: plData, lang = "pl" }) 
     let cx = M + 2;
     const cells = [
       (e.date || "").slice(0, 10),
-      TL[e.type] || e.type,
-      e.workshop || "—",
+      serviceTypeLabel(e.service_type || e.type, lang),
+      e.business_id && e.business_name ? i18n.t("history.confirmedBy", { name: e.business_name, lng: lang }).slice(0, 40) : (e.workshop || "—"),
       fmt(e.cost),
       (e.notes || "").slice(0, 60),
     ];
