@@ -37,6 +37,7 @@ export default function BusinessRegister() {
     address: "",
   });
   const [busy, setBusy] = useState(false);
+  const [registered, setRegistered] = useState(false);
 
   useEffect(() => {
     const t = params.get("type");
@@ -57,6 +58,7 @@ export default function BusinessRegister() {
     try {
       await api.post("/business/register", form);
       toast.success(t("biz.registered"));
+      setRegistered(true);
       try { await refresh(); } catch { /* ignore */ }
       navigate("/business/onboarding", { replace: true });
     } catch (err) {
@@ -74,7 +76,7 @@ export default function BusinessRegister() {
 
   if (loading) return <div className="min-h-screen flex items-center justify-center text-vehiq-muted" data-testid="business-register-loading">…</div>;
   if (!user) return <Navigate to={`/login?next=${encodeURIComponent(location.pathname + location.search)}`} replace />;
-  if (user.business_id) return <Navigate to="/business/dashboard" replace />;
+  if (user.business_id && !registered) return <Navigate to="/business/dashboard" replace />;
 
   return (
     <div className="max-w-2xl mx-auto p-6" data-testid="business-register-page">

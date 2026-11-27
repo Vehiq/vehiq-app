@@ -2333,3 +2333,17 @@ Backend curl E2E — wszystkie zielone (slugify PL, business register, GET/{slug
 - Admin users: type/created/last_active/inactive days, sort, filters, bulk delete (full_delete_user = GDPR erase + cascade). Demo accounts auto-deleted after demo_ttl_days (default 7), daily loop.
 - Retention manual endpoint removed. FAB "Zapytaj AI Mechanika". Garage stats below cars. Footer layout. ListingDetail i18n.
 - GA4: vite define REACT_APP_GA4_MEASUREMENT_ID (root cause), console.warn when missing, manual page_view only on first load (Enhanced Measurement handles SPA history), events vehicle_added, reminder_set, public_link_shared, waitlist_joined, sign_up email/google.
+
+## 2026-11 — Paczka 11 (B2B security & cleanup)
+- business/register: login required (401), 1 business per owner (409), 3 attempts/user/day (rate_guard.hit_key_limit), email defaults to account email, welcome mail only to account email, links → /business/dashboard.
+- Self-activation endpoint POST /business/{id}/activate REMOVED. Activation only: verified business QR scan (qr_scan), admin (admin), paid checkout (payment).
+- Public catalog/profile/history/stats: verified AND activated AND hidden!=true; others 404 (owner/staff/admin see + public_visible flag/banner). Public profile whitelist of fields. is_owner includes staff. Search _workshops same filter.
+- Private vehicles: unverified business = guest; verified w/o access → limited {make, model, year} + POST /business/access/request; full view only with approved+active access (short link + by-slug). Requests: 1 pending per pair, 20/business/day, re-request 30 days after deny/revoke, 1 e-mail per request.
+- Payments: checkout + _finalise_session verify payer owns business_id (403 / no activation).
+- Workshop entries: owner PUT/DELETE → 403 (PL/EN); admin DELETE /api/admin/service-entries/{id}.
+- GDPR: services by owner_id+user_id (+R2 photos, reviews on them), own reviews (ratings recomputed), owned businesses (logo R2, access rows, profile links); workshop entries detached (business_id null, "Warsztat (konto usunięte)"). Fixed: referral_code now $unset (unique sparse index → 2nd deletion used to 500).
+- Admin PATCH /api/admin/businesses/{id}/owner {email}. Script scripts/b2b_ownerless.py (dry-run / --apply → activated=false, hidden=true).
+- services q/city re.escape + 64 chars. Dead code removed: user.get("business") (marketplace, swaps), account_type=="business" (public_share). _is_profile_complete no longer requires logo.
+- Frontend: login/register ?next= (lib/nextPath.js, Onboarding consumes), PrivateRoute passes next, /business → /business/dashboard, BusinessRegister auth-guard + redirect to /business/onboarding, WorkshopProfile banner + MapPin, VehicleShort limited view.
+- Tests: tests/test_paczka11.py (23), tests/db_users.py helper; test_iter53/54b/56 updated.
+- Known: services distance filter after .to_list(60) (later); BusinessRegister/BusinessOnboarding texts PL-only; Stripe test key expired & SMTP auth failing in preview.

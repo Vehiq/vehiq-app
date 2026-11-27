@@ -1,0 +1,41 @@
+{
+  "summary": "PACZKA 11 frontend-only testing (Playwright, desktop 1920 + mobile 375). 9 of 10 flows pass. One failure: after submitting the business register form, a new user lands on /business/dashboard and not on /business/onboarding.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "BusinessRegister.submit", "issue": "After a successful POST /business/register the toast 'Firma zarejestrowana' shows, but the user ends up on /business/dashboard, not /business/onboarding. Likely cause: `await refresh()` runs before navigate(). refresh() puts business_id on the user, so the component re-renders and the guard `if (user.business_id) return <Navigate to=\"/business/dashboard\"/>` fires before navigate('/business/onboarding') is reached. /business/onboarding itself loads fine when opened directly.", "selector": "[data-testid=business-register-submit]", "priority": "HIGH"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "BusinessRegister / BusinessOnboarding (EN)", "issues": ["All text on both pages is hardcoded in Polish (title, field labels, type labels, the 'Uzupełnij wymagane pola' toast, 'Dalej', 'Krok 1 z 3'). It stays Polish when the language is EN. The toasts on BusinessRegister already use t()."]}
+    ]
+  },
+  "passed_flows": [
+    "Anonymous /register/business?type=workshop -> /login?next=%2Fregister%2Fbusiness%3Ftype%3Dworkshop; after login lands on /register/business?type=workshop with Warsztat preselected and e-mail prefilled (qa_p11_new_...)",
+    "/dla-warsztatow CTA (top + bottom) href=/login?next=/register/business%3Ftype%3Dworkshop; login-register-link keeps next (/register?next=%2Fregister%2Fbusiness%3Ftype%3Dworkshop)",
+    "User who already has a business: /register/business -> /business/dashboard",
+    "/business -> /business/dashboard",
+    "Owner of unverified business on /warsztaty/test-p11-warsztat-ui: workshop-hidden-banner 'Profil niewidoczny publicznie – czeka na weryfikację'; workshop-address uses lucide-map-pin. Anonymous visitor gets workshop-not-found",
+    "Verified WS on /v/8082f2c1: vehicle-short-limited, title 'Audi A4 2017', button 'Poproś o dostęp' -> toast 'Prośba wysłana do właściciela' -> vehicle-short-access-pending 'Prośba o dostęp czeka na decyzję właściciela'. Pending state survives a reload (API access_status=pending)",
+    "Anonymous visitor of /v/8082f2c1 sees 'To auto jest prywatne' (no limited card)",
+    "EN: limited view ('This car is private...', 'Access request awaiting the owner's decision') and hidden banner ('Profile not publicly visible – awaiting verification') are translated",
+    "Mobile 375: no horizontal scroll on the register form or the limited card (scrollWidth == 375)"
+  ],
+  "test_report_links": [],
+  "action_items": [
+    "BusinessRegister.js submit: call navigate('/business/onboarding', {replace:true}) before refresh(), or make the business_id guard skip right after a submit (e.g. a justRegistered ref), so the new user reaches onboarding",
+    "Optional: translate the hardcoded Polish text in BusinessRegister.js and BusinessOnboarding.js with t()"
+  ],
+  "critical_code_review_comments": [
+    "BusinessRegister: the business_id guard and the post-submit navigate conflict (this is the HIGH bug above)",
+    "VehicleShort.js: the `if (error === 'not-found')` block can never run because `if (error)` returns PublicStatus first. Dead code",
+    "LanguageSwitcher: the first-use-tooltips overlay (z-80) blocks clicks on the language menu for new users until the tour is skipped"
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "not tested (frontend only)", "frontend": "90% (9/10 flows)"},
+  "seed_data_creation": "Using qa_p11_new_0f264c8d@qa.pl I registered the business 'TEST_P11 Warsztat UI' (slug test-p11-warsztat-ui, Kraków, ul. Testowa 1, unverified). WS qa_p11_ws created a pending access request for car 8082f2c1. Both were required by the requested flows and were not deleted. The language of both users was temporarily set to EN and then reset to pl.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "qa_p11_new now owns a business, so to retest the register -> onboarding redirect you need another fresh user without a business (register limit is 3/day per user). The preview ingress sometimes returns 429 on Vite module requests after many page loads, which gives a blank white page; wait about 60s and retry. LangSync makes user.language override localStorage; use the switcher or PUT /api/auth/me {language}.",
+  "rca of the issue": "BusinessRegister.submit runs `await refresh()` and then navigate('/business/onboarding'). Once refresh() resolves, the AuthContext user has business_id, so BusinessRegister re-renders, returns <Navigate to='/business/dashboard' replace/> and unmounts. The later navigate call loses the race or is ignored, and the user stays on /business/dashboard. Observed: after submit, page.url = /business/dashboard. Fix: navigate first, or use a ref flag to skip the guard after a successful submit."
+}

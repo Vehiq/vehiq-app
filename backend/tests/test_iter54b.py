@@ -255,8 +255,16 @@ class TestAccessRespond:
 # ---------------- 4. Marketplace parts + service ----------------
 
 class TestMarketplacePartsAndService:
-    def test_create_parts_listing_with_nested_part(self, smoke_token):
-        h = {"Authorization": f"Bearer {smoke_token}"}
+    @pytest.fixture(autouse=True)
+    def _reset_listing_ip_limit(self):
+        # POST /listings allows 10/day per IP; repeated suite runs from one pod would hit 429.
+        from tests.db_users import DB
+        DB.rate_hits.delete_many({"scope": "listing"})
+
+    def test_create_parts_listing_with_nested_part(self):
+        # Fresh account: the shared smoke user accumulates active listings (cap 15) across runs.
+        from tests.db_users import make_user
+        h = make_user("test_parts")["h"]
         payload = {
             "type": "parts",
             "title": "TEST Rozrusznik OEM",

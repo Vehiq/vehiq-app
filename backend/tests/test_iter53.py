@@ -33,6 +33,12 @@ def admin_token():
 
 # --------- Waitlist ---------
 class TestWaitlist:
+    @pytest.fixture(autouse=True)
+    def _reset_waitlist_ip_limit(self):
+        # The endpoint allows 5 hits/hour per IP; repeated suite runs from one pod would hit 429.
+        from tests.db_users import DB
+        DB.rate_hits.delete_many({"scope": "waitlist"})
+
     def test_first_submit(self):
         email = f"qa-wl-{uuid.uuid4().hex[:8]}@test.pl"
         r = requests.post(f"{BASE}/api/waitlist/premium", json={"email": email, "trigger": "photo_limit"}, timeout=15)
