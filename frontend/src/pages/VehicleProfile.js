@@ -96,7 +96,7 @@ export default function VehicleProfile() {
               <span className="text-[10px] uppercase tracking-widest px-2 py-0.5 rounded bg-vehiq-gold text-vehiq-bg" data-testid="vehicle-for-sale-badge">{t("sell.forSale")}</span>
             )}
           </div>
-          <h1 className="vehiq-display text-4xl sm:text-5xl text-vehiq-text mt-1" data-testid="vehicle-title">
+          <h1 className="vehiq-display text-3xl sm:text-5xl text-vehiq-text mt-1 break-anywhere min-w-0" data-testid="vehicle-title">
             {vehicle.make} {vehicle.model}
           </h1>
         </div>

@@ -705,6 +705,10 @@ async def verify_email(payload: VerifyIn):
     rec = await db.email_verifications.find_one_and_update(
         {"token_hash": h, "used": False, "expires_at": {"$gt": now}}, {"$set": {"used": True, "used_at": now}})
     if not rec:
+        # Idempotent: a used link of an already-verified account is still a success.
+        old = await db.email_verifications.find_one({"token_hash": h, "used_at": {"$exists": True}})
+        if old and (await db.profiles.find_one({"id": old["user_id"], "email_verified": True}, {"_id": 1})):
+            return {"ok": True, "already_verified": True}
         raise HTTPException(status_code=400, detail="Invalid or expired link")
     u = await db.profiles.find_one({"id": rec["user_id"]}, {"_id": 0, "id": 1, "email": 1, "name": 1, "language": 1, "email_verified": 1})
     if not u:

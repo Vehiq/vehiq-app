@@ -183,7 +183,7 @@ export default function PublicVehicle() {
 
           <div>
             <div className="vehiq-overline">{v.year || "—"} • {v.fuel?.toUpperCase() || ""}</div>
-            <h1 className="vehiq-display text-4xl sm:text-5xl mt-1" data-testid="public-title">{v.make} {v.model}</h1>
+            <h1 className="vehiq-display text-3xl sm:text-5xl mt-1 break-anywhere min-w-0" data-testid="public-title">{v.make} {v.model}</h1>
             {v.owner && (
               <div className="text-xs text-vehiq-muted mt-3">
                 {t("share.owner")}:{" "}

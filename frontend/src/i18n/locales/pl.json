@@ -1107,7 +1107,8 @@
   "lst2": {
     "noPhoto": "Brak zdjęcia",
     "rentTerms": "Warunki wynajmu",
-    "seller": "Sprzedający"
+    "seller": "Sprzedający",
+    "fromGarage": "Z profilu pojazdu — zaznacz, które użyć"
   },
   "pst": {
     "notFound": "Nie znaleziono",

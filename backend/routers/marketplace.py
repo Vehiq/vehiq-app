@@ -378,6 +378,10 @@ async def get_listing(listing_id: str, authorization: Optional[str] = Header(Non
 async def create_listing(payload: ListingIn, user=Depends(get_current_user)):
     from auth_utils import require_verified
     require_verified(user)
+    from plan_limits import plan_limit, is_admin_user, limit_error
+    _maxp = await plan_limit(get_db(), "max_photos_per_vehicle")
+    if not is_admin_user(user) and _maxp > 0 and len(payload.photos or []) > _maxp:
+        limit_error("photo_limit_reached", _maxp, len(payload.photos or []))
     db = get_db()
     valid_types = {"car", "parts", "swap", "full_parts", "project", "rental", "service"}
     if payload.type not in valid_types:

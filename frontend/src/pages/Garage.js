@@ -185,7 +185,7 @@ function VehicleCard({ v, t, eager = false, lang = "pl" }) {
         )}
       </div>
       <div className="p-4">
-        <div className="vehiq-display text-xl text-vehiq-text leading-tight">{v.make} {v.model}{v.year ? ` ${v.year}` : ""}</div>
+        <div className="vehiq-display text-xl text-vehiq-text leading-tight break-anywhere">{v.make} {v.model}{v.year ? ` ${v.year}` : ""}</div>
         {plNode}
       </div>
     </Link>

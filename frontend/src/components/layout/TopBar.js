@@ -126,8 +126,8 @@ export default function TopBar({ onMenu }) {
           </div>
         </div>
 
-        <div className="flex items-center gap-3 ml-auto">
-          <LanguageSwitcher />
+        <div className="flex items-center gap-1 sm:gap-3 ml-auto shrink-0">
+          <span className="hidden sm:inline-flex"><LanguageSwitcher /></span>
 
           <button
             type="button"

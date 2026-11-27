@@ -447,7 +447,7 @@ async def list_users(q: Optional[str] = None, inactive_days: Optional[int] = Non
         f["is_demo"] = True
     if inactive_days:
         cutoff = (datetime.now(timezone.utc) - timedelta(days=inactive_days)).isoformat()
-        f["$and"] = [{"$or": [{"last_active": {"$lt": cutoff}}, {"last_active": None}]}]
+        f["$and"] = [{"$or": [{"last_active": {"$lt": cutoff}}, {"last_active": None, "created_at": {"$lt": cutoff}}]}]
     users = await db.profiles.find(f, {"_id": 0, "password_hash": 0, "avatar": 0}).sort("created_at", -1).to_list(2000)
     counts = {d["_id"]: d["n"] async for d in db.vehicles.aggregate([{"$group": {"_id": "$user_id", "n": {"$sum": 1}}}])}
     now = datetime.now(timezone.utc)

@@ -2323,3 +2323,13 @@ Backend curl E2E — wszystkie zielone (slugify PL, business register, GET/{slug
 - E: Jinja2 templates backend/email_templates + email_render.py, text part + List-Unsubscribe, sender SMTP_FROM_EMAIL→noreply@sharago.com, retention e-mails off, admin E-maile tab.
 - D/F/G: numeric fields, listing-draft endpoint, polling 60s visible-only, React.lazy (main JS 2274→1301 kB), package-lock removed (Vercel uses yarn).
 - Backlog: shadcn date picker in Terminy, translate ListingDetail 'SELLER', footer logo overlap, real logo PNG (attachment was masked).
+
+## 2026-06 — Paczka 8 + GA4
+- Mobile: overflow-x clip on html/body, 16px inputs on mobile, viewport w/o maximum-scale, break-anywhere on vehicle titles/spec values, TopBar compact, tab bar pan-x + no vertical jump (VehicleProfile useLayoutEffect).
+- Soft e-mail verification (email_verified False only for new email/password signups; legacy = verified; Google = verified; hijack protection only for explicit False). /api/auth/verify-email (+resend 3/h), require_verified on listings/messages/forum/events. VerifyEmail banner/modal, /verify-email page.
+- Beta limits texts (no "Premium"), cars 8 / photos 7, /vehicles/limits, AddVehicle opens limit modal immediately; listing photos capped 7 (client + server).
+- AI listing description /api/ai/describe (3/month, 900 tokens), AiListingDescription component.
+- PublicStatus component (private / 404 / error+retry, 15 s timeout).
+- Admin users: type/created/last_active/inactive days, sort, filters, bulk delete (full_delete_user = GDPR erase + cascade). Demo accounts auto-deleted after demo_ttl_days (default 7), daily loop.
+- Retention manual endpoint removed. FAB "Zapytaj AI Mechanika". Garage stats below cars. Footer layout. ListingDetail i18n.
+- GA4: vite define REACT_APP_GA4_MEASUREMENT_ID (root cause), console.warn when missing, manual page_view only on first load (Enhanced Measurement handles SPA history), events vehicle_added, reminder_set, public_link_shared, waitlist_joined, sign_up email/google.

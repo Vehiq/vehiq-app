@@ -27,6 +27,9 @@ export function usePageTracking() {
     if (typeof gtag !== "function") return;
     const path = location.pathname + location.search;
     if (lastTracked === path) return; // StrictMode / re-render: no double page_view
+    // Later SPA route changes are counted by GA4 Enhanced Measurement ("page changes based on
+    // browser history events", on by default) — sending them manually too doubled every hit.
+    if (lastTracked !== null) { lastTracked = path; return; }
     lastTracked = path;
     try {
       gtag("event", "page_view", {

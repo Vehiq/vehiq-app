@@ -199,7 +199,7 @@
 }
 
 /* Paczka 8: mobile — no horizontal scroll, no iOS zoom on inputs, horizontal-only tab bar */
-html, body { overflow-x: hidden; max-width: 100%; }
+html, body { overflow-x: clip; max-width: 100%; }
 img, video, iframe { max-width: 100%; }
 .break-anywhere { overflow-wrap: anywhere; word-break: break-word; }
 @media (max-width: 767px) {

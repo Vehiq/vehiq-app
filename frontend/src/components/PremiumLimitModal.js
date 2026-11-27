@@ -28,7 +28,7 @@ export default function PremiumLimitModal({ kind, open, onClose, vehicleId, limi
       <div className="vehiq-card max-w-md w-full p-6 relative" onClick={(e) => e.stopPropagation()}>
         <button onClick={onClose} className="absolute top-3 right-3 text-vehiq-muted hover:text-vehiq-text" data-testid="limit-modal-close"><X size={16} /></button>
         <Sparkles className="text-vehiq-gold" size={24} />
-        <h3 className="vehiq-display text-2xl text-vehiq-text mt-2">{t(`limits.${kind}Title`)}</h3>
+        <h3 className="vehiq-display text-2xl text-vehiq-text mt-2">{t(`limits.${kind}Title`, { limit })}</h3>
         <p className="text-sm text-vehiq-muted mt-2" data-testid="limit-modal-text">{t(`limits.${kind}Text`, { limit })}</p>
         {saved ? (
           <div className="mt-4 inline-flex items-center gap-2 text-sm text-vehiq-text" data-testid="limit-modal-saved"><Check size={16} className="text-vehiq-gold" /> {t("limits.saved")}</div>

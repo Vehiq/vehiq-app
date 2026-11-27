@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { Trans } from "react-i18next";
 import i18n from "@/i18n";
 import { useCallback, useRef, useState } from "react";
@@ -35,6 +36,7 @@ export default function BulkPhotoUploader({
   disabled = false,
   testIdPrefix = "bulk-photos",
 }) {
+  const { t } = useTranslation();
   const inputRef = useRef(null);
   const [dragOver, setDragOver] = useState(false);
   const [blurQueue, setBlurQueue] = useState([]); // File[] awaiting plate-cover review
@@ -102,7 +104,7 @@ export default function BulkPhotoUploader({
     const has = (photos || []).includes(url);
     if (has) onPhotosChange((photos || []).filter((p) => p !== url));
     else if (photos.length < maxPhotos) onPhotosChange([...(photos || []), url]);
-    else toast.error(`Max ${maxPhotos} zdjęć`);
+    else toast.error(t("limits.photosTitle", { limit: maxPhotos }));
   };
 
   return (
@@ -111,7 +113,7 @@ export default function BulkPhotoUploader({
       {existingVehiclePhotos.length > 0 && (
         <div className="p-3 rounded border border-vehiq-border/50 bg-vehiq-bg/40" data-testid={`${testIdPrefix}-garage`}>
           <div className="text-[11px] uppercase tracking-widest text-vehiq-muted mb-2">
-            Z profilu pojazdu — zaznacz które użyć
+            {t("lst2.fromGarage")}
           </div>
           <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
             {existingVehiclePhotos.map((url, i) => {

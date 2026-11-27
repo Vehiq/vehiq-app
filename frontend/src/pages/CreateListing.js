@@ -339,6 +339,7 @@ export default function CreateListing() {
         setLimitModal(detail.code === "service_limit_free" ? "service" : "rental");
         return;
       }
+      if (detail?.code === "email_not_verified") return; // verify modal opens via api interceptor
       toast.error(apiErrorMessage(err, t("common.error")));
     } finally { setBusy(false); }
   };
@@ -649,7 +650,7 @@ export default function CreateListing() {
             photos={form.photos}
             onPhotosChange={(next) => setForm((prev) => ({ ...prev, photos: next }))}
             existingVehiclePhotos={garagePhotos}
-            maxPhotos={10}
+            maxPhotos={lim && lim.unlimited ? 30 : (lim?.max_photos || 7)}
             testIdPrefix="listing-photos"
           />
         </div>

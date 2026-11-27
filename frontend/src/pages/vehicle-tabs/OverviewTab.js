@@ -67,8 +67,8 @@ export default function OverviewTab({ vehicle, reload, actions = null }) {
 
   const Spec = ({ label, value }) => value ? (
     <div className="flex justify-between gap-4 py-2 border-b border-vehiq-border last:border-0">
-      <span className="text-sm text-vehiq-muted">{label}</span>
-      <span className="text-sm text-vehiq-text font-medium">{value}</span>
+      <span className="text-sm text-vehiq-muted shrink-0">{label}</span>
+      <span className="text-sm text-vehiq-text font-medium text-right min-w-0 break-anywhere">{value}</span>
     </div>
   ) : null;
 

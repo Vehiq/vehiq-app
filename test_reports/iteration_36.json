@@ -1,0 +1,73 @@
+{
+  "summary": "Paczka 8 testing (backend + frontend). Backend: new pytest tests/test_iter58_paczka8.py has 15 tests: 14 passed, 1 skipped because no profile has role=admin. Covered: soft verification (403 email_not_verified on listing and message, car add allowed), bad verify token 400, the 4th resend in an hour returns 429, retention/run 404, limits max_vehicles=8, listing-draft has no links, /ai/describe 503, admin users fields, filters and bulk-delete. Frontend: most Paczka 8 items work: garage order, verify banner/modal/resend/dismiss, private and 404 public pages, /v short link, vehicle limit modal + 'Daj mi znać', FAB ask-ai, AI beta text, ?tab=ai, listing prefill + ai-desc block + 503 toast, 'Sprzedający'/'Brak zdjęcia', footer, admin users, gtag + consent default denied. Inputs are 16px and the viewport meta has no maximum-scale. FAILURES: (1) mobile horizontal overflow is not solved: content is still wider than the screen and is only clipped by html/body overflow-x:hidden; (2) GA4 sends 2 page_view hits per SPA route change; (3) the /verify-email page shows 'invalid link' even though verification succeeded; (4) the vehicle limit-modal title showed a raw '{{limit}}' (I fixed this); (5) the 7-photo limit for listings can be bypassed.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/auth/verify-email", "issue": "Not idempotent: a second call with an already-used token for an already-verified user returns 400. Together with the frontend double-call, this shows 'Link jest nieprawidłowy' after a successful verification. Suggest returning {ok:true, already_verified:true} when the token is used and the user is already verified."},
+      {"endpoint": "POST /api/marketplace/listings", "issue": "There is no server-side cap on photos[] length, so the beta photo limit (7) is only enforced in the client."},
+      {"endpoint": "GET /api/admin/users?inactive_days=N", "issue": "The filter treats a missing last_active as inactive, but the inactive_days column falls back to created_at. Recently created legacy users without last_active would appear in the 'inactive >30 days' filter."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "TopBar (logged-in, mobile)", "issue": "At 360/375/390px the right-hand cluster (search, PL switcher, messages, bell, avatar) needs about 404px. topbar-profile ends at right=404px, so the avatar is cut off at the screen edge (visible in screenshots). body.scrollWidth=404 on /garage, /garage/new, /marketplace, /marketplace/{id}. It is only hidden by html,body{overflow-x:hidden}. Fine at 414px.", "selector": "[data-testid=topbar-profile]", "priority": "HIGH"},
+      {"component": "VehicleProfile header (/garage/{id}), all tabs, all widths 360-414", "issue": "[data-testid=vehicle-title] (vehiq-display text-4xl) is 755px wide with right=771 for the long unbroken model name. The title is visibly clipped ('VolkswagenSuperdługana…'). There is also a SPAN.text-sm in the overview, 358px wide, with right=455. Add break-anywhere / min-w-0 on the flex parent.", "selector": "[data-testid=vehicle-title]", "priority": "HIGH"},
+      {"component": "PublicVehicle (/vehicles/{slug}) at 360/414", "issue": "Same unbroken-title clipping, body.scrollWidth=771. The header logo is also cramped against the 'Kopiuj link' button at 360px.", "selector": "h1 on /vehicles/{slug}", "priority": "MEDIUM"},
+      {"component": "Garage vehicle card title", "issue": "A long model name is clipped inside the card (overflow-hidden) with no wrap or ellipsis at 375px.", "selector": "[data-testid^=vehicle-card-]", "priority": "LOW"},
+      {"component": "VerifyEmailPage", "issue": "useEffect calls POST /auth/verify-email twice (React.StrictMode in index.js). The first call returns 200 and verifies the account, the second returns 400, and the page ends on verify-page-bad 'Link jest nieprawidłowy lub wygasł'. Reproduced with a real token: the DB has email_verified=true but the UI says invalid. Fix: add a useRef guard so the request is sent only once, plus backend idempotency.", "selector": "[data-testid=verify-page-bad]", "priority": "HIGH"},
+      {"component": "PremiumLimitModal title", "issue": "The title was rendered as 'Wersja beta: do {{limit}} aut' because t() was called without {limit}. I fixed it in components/PremiumLimitModal.js (line 31) and verified the photos modal now shows 'do 7 zdjęć'.", "selector": "[data-testid=limit-modal-vehicles] h3", "priority": "MEDIUM (fixed)"},
+      {"component": "CreateListing / BulkPhotoUploader", "issue": "The prefill from the garage correctly caps photos at 7 and shows limit-modal-photos. But the user can then tick more garage photos (I selected 8 of 9) with no modal or toast, because maxPhotos={10} is passed in CreateListing.js:652. The text 'Z profilu pojazdu — zaznacz które użyć' and the toast 'Max N zdjęć' are hardcoded in Polish (not i18n).", "selector": "[data-testid*=garage-photo-]", "priority": "MEDIUM"},
+      {"component": "CreateListing submit when unverified", "issue": "The verify-modal opens correctly, but a generic 'Błąd' error toast also appears at the same time. The catch block should skip the toast when detail.code === 'email_not_verified'.", "selector": "[data-sonner-toast]", "priority": "LOW"}
+    ],
+    "integration_issues": [
+      {"flow": "GA4 page_view", "issue": "The dataLayer has exactly 1 manual page_view per route, so the hook is correct. But the network shows 2 /g/collect en=page_view hits per SPA navigation (initial load: 1). Reproduced with real Link clicks: login→register→login gave 5 hits for 3 routes. Root cause: GA4 Enhanced Measurement 'page changes based on browser history events' is on, and the manual page_view comes on top of it. Fix: turn that option off in the GA4 Data Stream settings, or stop sending manual route page_views (send_page_view:false only affects config).", "affected_selectors": ["window.dataLayer", "google-analytics.com/g/collect"]}
+    ],
+    "design_issues": [
+      {"screen": "Global CSS", "issues": ["Because html, body, #root have height:100% and body has overflow-x:hidden, BODY becomes the scroll container (body.scrollHeight 2370 / clientHeight 812, window.scrollY is always 0). Any window.scrollY / window.scrollTo / scroll-restoration code is effectively a no-op. On iOS this also affects address-bar collapse. It hides overflow instead of fixing it. Consider overflow-x:clip on html only, or removing height:100%."]},
+      {"screen": "VehicleProfile Terminy", "issues": ["Uses the native <input type=date> (shows mm/dd/yyyy in the PL locale) instead of a shadcn calendar."]},
+      {"screen": "Garage greeting", "issues": ["A brand-new user sees 'Witaj ponownie' ('welcome back')."]},
+      {"screen": "Admin Users sort", "issues": ["Name sort is case-sensitive (lowercase names sort before uppercase). A first click on a new column sorts descending."]}
+    ]
+  },
+  "passed_checks": [
+    "Garage: garage-grid is above garage-stats",
+    "Vehicle tab bar at 375: overflow-x auto, overflow-y hidden; clicking each tab keeps the bar at the same top (392px / 142px after scroll); the bar scrolls horizontally to the active tab; ?tab=ai selects the AI tab",
+    "AI tab shows 'Wersja beta: 1 pytanie tygodniowo · Pytanie na ten tydzień: dostępne'",
+    "FAB: fab-ask-ai inside /garage/{id} → ?tab=ai; from /marketplace → first car ?tab=ai",
+    "/garage/new with 8 active cars → limit-modal-vehicles immediately, no 'Premium' text; 'Daj mi znać' → 'Zapisane – napiszemy, gdy zniesiemy limit.'",
+    "New UI-registered user: verify-banner visible, can add a car immediately, banner dismiss persists across navigation",
+    "Listing from garage: description prefilled with no http/www/sharago.com link; ai-desc, ai-desc-btn, ai-desc-note and ai-desc-disclaimer visible; AI button shows 503 toast 'AI Mechanik chwilowo niedostępny'; submit → verify-modal; resend → toast 'Wysłaliśmy nowy link'",
+    "/vehicles/<private> and /v/<8 chars> → public-status-private + home button (goes to /); nonexistent → public-status-not-found; /verify-email?token=bad → verify-page-bad",
+    "ListingDetail anonymous: 'Sprzedający' (uppercase via CSS) and 'Brak zdjęcia'",
+    "Footer (logged-in layout) at 375 and 1440: logo does not overlap any link",
+    "Admin users: columns Typ/Utworzone/Ostatnia aktywność/Dni bez aktywności, sorting toggles ▲/▼, filters 30/90/180/demo change counts (118/118/67/0 of 136), bulk delete of 2 TEST users with confirm 'Usunąć zaznaczone konta: 2? …' → toast 'Usunięto: 2'",
+    "index.html viewport 'width=device-width, initial-scale=1'; all visible inputs computed font-size >= 16px at 375",
+    "No overflow on /, /login, /register, /u/{slug}, /marketplace/{id} at 360/375/414 (anonymous)",
+    "gtag.js?id=G-RV0FMPK05R loaded; consent default is the first dataLayer entry; hits carry gcs=G100 (denied)"
+  ],
+  "test_report_links": ["/app/backend/tests/test_iter58_paczka8.py", "/app/test_reports/pytest/pytest_iter58.xml", "/app/backend/tests/p8_ui_setup.py", "/app/backend/tests/p8_ui_setup2.py"],
+  "action_items": [
+    "Fix the mobile TopBar overflow at <=390px: hide the search icon or language switcher, or reduce gaps, so topbar-profile fits within the screen",
+    "Add word breaking to vehicle-title on /garage/{id} and to the h1 on /vehicles/{slug} (break-anywhere + min-w-0 on the flex parent); also the card title in the garage grid",
+    "VerifyEmailPage: guard the effect with useRef so it runs once; make POST /auth/verify-email return ok for an already-used token when the user is already verified",
+    "GA4: remove the duplicate page_view (turn off Enhanced Measurement history-based page changes, or drop the manual route page_view)",
+    "CreateListing: pass maxPhotos from limits (7) to BulkPhotoUploader and show limit-modal-photos when ticking more garage photos; add a server-side photo cap; translate the hardcoded PL strings in BulkPhotoUploader",
+    "Suppress the generic 'Błąd' toast when a 403 email_not_verified opens the verify modal",
+    "Review html,body{height:100%; overflow-x:hidden}: it turns body into the scroll container (window.scrollY is always 0)"
+  ],
+  "critical_code_review_comments": [
+    "frontend/src/index.css:54 + :202: height:100% together with overflow-x:hidden on body makes body the scroller and only masks the overflow",
+    "pages/VerifyEmailPage.js:13-19: the side-effect POST in useEffect has no once-guard (StrictMode double-invokes it); the result of the second call overwrites the first",
+    "components/PremiumLimitModal.js:31: the title t() was missing {limit} (fixed)",
+    "pages/CreateListing.js:652: maxPhotos={10} is hardcoded and inconsistent with the beta limit of 7; capPhotos reads `lim` from the closure, which may still be null at prefill time (falls back to 7, OK)",
+    "pages/admin/AdminUsers.js bulk(): no try/catch, so an API error is an unhandled rejection with no toast",
+    "routers/admin.py list_users: the inactive filter and the inactive_days display use different fallbacks (None vs created_at)"
+  ],
+  "updated_files": ["/app/frontend/src/components/PremiumLimitModal.js", "/app/backend/tests/test_iter58_paczka8.py", "/app/backend/tests/p8_ui_setup.py", "/app/backend/tests/p8_ui_setup2.py"],
+  "success_rate": {"backend": "100% (14/14 passed, 1 skipped)", "frontend": "~75% (5 failing items out of ~20 checks)"},
+  "seed_data_creation": "Created TEST users (test_p8ui-*, test_p8sel-*, test_p8reg-*, test_p8bulk*, test_p8-*), 9 TESTP8 vehicles, 1 TEST_P8 listing, a premium_waitlist entry and one email_verifications row. All were deleted by id afterwards (verified 0 remaining). Side effects on the existing user p8w-2ddff6@example.com: tooltips_seen set to true via PUT /auth/me (to dismiss the overlay), and a few verification resend e-mails/rows were created.",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Login in the browser by setting localStorage 'sharago_token' (user JWT) or 'sharago_admin_token' (admin JWT from POST /api/admin/login) plus 'sharago_cookie_consent', then reload once. Navigate with history.pushState + popstate. Note: the synthetic popstate itself can trigger an extra GA history page_view, so use Link dispatch_event('click') for GA tests. Set tooltips_seen=true via PUT /api/auth/me to avoid the first-use-tooltips overlay. The cookie banner intercepts clicks; use dispatch_event. To measure overflow, check body.scrollWidth and element rects (documentElement.scrollWidth is masked by overflow-x:hidden). To test the verify-email success path, insert an email_verifications row {user_id, token_hash: sha256(token), used:false, expires_at ISO} for a TEST user.",
+  "rca of the issue": "Verify page 'invalid' after success: React.StrictMode runs the useEffect twice; the first POST consumes the token (200, email_verified=true), the second gets 400 and its catch sets state='bad' (backend log shows 200 followed by 400). GA duplicates: the manual page_view in usePageTracking plus GA4 Enhanced Measurement history-change page_view, which gives 2 /g/collect hits per pushState. Mobile overflow: the fixed-width TopBar cluster (~207px + hamburger/logo) and unbreakable long vehicle titles exceed the viewport; overflow-x:hidden on html/body hides the scrollbar but clips the content."
+}

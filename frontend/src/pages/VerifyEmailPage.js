@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { MailCheck, XCircle } from "lucide-react";
@@ -10,7 +10,10 @@ export default function VerifyEmailPage() {
   const [params] = useSearchParams();
   const { user, refresh } = useAuth();
   const [state, setState] = useState("checking");
+  const sent = useRef(false);
   useEffect(() => {
+    if (sent.current) return; // StrictMode double-invoke: send only once
+    sent.current = true;
     const token = params.get("token");
     if (!token) { setState("bad"); return; }
     api.post("/auth/verify-email", { token }, { timeout: 15000 })
