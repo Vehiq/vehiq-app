@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
+import { fuelLabel } from "@/lib/labels";
 import { trackEvent } from "@/hooks/usePageTracking";
 import api from "@/lib/api";
 import { toast } from "sonner";
@@ -91,7 +92,7 @@ export default function VehicleProfile() {
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <div className="vehiq-overline flex items-center gap-2">
-            <span>{vehicle.year || "—"} • {vehicle.fuel?.toUpperCase() || ""}</span>
+            <span>{vehicle.year || "—"} • {vehicle.fuel ? fuelLabel(vehicle.fuel) : ""}</span>
             {hasActiveListing && (
               <span className="text-[10px] uppercase tracking-widest px-2 py-0.5 rounded bg-vehiq-gold text-vehiq-bg" data-testid="vehicle-for-sale-badge">{t("sell.forSale")}</span>
             )}

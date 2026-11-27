@@ -105,6 +105,18 @@ export async function resolvePage(pathname, lang) {
       image: img,
     }, lang) };
   }
+  if (route.pattern === ROUTES.workshop) {
+    const slug = route.params.slug;
+    const { status, data: b } = await apiStatus(`/business/${encodeURIComponent(slug)}`);
+    if (status === 404) return { status: 404, seo: null };
+    if (!b) return { status: 200, seo: null };
+    const kind = b.type === "dealer" ? (en ? "Car dealer" : "Komis / dealer") : (en ? "Car workshop" : "Warsztat samochodowy");
+    return { status: 200, seo: entitySeo(`/warsztaty/${slug}`, {
+      title: `${b.name}${b.city ? ` – ${b.city}` : ""} | ${kind}`,
+      description: (b.description || [kind, b.city, (b.specializations || []).slice(0, 4).join(", ")].filter(Boolean).join(" · ")).slice(0, 180),
+      image: b.logo_url || undefined,
+    }, lang) };
+  }
   if (route.pattern === ROUTES.legal) {
     const { status } = await apiStatus(`/legal/${encodeURIComponent(route.params.slug)}`);
     return { status: status === 404 ? 404 : 200, seo: null };

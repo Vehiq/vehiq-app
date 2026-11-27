@@ -59,6 +59,10 @@ async def create_checkout(req: CheckoutRequest, user=Depends(get_current_user)):
         "plan_slug": plan_slug,
     }
     if is_b2b:
+        from routers.business_geo import b2b_pricing_visible
+        from plan_limits import is_admin_user
+        if not (await b2b_pricing_visible(get_db()) or is_admin_user(user)):
+            raise HTTPException(status_code=403, detail="Plany dla firm nie są jeszcze dostępne")
         if not req.business_id:
             raise HTTPException(status_code=400, detail="business_id wymagany dla planu B2B")
         biz = await get_db().business_accounts.find_one({"id": req.business_id}, {"_id": 0, "owner_user_id": 1})

@@ -1052,7 +1052,63 @@ async def list_businesses(status: Optional[str] = None, admin=Depends(get_admin)
     elif status == "pro":
         q = {"plan": {"$in": ["workshop", "dealer"]}}
     items = await db.business_accounts.find(q, {"_id": 0}).sort("created_at", -1).to_list(500)
-    return {"items": items, "total": len(items)}
+    from routers.business import profile_checklist, _is_profile_complete
+    from routers.business_geo import b2b_pricing_visible, stats_30d
+    ids = [b["id"] for b in items]
+    entries, cars = {}, {}
+    async for r in db.service_entries.aggregate([{"$match": {"business_id": {"$in": ids}}}, {"$group": {"_id": "$business_id", "n": {"$sum": 1}}}]):
+        entries[r["_id"]] = r["n"]
+    async for r in db.workshop_vehicle_access.aggregate([{"$match": {"business_id": {"$in": ids}, "status": "approved", "active": True}},
+                                                          {"$group": {"_id": "$business_id", "n": {"$sum": 1}}}]):
+        cars[r["_id"]] = r["n"]
+    owners = [b.get("owner_user_id") for b in items if b.get("owner_user_id")]
+    plans = {}
+    async for w in db.premium_waitlist.find({"trigger": {"$in": ["plan_workshop", "plan_dealer"]}}, {"_id": 0, "trigger": 1, "user_id": 1, "business_id": 1}):
+        plans[w.get("business_id") or w.get("user_id")] = w["trigger"]
+    for b in items:
+        n = entries.get(b["id"], 0)
+        ck = profile_checklist(b, n)
+        b.update({"has_location": bool(b.get("location")), "location_confirmed": ck["location"], "profile_ready": _is_profile_complete(b),
+                  "cars_with_access": cars.get(b["id"], 0), "entries_count": n,
+                  "plan_declaration": plans.get(b["id"]) or plans.get(b.get("owner_user_id")),
+                  "validation_ok": bool(b.get("verified") and ck["location"] and n > 0),
+                  "stats_30d": await stats_30d(db, b["id"])})
+    summary = {"validated_workshops": sum(1 for b in items if b["validation_ok"]),
+               "plan_declarations": sum(1 for b in items if b["plan_declaration"]),
+               "b2b_pricing_visible": await b2b_pricing_visible(db), "owners": len(owners)}
+    return {"items": items, "total": len(items), "summary": summary}
+
+
+class AdminBusinessEditIn(BaseModel):
+    name: Optional[str] = None
+    phone: Optional[str] = None
+    website: Optional[str] = None
+    description: Optional[str] = None
+    street: Optional[str] = None
+    postal_code: Optional[str] = None
+    city: Optional[str] = None
+    voivodeship: Optional[str] = None
+    hidden: Optional[bool] = None
+
+
+@router.patch("/businesses/{business_id}")
+async def admin_edit_business(business_id: str, payload: AdminBusinessEditIn, admin=Depends(get_admin)):
+    """Admin edit of basic data + deactivation (hidden=true)."""
+    from routers.business import BusinessProfileIn
+    db = get_db()
+    if not await db.business_accounts.find_one({"id": business_id}, {"_id": 1}):
+        raise HTTPException(status_code=404, detail="Nie znaleziono firmy")
+    data = payload.model_dump(exclude_unset=True)
+    hidden = data.pop("hidden", None)
+    try:
+        BusinessProfileIn(**data)
+    except Exception as e:
+        raise HTTPException(status_code=422, detail=str(e)[:300])
+    if hidden is not None:
+        data["hidden"] = bool(hidden)
+    data["updated_at"] = datetime.now(timezone.utc).isoformat()
+    await db.business_accounts.update_one({"id": business_id}, {"$set": data})
+    return await db.business_accounts.find_one({"id": business_id}, {"_id": 0})
 
 
 @router.patch("/businesses/{business_id}/activate")

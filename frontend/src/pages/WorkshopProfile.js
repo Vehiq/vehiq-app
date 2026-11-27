@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import api from "@/lib/api";
 import { ShieldCheck, MapPin, Globe, Phone, Wrench, ArrowLeft, EyeOff } from "lucide-react";
 import useDocumentHead from "@/lib/useDocumentHead";
+import WorkshopDetails from "@/components/WorkshopDetails";
 
 const TYPE_LABELS = {
   workshop: "Warsztat",
@@ -67,9 +68,13 @@ export default function WorkshopProfile() {
 
         <header className="vehiq-card p-6 space-y-4" data-testid="workshop-header">
           <div className="flex items-start gap-4">
-            <div className="h-16 w-16 rounded-full bg-vehiq-gold-dim flex items-center justify-center text-vehiq-gold shrink-0">
-              <Wrench size={28} />
-            </div>
+            {biz.logo_url ? (
+              <img src={biz.logo_url} alt={biz.name} className="h-16 w-16 rounded-full object-cover shrink-0" data-testid="workshop-logo" />
+            ) : (
+              <div className="h-16 w-16 rounded-full bg-vehiq-gold-dim flex items-center justify-center text-vehiq-gold shrink-0">
+                <Wrench size={28} />
+              </div>
+            )}
             <div className="flex-1 min-w-0">
               <div className="flex items-start gap-2 flex-wrap">
                 <h1 className="vehiq-display text-3xl sm:text-4xl">{biz.name}</h1>
@@ -122,6 +127,8 @@ export default function WorkshopProfile() {
             )}
           </div>
         </header>
+
+        <WorkshopDetails biz={biz} entries={stats?.service_entries} />
 
         {stats && (
           <section className="grid grid-cols-3 gap-3" data-testid="workshop-stats">

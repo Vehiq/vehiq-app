@@ -21,6 +21,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { WorkshopStamp } from "@/components/WorkshopStamp";
+import VehicleWorkshopAccess from "@/components/VehicleWorkshopAccess";
 import api from "@/lib/api";
 import { serviceTypeLabel, editedLabel, SERVICE_TYPE_KEYS } from "@/lib/labels";
 import { toast } from "sonner";
@@ -231,6 +232,7 @@ export default function HistoryTab({ vehicle, isOwner = true }) {
           })}
         </ol>
       )}
+      {isOwner && <VehicleWorkshopAccess vehicle={vehicle} />}
     </div>
   );
 }

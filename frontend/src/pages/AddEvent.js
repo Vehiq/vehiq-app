@@ -1,3 +1,4 @@
+import { geocode as geocodeAddress } from "@/lib/geocode";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
@@ -25,8 +26,8 @@ export default function AddEvent() {
     if (q.length < 5) { toast.error(t("services.fillAddress")); return; }
     setGeoBusy(true);
     try {
-      const r = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=1&accept-language=pl`);
-      const data = await r.json();
+      const hit = await geocodeAddress(q);
+      const data = hit ? [{ lat: hit.lat, lon: hit.lon }] : [];
       if (Array.isArray(data) && data.length > 0) {
         setForm(f => ({ ...f, location: { ...f.location, lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) } }));
         toast.success(t("services.locationFound"));

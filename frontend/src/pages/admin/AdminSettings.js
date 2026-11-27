@@ -5,7 +5,7 @@ import { toast } from "sonner";
 const FEATURE_KEYS = [
   "google_oauth_enabled", "facebook_oauth_enabled", "email_login_enabled",
   "ai_chatbot_enabled", "marketplace_enabled", "forum_enabled",
-  "registrations_enabled", "gps_tracking_enabled", "maintenance_mode",
+  "registrations_enabled", "gps_tracking_enabled", "maintenance_mode", "b2b_pricing_visible",
 ];
 const LIMIT_KEYS = [
   "max_vehicles_per_user", "max_photos_per_vehicle", "max_listings_per_user", "max_forum_posts_per_day", "demo_ttl_days"

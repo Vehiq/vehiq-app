@@ -1,4 +1,5 @@
 import i18n from "@/i18n";
+import { fuelLabel } from "@/lib/labels";
 import { useEffect, useState, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { Heart, X, Repeat, Trash2, MessageCircle, Plus, Car } from "lucide-react";
@@ -363,7 +364,7 @@ function SwapCard({ card, onReact, busy }) {
               <span>{Number(v.mileage_current).toLocaleString("pl-PL")} km</span>
             )}
             {v.engine && <span>{v.engine}</span>}
-            {v.fuel && <span>{v.fuel}</span>}
+            {v.fuel && <span>{fuelLabel(v.fuel)}</span>}
           </div>
         </div>
         {card.looking_for?.length > 0 && (

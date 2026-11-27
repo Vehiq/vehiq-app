@@ -1,241 +1,197 @@
 import { useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import api from "@/lib/api";
-import { resolveCover } from "@/lib/photos";
+import { Link } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
-import { Wrench, CheckCircle2, Clock, Ban, Plus, X } from "lucide-react";
-import useDocumentHead from "@/lib/useDocumentHead";
+import { KeyRound, CheckCircle2, Circle, Plus, ExternalLink } from "lucide-react";
+import api from "@/lib/api";
+import { useAuth } from "@/contexts/AuthContext";
+import { trackEvent } from "@/hooks/usePageTracking";
+import BusinessProfileForm from "@/components/BusinessProfileForm";
+import { SERVICE_TYPE_KEYS, serviceTypeLabel } from "@/lib/labels";
 
-const STATUS_META = {
-  approved: { label: "Zatwierdzony", Icon: CheckCircle2, cls: "text-emerald-400 bg-emerald-500/10 border-emerald-500/30" },
-  pending:  { label: "Oczekuje",     Icon: Clock,       cls: "text-amber-400 bg-amber-500/10 border-amber-500/30" },
-  denied:   { label: "Odrzucony",    Icon: Ban,         cls: "text-red-400 bg-red-500/10 border-red-500/30" },
-  revoked:  { label: "Cofnięty",     Icon: Ban,         cls: "text-red-400 bg-red-500/10 border-red-500/30" },
-};
-
-const SERVICE_TYPES = [
-  { id: "oil", label: "Wymiana oleju" },
-  { id: "inspection", label: "Przegląd" },
-  { id: "repair", label: "Naprawa" },
-  { id: "tires", label: "Opony" },
-  { id: "insurance", label: "Ubezpieczenie" },
-  { id: "mot", label: "MOT / PTS" },
-  { id: "other", label: "Inne" },
-];
+const TABS = ["overview", "profile", "cars", "entries"];
 
 export default function BusinessDashboard() {
-  const navigate = useNavigate();
-  const [data, setData] = useState({ items: [], business: null });
-  const [loading, setLoading] = useState(true);
-  const [addFor, setAddFor] = useState(null);
+  const { t } = useTranslation();
+  const [tab, setTab] = useState("overview");
+  const [acc, setAcc] = useState(null);
+  const [ov, setOv] = useState(null);
+  const [err, setErr] = useState(false);
+  const [entryFor, setEntryFor] = useState(null);
 
-  const reload = async () => {
-    setLoading(true);
-    try {
-      const { data } = await api.get("/business/access/list");
-      setData(data);
-      // Iter 55 — force onboarding when profile is incomplete AND there are
-      // already scanned vehicles (i.e. onboarding was not done yet).
-      if (data.business && data.business.profile_complete === false && (data.items || []).length > 0) {
-        navigate("/business/onboarding?next=/business/dashboard");
-        return;
-      }
-    } catch (e) {
-      if (e?.response?.status !== 403) {
-        toast.error(e?.response?.data?.detail || "Błąd ładowania panelu");
-      }
-      setData({ items: [], business: null });
-    } finally { setLoading(false); }
+  const load = () => {
+    api.get("/business/access/list").then((r) => setAcc(r.data)).catch(() => setErr(true));
+    api.get("/business/me/overview").then((r) => setOv(r.data)).catch(() => {});
   };
-  useEffect(() => { reload(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
-  useDocumentHead({ title: data.business ? `Panel firmy — ${data.business.name} | Sharago` : "" });
+  useEffect(load, []);
 
-  if (loading) return <div className="min-h-screen flex items-center justify-center text-vehiq-muted" data-testid="business-dashboard-loading">Ładowanie…</div>;
+  if (err) return (
+    <div className="max-w-xl mx-auto p-8 text-center space-y-3" data-testid="business-dashboard-none">
+      <p className="text-vehiq-muted">{t("bizp.dash.noBusiness")}</p>
+      <Link to="/register/business" className="vehiq-btn-primary inline-flex px-4 py-2">{t("bizp.dash.register")}</Link>
+    </div>);
+  if (!acc) return <div className="p-8 text-vehiq-muted" data-testid="business-dashboard-loading">…</div>;
+  const biz = acc.business;
 
-  if (!data.business) {
-    return (
-      <div className="min-h-screen flex items-center justify-center p-6" data-testid="business-dashboard-empty-account">
-        <div className="vehiq-card p-8 max-w-md w-full text-center space-y-4">
-          <h1 className="vehiq-display text-2xl">Brak konta firmowego</h1>
-          <p className="text-sm text-vehiq-muted">
-            Ten widok jest dla warsztatów i firm motoryzacyjnych. Załóż konto firmowe, aby zbierać historię serwisową klientów.
-          </p>
-          <Link to="/register/business" className="vehiq-btn-primary inline-block px-6 py-2.5">
-            Załóż konto firmowe
-          </Link>
-        </div>
-      </div>
-    );
-  }
-
-  const biz = data.business;
   return (
-    <div className="min-h-screen bg-vehiq-bg text-vehiq-text" data-testid="business-dashboard-page">
-      <div className="max-w-5xl mx-auto px-4 py-8 space-y-6">
-        <header className="flex items-start justify-between gap-4">
-          <div>
-            <div className="text-xs uppercase tracking-widest text-vehiq-gold">Panel firmy</div>
-            <h1 className="vehiq-display text-3xl sm:text-4xl mt-1">{biz.name}</h1>
-            <div className="text-sm text-vehiq-muted mt-1">
-              {biz.activated ? (
-                <span className="text-emerald-400">● Aktywne</span>
-              ) : (
-                <span className="text-amber-400">● Oczekuje aktywacji (zeskanuj pierwsze QR)</span>
-              )}
-            </div>
-          </div>
-          <Link to={`/warsztaty/${biz.slug}`} className="vehiq-btn-secondary text-sm" data-testid="business-view-public">
-            Zobacz profil publiczny →
-          </Link>
-        </header>
-
-        {biz.profile_complete === false && (
-          <div className="vehiq-card p-4 border border-vehiq-gold/40 bg-vehiq-gold-dim/30 flex items-center justify-between gap-4" data-testid="business-onboarding-banner">
-            <div>
-              <div className="text-sm text-vehiq-text font-medium">Uzupełnij profil warsztatu</div>
-              <div className="text-xs text-vehiq-muted">Klienci widzą tylko warsztaty z kompletnym profilem — logo, godziny i specjalizacje.</div>
-            </div>
-            <Link to="/business/onboarding" className="vehiq-btn-primary text-xs px-3 py-1.5 whitespace-nowrap" data-testid="business-onboarding-cta">
-              Uzupełnij →
-            </Link>
-          </div>
-        )}
-
-        <section className="vehiq-card p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="vehiq-display text-2xl">Pojazdy klientów</h2>
-            <span className="text-xs text-vehiq-muted">Zeskanuj QR na aucie, aby dodać</span>
-          </div>
-
-          {data.items.length === 0 ? (
-            <div className="text-center py-10" data-testid="business-vehicles-empty">
-              <Wrench size={40} className="mx-auto text-vehiq-muted mb-3" />
-              <p className="text-sm text-vehiq-muted">
-                Zeskanuj kod QR umieszczony na szybie auta klienta,<br />aby zbudować historię serwisową.
-              </p>
-            </div>
-          ) : (
-            <ul className="divide-y divide-vehiq-border" data-testid="business-vehicles-list">
-              {data.items.map((it) => {
-                const meta = STATUS_META[it.status] || STATUS_META.pending;
-                const Icon = meta.Icon;
-                const v = it.vehicle || {};
-                return (
-                  <li key={it.id} className="py-4 flex items-center gap-4" data-testid={`business-vehicle-row-${it.id}`}>
-                    <div className="h-14 w-20 rounded overflow-hidden bg-vehiq-bg shrink-0">
-                      {v.cover_photo ? (
-                        <img src={resolveCover(v.cover_photo)} alt="" className="h-full w-full object-cover" />
-                      ) : (
-                        <div className="h-full w-full flex items-center justify-center text-vehiq-muted"><Wrench size={16} /></div>
-                      )}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="text-sm font-medium text-vehiq-text">
-                        {v.make || "—"} {v.model || ""} {v.year || ""}
-                      </div>
-                      <div className="text-xs text-vehiq-muted mt-0.5">
-                        Ostatni skan: {(it.last_scanned_at || "").slice(0, 10)}
-                      </div>
-                    </div>
-                    <span className={`inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full border ${meta.cls}`}>
-                      <Icon size={11} /> {meta.label}
-                    </span>
-                    {it.status === "approved" && (
-                      <button
-                        onClick={() => setAddFor(it)}
-                        className="vehiq-btn-primary text-xs py-1.5 px-3 inline-flex items-center gap-1"
-                        data-testid={`business-add-entry-${it.id}`}
-                      >
-                        <Plus size={12} /> Wpis
-                      </button>
-                    )}
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-        </section>
+    <div className="max-w-5xl mx-auto px-3 sm:px-6 py-6 space-y-5" data-testid="business-dashboard">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h1 className="vehiq-display text-3xl sm:text-4xl break-words">{biz.name}</h1>
+        <Link to={`/warsztaty/${biz.slug}`} className="text-xs text-vehiq-gold inline-flex items-center gap-1" data-testid="dash-view-profile"><ExternalLink size={12} /> {t("bizp.dash.viewProfile")}</Link>
       </div>
-
-      {addFor && <AddEntryModal access={addFor} onClose={() => setAddFor(null)} onDone={reload} />}
+      {!biz.verified && <div className="vehiq-card p-3 text-sm text-amber-300 border border-amber-500/40" data-testid="dash-not-verified">{t("bizp.dash.notVerified")}</div>}
+      <nav className="flex gap-1 overflow-x-auto border-b border-vehiq-border" style={{ touchAction: "pan-x" }} data-testid="dash-tabs">
+        {TABS.map((k) => (
+          <button key={k} type="button" onClick={() => setTab(k)} className={`px-4 py-2 text-sm whitespace-nowrap border-b-2 ${tab === k ? "border-vehiq-gold text-vehiq-gold" : "border-transparent text-vehiq-muted"}`} data-testid={`dash-tab-${k}`}>{t(`bizp.dash.tabs.${k}`)}</button>
+        ))}
+      </nav>
+      {tab === "overview" && <Overview ov={ov} biz={biz} />}
+      {tab === "profile" && <div className="vehiq-card p-4 sm:p-6"><BusinessProfileForm biz={biz} onSaved={(b) => setAcc((a) => ({ ...a, business: { ...a.business, ...b } }))} /></div>}
+      {tab === "cars" && <Cars acc={acc} reload={load} entryFor={entryFor} setEntryFor={setEntryFor} verified={biz.verified} />}
+      {tab === "entries" && <Entries />}
     </div>
   );
 }
 
-function AddEntryModal({ access, onClose, onDone }) {
-  const [form, setForm] = useState({
-    date: new Date().toISOString().slice(0, 10),
-    type: "repair",
-    service_type: "",
-    cost: "",
-    notes: "",
-  });
-  const [busy, setBusy] = useState(false);
+function Overview({ ov, biz }) {
+  const { t } = useTranslation();
+  if (!ov) return null;
+  const stats = [["impressions", "search_impressions"], ["views", "profile_views"], ["phone", "phone_clicks"], ["website", "website_clicks"], ["route", "route_clicks"]];
+  return (
+    <div className="space-y-5" data-testid="dash-overview">
+      <div className="vehiq-overline">{t("bizp.dash.stats30")}</div>
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+        {stats.map(([k, f]) => <div key={k} className="vehiq-card p-3" data-testid={`dash-stat-${k}`}><div className="text-2xl font-semibold text-vehiq-gold">{ov.stats[f]}</div><div className="text-[11px] text-vehiq-muted">{t(`bizp.dash.${k}`)}</div></div>)}
+      </div>
+      <div className="vehiq-card p-4 space-y-2" data-testid="dash-checklist">
+        <div className="font-medium text-sm">{t("bizp.dash.ready")}</div>
+        {Object.entries(ov.checklist).map(([k, done]) => (
+          <div key={k} className={`text-sm inline-flex items-center gap-2 w-full ${done ? "text-emerald-400" : "text-vehiq-muted"}`} data-testid={`dash-ck-${k}`}>{done ? <CheckCircle2 size={14} /> : <Circle size={14} />} {t(`bizp.dash.ck.${k}`)}</div>
+        ))}
+      </div>
+      {ov.b2b_pricing_visible && <PlanFrame biz={biz} hiddenForBiz={ov.pricing_hidden_for_businesses} />}
+    </div>
+  );
+}
 
+function PlanFrame({ biz, hiddenForBiz }) {
+  const { t } = useTranslation();
+  const { user } = useAuth();
+  const [saved, setSaved] = useState(false);
+  const trigger = biz.type === "dealer" ? "plan_dealer" : "plan_workshop";
+  const join = async () => {
+    try {
+      await api.post("/waitlist/premium", { email: user.email, trigger });
+      setSaved(true);
+      trackEvent("waitlist_joined", { source: trigger });
+    } catch (e) { toast.error(e?.response?.data?.detail || t("common.error")); }
+  };
+  return (
+    <div className="vehiq-card p-4 space-y-3 border border-vehiq-gold/40" data-testid="dash-plan-frame">
+      {hiddenForBiz && <span className="text-[10px] uppercase tracking-widest text-amber-300" data-testid="dash-plan-hidden-label">{t("bizp.dash.hiddenForBiz")}</span>}
+      <p className="text-sm">{biz.type === "dealer" ? t("bizp.dash.planDealer") : t("bizp.dash.planBeta")}</p>
+      {saved ? <span className="text-sm text-emerald-400" data-testid="dash-plan-saved">{t("bizp.dash.planSaved")}</span>
+        : <button type="button" onClick={join} className="vehiq-btn-primary px-4 py-2 text-sm" data-testid="dash-plan-cta">{t("bizp.dash.planCta")}</button>}
+    </div>
+  );
+}
+
+function CodeBox({ onGranted, verified }) {
+  const { t } = useTranslation();
+  const [code, setCode] = useState("");
+  const [busy, setBusy] = useState(false);
   const submit = async (e) => {
+    e.preventDefault();
+    if (!verified) return toast.error(t("bizp.dash.notVerified"));
+    setBusy(true);
+    try {
+      const { data } = await api.post("/business/access/code", { code });
+      toast.success(t("bizp.dash.codeOk"));
+      trackEvent("workshop_access_granted", { source: "access_code" });
+      setCode("");
+      onGranted(data.vehicle);
+    } catch (e2) {
+      const st = e2?.response?.status, d = e2?.response?.data?.detail;
+      toast.error(st === 429 ? t("bizp.dash.codeTooMany") : d === "business_not_verified" ? t("bizp.dash.notVerified") : t("bizp.dash.codeInvalid"));
+    } finally { setBusy(false); }
+  };
+  return (
+    <form onSubmit={submit} className="vehiq-card p-4 space-y-3 border border-vehiq-gold/50" data-testid="dash-code-box">
+      <div className="text-lg font-semibold inline-flex items-center gap-2"><KeyRound size={18} className="text-vehiq-gold" /> {t("bizp.dash.enterCode")}</div>
+      <div className="flex gap-2">
+        <input value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} maxLength={7} placeholder={t("bizp.dash.codePlaceholder")} autoCapitalize="characters" className="vehiq-input flex-1 min-w-0 text-xl tracking-[0.3em] font-mono text-center" data-testid="dash-code-input" />
+        <button type="submit" disabled={busy || code.replace("-", "").length < 6} className="vehiq-btn-primary px-4" data-testid="dash-code-submit">{busy ? "…" : t("bizp.dash.redeem")}</button>
+      </div>
+    </form>
+  );
+}
+
+function QuickEntry({ vehicle, onDone }) {
+  const { t, i18n } = useTranslation();
+  const [f, setF] = useState({ service_type: "oil_change", date: new Date().toISOString().slice(0, 10), mileage: "", notes: "" });
+  const [busy, setBusy] = useState(false);
+  const save = async (e) => {
     e.preventDefault();
     setBusy(true);
     try {
-      await api.post("/business/service-entry", {
-        vehicle_id: access.vehicle_id,
-        date: form.date,
-        type: form.type,
-        service_type: form.service_type || null,
-        cost: parseFloat(form.cost) || 0,
-        notes: form.notes || null,
-      });
-      toast.success("Wpis dodany");
+      await api.post("/business/service-entry", { vehicle_id: vehicle.id, ...f, type: f.service_type, mileage: f.mileage ? Number(f.mileage) : null, notes: f.notes || null });
+      toast.success(t("bizp.dash.saved"));
       onDone();
-      onClose();
-    } catch (err) {
-      toast.error(err?.response?.data?.detail || "Nie udało się dodać");
-    } finally { setBusy(false); }
+    } catch (e2) { toast.error(e2?.response?.data?.detail || t("common.error")); } finally { setBusy(false); }
   };
-
-  const v = access.vehicle || {};
   return (
-    <div className="fixed inset-0 z-50 bg-vehiq-bg/80 backdrop-blur-sm flex items-center justify-center p-4" data-testid="business-entry-modal">
-      <form onSubmit={submit} className="vehiq-card p-6 max-w-md w-full space-y-4">
-        <div className="flex items-start justify-between">
-          <div>
-            <h3 className="vehiq-display text-xl">Nowy wpis serwisowy</h3>
-            <div className="text-xs text-vehiq-muted mt-0.5">{v.make} {v.model} {v.year}</div>
+    <form onSubmit={save} className="space-y-2 mt-3" data-testid="dash-quick-entry">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+        <select value={f.service_type} onChange={(e) => setF({ ...f, service_type: e.target.value })} className="vehiq-input" data-testid="dash-entry-type">
+          {SERVICE_TYPE_KEYS.map((k) => <option key={k} value={k}>{serviceTypeLabel(k, i18n.language)}</option>)}
+        </select>
+        <input type="date" value={f.date} onChange={(e) => setF({ ...f, date: e.target.value })} className="vehiq-input" required data-testid="dash-entry-date" />
+        <input type="number" inputMode="numeric" min={0} placeholder={t("bizp.dash.mileage")} value={f.mileage} onChange={(e) => setF({ ...f, mileage: e.target.value })} className="vehiq-input" data-testid="dash-entry-mileage" />
+      </div>
+      <input placeholder={t("bizp.dash.note")} value={f.notes} onChange={(e) => setF({ ...f, notes: e.target.value })} className="vehiq-input w-full" data-testid="dash-entry-note" />
+      <button type="submit" disabled={busy} className="vehiq-btn-primary w-full py-2.5" data-testid="dash-entry-save">{busy ? "…" : t("bizp.dash.save")}</button>
+    </form>
+  );
+}
+
+function Cars({ acc, reload, entryFor, setEntryFor, verified }) {
+  const { t } = useTranslation();
+  return (
+    <div className="space-y-4" data-testid="dash-cars">
+      <CodeBox verified={verified} onGranted={(v) => { setEntryFor(v.id); reload(); }} />
+      {acc.items.length === 0 ? <p className="text-sm text-vehiq-muted" data-testid="dash-no-cars">{t("bizp.dash.noCars")}</p> : acc.items.map((it) => (
+        <div key={it.id} className="vehiq-card p-4" data-testid={`dash-car-${it.vehicle_id}`}>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="min-w-0">
+              <div className="font-medium break-words">{[it.vehicle?.make, it.vehicle?.model, it.vehicle?.year].filter(Boolean).join(" ") || t("bizp.dash.car")}</div>
+              <div className="text-xs text-vehiq-muted">{t(`bizp.dash.status.${it.status}`, { defaultValue: it.status })} · {t("bizp.dash.entriesCount", { n: it.entries_count || 0 })}</div>
+            </div>
+            {it.status === "approved" && it.active && entryFor !== it.vehicle_id && (
+              <button type="button" onClick={() => setEntryFor(it.vehicle_id)} className="vehiq-btn-primary px-3 py-1.5 text-xs inline-flex items-center gap-1" data-testid={`dash-add-entry-${it.vehicle_id}`}><Plus size={12} /> {t("bizp.dash.addEntry")}</button>
+            )}
           </div>
-          <button type="button" onClick={onClose} className="text-vehiq-muted hover:text-vehiq-text" data-testid="business-entry-close">
-            <X size={18} />
-          </button>
+          {entryFor === it.vehicle_id && it.status === "approved" && <QuickEntry vehicle={{ id: it.vehicle_id }} onDone={() => { setEntryFor(null); reload(); }} />}
         </div>
-
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="vehiq-overline mb-1 block">Data</label>
-            <input type="date" required value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} className="vehiq-input" data-testid="business-entry-date" />
-          </div>
-          <div>
-            <label className="vehiq-overline mb-1 block">Typ</label>
-            <select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })} className="vehiq-input" data-testid="business-entry-type">
-              {SERVICE_TYPES.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}
-            </select>
-          </div>
-        </div>
-
-        <div>
-          <label className="vehiq-overline mb-1 block">Koszt (PLN)</label>
-          <input type="number" inputMode="decimal" min="0" step="0.01" value={form.cost} onChange={(e) => setForm({ ...form, cost: e.target.value })} className="vehiq-input" data-testid="business-entry-cost" />
-        </div>
-
-        <div>
-          <label className="vehiq-overline mb-1 block">Notatki</label>
-          <textarea rows={3} value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} className="vehiq-input" data-testid="business-entry-notes" />
-        </div>
-
-        <div className="flex gap-2">
-          <button type="button" onClick={onClose} className="vehiq-btn-secondary flex-1">Anuluj</button>
-          <button type="submit" disabled={busy} className="vehiq-btn-primary flex-1" data-testid="business-entry-submit">
-            {busy ? "…" : "Dodaj wpis"}
-          </button>
-        </div>
-      </form>
+      ))}
     </div>
+  );
+}
+
+function Entries() {
+  const { t, i18n } = useTranslation();
+  const [items, setItems] = useState(null);
+  useEffect(() => { api.get("/business/me/entries").then((r) => setItems(r.data.items)).catch(() => setItems([])); }, []);
+  if (!items) return null;
+  if (!items.length) return <p className="text-sm text-vehiq-muted" data-testid="dash-no-entries">{t("bizp.dash.noEntries")}</p>;
+  return (
+    <ul className="vehiq-card divide-y divide-vehiq-border" data-testid="dash-entries">
+      {items.map((e) => (
+        <li key={e.id} className="p-3 text-sm flex flex-wrap gap-x-4 gap-y-1" data-testid={`dash-entry-${e.id}`}>
+          <span className="text-vehiq-muted">{(e.date || "").slice(0, 10)}</span>
+          <span className="font-medium">{[e.vehicle?.make, e.vehicle?.model, e.vehicle?.year].filter(Boolean).join(" ")}</span>
+          <span>{serviceTypeLabel(e.service_type || e.type, i18n.language)}</span>
+          {e.mileage != null && <span className="text-vehiq-muted">{Number(e.mileage).toLocaleString("pl-PL")} km</span>}
+        </li>))}
+    </ul>
   );
 }

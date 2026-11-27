@@ -2,7 +2,7 @@
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 from typing import Optional, List
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 import uuid
 
 from db_helper import get_db
@@ -37,6 +37,11 @@ async def list_notifications(user=Depends(get_current_user)):
             # backward-compat — older clients still display .title; localized clients use type+reminder_type
             "title": f"Reminder: {r.get('type')}",
         })
+    since = (datetime.now(timezone.utc) - timedelta(days=30)).isoformat()
+    async for n in db.notifications.find({"user_id": user["id"], "type": "workshop_access", "created_at": {"$gt": since}},
+                                         {"_id": 0}).sort("created_at", -1).limit(10):
+        out.append({"type": "workshop_access", "date": (n.get("created_at") or "")[:10], **(n.get("payload") or {}),
+                    "title": f"{(n.get('payload') or {}).get('business_name')} → {(n.get('payload') or {}).get('vehicle_label')}"})
     unread = await db.messages.count_documents({"receiver_id": user["id"], "read": False})
     if unread:
         out.append({

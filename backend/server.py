@@ -96,6 +96,7 @@ from routers import timeline as timeline_router
 # Iter 53: Stripe payments + B2B + waitlist
 from routers import payments as payments_router
 from routers import business as business_router
+from routers import business_geo as business_geo_router
 from routers import waitlist as waitlist_router
 from routers import demo as demo_router
 from seed import seed_database
@@ -240,6 +241,22 @@ async def sitemap_xml(site: str = "pl"):
                 )
         except Exception as e:
             logger.warning(f"sitemap: blog_posts query failed: {e}")
+        # ---- Publicly visible businesses (Paczka 12) ----
+        try:
+            from routers.business import PUBLIC_BIZ_Q
+            async for b in db.business_accounts.find(PUBLIC_BIZ_Q, {"_id": 0, "slug": 1, "updated_at": 1}).limit(5000):
+                if b.get("slug"):
+                    loc = xml_escape(f"{base_url}/warsztaty/{b['slug']}")
+                    urls.append(
+                        f"  <url>\n"
+                        f"    <loc>{loc}</loc>\n"
+                        f"    <lastmod>{_w3c_date(b.get('updated_at'))}</lastmod>\n"
+                        f"    <changefreq>weekly</changefreq>\n"
+                        f"    <priority>0.6</priority>\n"
+                        f"  </url>"
+                    )
+        except Exception as e:
+            logger.warning(f"sitemap: business query failed: {e}")
 
     body = (
         '<?xml version="1.0" encoding="UTF-8"?>\n'
@@ -287,6 +304,7 @@ api_router.include_router(admin_security_router.health_router)
 api_router.include_router(timeline_router.router)
 # Iter 53: Stripe + B2B + waitlist
 api_router.include_router(payments_router.router)
+api_router.include_router(business_geo_router.router)  # before business_router: /business/search vs /business/{slug}
 api_router.include_router(business_router.router)
 api_router.include_router(waitlist_router.router)
 

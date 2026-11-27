@@ -30,8 +30,16 @@ class WaitlistIn(BaseModel):
 @router.post("/waitlist/premium", dependencies=[Depends(rate_limit("waitlist", 5, 3600))])
 async def join_waitlist(payload: WaitlistIn, user=Depends(get_optional_user)):
     db = get_db()
-    # Idempotent per email — one entry per address
-    existing = await db.premium_waitlist.find_one({"email": payload.email.lower()})
+    is_plan = payload.trigger in ("plan_workshop", "plan_dealer")
+    if is_plan:
+        # Paczka 12 B10: business plan declarations only when the admin switch is on (admin users always).
+        from routers.business_geo import b2b_pricing_visible
+        from plan_limits import is_admin_user
+        if not (await b2b_pricing_visible(db) or (user and is_admin_user(user))):
+            raise HTTPException(status_code=403, detail="Plany dla firm nie są jeszcze dostępne")
+    # Idempotent per email — one entry per address (business plans: one per address + plan)
+    q = {"email": payload.email.lower(), **({"trigger": payload.trigger} if is_plan else {"trigger": {"$nin": ["plan_workshop", "plan_dealer"]}})}
+    existing = await db.premium_waitlist.find_one(q)
     if existing:
         return {"ok": True, "already_on_list": True}
     doc = {
@@ -40,6 +48,7 @@ async def join_waitlist(payload: WaitlistIn, user=Depends(get_optional_user)):
         "user_id": (user or {}).get("id"),
         "trigger": payload.trigger[:64],
         "vehicle_id": payload.vehicle_id,
+        "business_id": (user or {}).get("business_id") if is_plan else None,
         "created_at": datetime.now(timezone.utc).isoformat(),
     }
     await db.premium_waitlist.insert_one(doc)

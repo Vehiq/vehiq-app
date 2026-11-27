@@ -282,6 +282,13 @@ async def seed_database(db):
     await db.listings.create_index("id", unique=True)
     await db.services.create_index("slug", sparse=True)
     await db.services.create_index([("location.lat", 1), ("location.lng", 1)])
+    # Paczka 12: B2B geo search + stats + access codes (idempotent).
+    await db.business_accounts.create_index([("location", "2dsphere")])
+    await db.business_stats.create_index([("business_id", 1), ("date", 1)], unique=True)
+    await db.vehicle_access_codes.create_index("code")
+    await db.access_code_failures.create_index("created_at", expireAfterSeconds=3600)
+    from geocode import ensure_indexes as _geo_idx
+    await _geo_idx(db)
     await db.events.create_index("slug", sparse=True)
     await db.events.create_index("date_start")
     await db.events.create_index([("location.lat", 1), ("location.lng", 1)])

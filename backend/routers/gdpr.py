@@ -143,7 +143,7 @@ ERASE_DELETE = [
     ("reminders", "user_id"), ("fuel_logs", "user_id"), ("mileage_logs", "user_id"),
     ("project_items", "user_id"), ("listings", "user_id"), ("swap_listings", "user_id"),
     ("swap_interactions", "user_id"), ("swap_matches", "user_ids"), ("vehicle_shares", "user_id"),
-    ("services", "user_id"), ("services", "owner_id"), ("service_reviews", "user_id"), ("part_alerts", "user_id"), ("notifications", "user_id"),
+    ("services", "user_id"), ("services", "owner_id"), ("vehicle_access_codes", "owner_user_id"), ("service_reviews", "user_id"), ("part_alerts", "user_id"), ("notifications", "user_id"),
     ("ai_chats", "user_id"), ("vehicle_views", "user_id"), ("premium_waitlist", "user_id"),
 ]
 

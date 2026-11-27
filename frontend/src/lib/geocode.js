@@ -1,3 +1,4 @@
+import api from "@/lib/api";
 /**
  * Nominatim (OpenStreetMap) geocoding helper.
  *
@@ -35,14 +36,14 @@ function writeCache(cache) {
 }
 
 async function rawGeocode(address) {
-  const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(address)}&format=json&limit=1&accept-language=pl`;
-  const res = await fetch(url, {
-    headers: { "Accept-Language": "pl" },
-  });
-  if (!res.ok) throw new Error(`Nominatim ${res.status}`);
-  const data = await res.json();
-  if (!Array.isArray(data) || data.length === 0) return null;
-  return { lat: parseFloat(data[0].lat), lon: parseFloat(data[0].lon) };
+  // Paczka 12: backend proxy (Nominatim with proper User-Agent, 1 req/s, shared cache).
+  try {
+    const { data } = await api.get("/geo/lookup", { params: { q: address.trim().slice(0, 64) } });
+    return { lat: data.lat, lon: data.lng, label: data.label };
+  } catch (e) {
+    if (e?.response?.status === 404) return null;
+    throw e;
+  }
 }
 
 export async function geocode(address) {

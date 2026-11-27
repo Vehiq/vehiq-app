@@ -16,7 +16,7 @@ from datetime import datetime, timezone, timedelta
 from typing import Optional, List
 
 from fastapi import APIRouter, Depends, HTTPException, Header
-from pydantic import BaseModel, EmailStr, Field, field_validator
+from pydantic import BaseModel, EmailStr, Field, field_validator, model_validator
 
 from auth_utils import get_current_user, get_admin
 from rate_guard import hit_key_limit
@@ -30,7 +30,8 @@ router = APIRouter()
 BUSINESS_TYPES = {"workshop", "dealer", "detailing", "towing", "other"}
 ACTIVATION_TRIGGERS = {"qr_scan", "admin", "payment"}
 PUBLIC_FIELDS = ("name", "type", "slug", "address", "city", "phone", "website", "description",
-                 "specializations", "logo_url", "opening_hours", "verified")
+                 "specializations", "logo_url", "opening_hours", "verified",
+                 "street", "postal_code", "voivodeship", "country", "location", "brands")
 PUBLIC_BIZ_Q = {"verified": True, "activated": True, "hidden": {"$ne": True}}
 ACCESS_DAILY_LIMIT = 20
 ACCESS_RETRY_DAYS = 30
@@ -296,46 +297,159 @@ async def get_business_stats(slug: str, viewer=Depends(_viewer)):
     }
 
 
+VOIVODESHIPS = {
+    "dolnośląskie", "kujawsko-pomorskie", "lubelskie", "lubuskie", "łódzkie", "małopolskie", "mazowieckie", "opolskie",
+    "podkarpackie", "podlaskie", "pomorskie", "śląskie", "świętokrzyskie", "warmińsko-mazurskie", "wielkopolskie",
+    "zachodniopomorskie",
+}
+CAR_BRANDS = {
+    "Alfa Romeo", "Aston Martin", "Audi", "Bentley", "BMW", "Bugatti", "Buick", "Cadillac", "Chevrolet", "Chrysler",
+    "Citroën", "Dacia", "Daewoo", "Ferrari", "Fiat", "Ford", "Genesis", "Honda", "Hyundai", "Infiniti", "Jaguar", "Jeep",
+    "Kia", "Lamborghini", "Land Rover", "Lexus", "Maserati", "Mazda", "McLaren", "Mercedes-Benz", "MG", "MINI",
+    "Mitsubishi", "Nissan", "Opel", "Peugeot", "Porsche", "RAM", "Renault", "Rolls-Royce", "SEAT", "Skoda", "Smart",
+    "Subaru", "Suzuki", "Tesla", "Toyota", "Volkswagen", "Volvo",
+}
+DAYS = ("mon", "tue", "wed", "thu", "fri", "sat", "sun")
+_HHMM = re.compile(r"^([01]\d|2[0-3]):[0-5]\d$")
+
+
+def validate_opening_hours(v: Optional[dict]) -> Optional[dict]:
+    if v is None:
+        return None
+    if not isinstance(v, dict) or set(v) - set(DAYS):
+        raise ValueError("opening_hours: keys mon..sun")
+    out = {}
+    for d in DAYS:
+        slots = v.get(d) or []
+        if not isinstance(slots, list) or len(slots) > 2:
+            raise ValueError(f"opening_hours.{d}: max 2 slots")
+        clean = []
+        for sl in slots:
+            o, c = (sl or {}).get("open", ""), (sl or {}).get("close", "")
+            if not (_HHMM.match(o) and _HHMM.match(c)) or o >= c:
+                raise ValueError(f"opening_hours.{d}: HH:MM and open < close")
+            clean.append({"open": o, "close": c})
+        out[d] = clean
+    return out
+
+
 class BusinessProfileIn(BaseModel):
+    name: Optional[str] = Field(default=None, min_length=2, max_length=120)
     logo_url: Optional[str] = None
-    description: Optional[str] = None
+    description: Optional[str] = Field(default=None, max_length=3000)
     opening_hours: Optional[dict] = None
     specializations: Optional[List[str]] = None
-    phone: Optional[str] = None
-    website: Optional[str] = None
+    brands: Optional[List[str]] = None
+    phone: Optional[str] = Field(default=None, max_length=40)
+    website: Optional[str] = Field(default=None, max_length=200)
     address: Optional[str] = None
+    street: Optional[str] = Field(default=None, max_length=120)
+    postal_code: Optional[str] = Field(default=None, max_length=12)
+    city: Optional[str] = Field(default=None, max_length=80)
+    voivodeship: Optional[str] = None
+    country: Optional[str] = Field(default=None, max_length=2)
+    pin: Optional[dict] = None  # {lat, lng} — manual pin confirmed by the business
+
+    @field_validator("opening_hours")
+    @classmethod
+    def _hours(cls, v):
+        return validate_opening_hours(v)
+
+    @field_validator("voivodeship")
+    @classmethod
+    def _voiv(cls, v):
+        if v and v not in VOIVODESHIPS:
+            raise ValueError("voivodeship must be one of the 16 Polish voivodeships")
+        return v
+
+    @field_validator("brands")
+    @classmethod
+    def _brands(cls, v):
+        if v is None:
+            return v
+        if len(v) > 30 or any(b not in CAR_BRANDS for b in v):
+            raise ValueError("brands: max 30, from the app brand list")
+        return list(dict.fromkeys(v))
+
+    @field_validator("pin")
+    @classmethod
+    def _pin(cls, v):
+        if v is None:
+            return v
+        lat, lng = float(v.get("lat")), float(v.get("lng"))
+        if not (-90 <= lat <= 90 and -180 <= lng <= 180):
+            raise ValueError("pin out of range")
+        return {"lat": lat, "lng": lng}
+
+    @model_validator(mode="after")
+    def _postal(self):
+        if self.postal_code and (self.country or "PL") == "PL" and not re.fullmatch(r"\d{2}-\d{3}", self.postal_code):
+            raise ValueError("postal_code must be 00-000 for PL")
+        return self
+
+
+def geo_point(lat: float, lng: float) -> dict:
+    return {"type": "Point", "coordinates": [lng, lat]}
 
 
 @router.patch("/business/{business_id}/profile")
 async def update_business_profile(
     business_id: str, payload: BusinessProfileIn, user=Depends(get_current_user)
 ):
-    """Update the profile of a business owned by the caller. Iter 55 (Bug 34 +
-    onboarding). Non-owner (staff or unrelated user) → 403.
-    """
+    """Owner/staff edit profile. Address change → backend geocoding; a manual pin always wins."""
     db = get_db()
     biz = await db.business_accounts.find_one({"id": business_id}, {"_id": 0})
     if not biz:
         raise HTTPException(status_code=404, detail="Nie znaleziono firmy")
-    if biz.get("owner_user_id") != user["id"] and user["id"] not in (biz.get("staff_user_ids") or []):
+    if not is_member(biz, user):
         raise HTTPException(status_code=403, detail="Brak uprawnień")
-    upd: dict = {"updated_at": datetime.now(timezone.utc).isoformat()}
-    for k in ("logo_url", "phone", "website", "address"):
-        v = getattr(payload, k)
-        if v is not None:
-            upd[k] = sanitize_plain(v) if isinstance(v, str) else v
-    if payload.description is not None:
-        upd["description"] = sanitize_plain(payload.description)
-    if payload.opening_hours is not None:
-        upd["opening_hours"] = payload.opening_hours
-    if payload.specializations is not None:
-        upd["specializations"] = [sanitize_plain(s)[:40] for s in payload.specializations][:20]
+    now = datetime.now(timezone.utc).isoformat()
+    upd: dict = {"updated_at": now}
+    data = payload.model_dump(exclude_unset=True)
+    for k in ("name", "logo_url", "phone", "website", "address", "street", "postal_code", "city", "voivodeship", "description"):
+        if k in data and data[k] is not None:
+            upd[k] = sanitize_plain(data[k]) if isinstance(data[k], str) else data[k]
+    if "country" in data:
+        upd["country"] = (data["country"] or "PL").upper()
+    for k in ("opening_hours", "brands"):
+        if k in data:
+            upd[k] = data[k]
+    if data.get("specializations") is not None:
+        upd["specializations"] = [sanitize_plain(s)[:40] for s in data["specializations"]][:20]
+    geocode_status = None
+    if data.get("pin"):
+        upd.update({"location": geo_point(data["pin"]["lat"], data["pin"]["lng"]), "location_source": "manual_pin",
+                    "location_confirmed_at": now})
+    elif any(k in upd for k in ("street", "postal_code", "city")):
+        merged = {**biz, **upd}
+        q = ", ".join(x for x in [merged.get("street"), f"{merged.get('postal_code') or ''} {merged.get('city') or ''}".strip()] if x)
+        if biz.get("location_source") == "manual_pin" and biz.get("geocoded_from") == q:
+            pass
+        else:
+            from geocode import geocode
+            hit = await geocode(q, merged.get("country") or "PL")
+            if hit:
+                upd.update({"location": geo_point(hit["lat"], hit["lng"]), "location_source": "geocoded",
+                            "location_confirmed_at": None, "geocoded_from": q})
+                geocode_status = "ok"
+            else:
+                geocode_status = "failed"
     await db.business_accounts.update_one({"id": business_id}, {"$set": upd})
-    return {"ok": True, **upd}
+    fresh = await db.business_accounts.find_one({"id": business_id}, {"_id": 0})
+    return {"ok": True, "geocode": geocode_status, "business": fresh}
+
+
+def profile_checklist(biz: dict, entries: int = 0) -> dict:
+    return {
+        "details": bool(biz.get("name") and biz.get("phone") and (biz.get("specializations") or [])),
+        "location": bool(biz.get("location") and biz.get("location_confirmed_at")),
+        "hours": bool(biz.get("opening_hours") and any((biz.get("opening_hours") or {}).values())),
+        "logo": bool(biz.get("logo_url")),
+        "first_entry": entries > 0,
+    }
 
 
 def _is_profile_complete(biz: dict) -> bool:
-    # Logo not required until file upload exists (Paczka 12).
     return bool(biz.get("opening_hours") and (biz.get("specializations") or []))
 
 
@@ -535,23 +649,16 @@ async def business_access_list(user=Depends(get_current_user)):
             v["cover_photo"] = cover
             v.pop("photos", None)
             veh_meta[v["id"]] = v
+    counts = {}
+    async for r in db.service_entries.aggregate([{"$match": {"business_id": biz["id"]}}, {"$group": {"_id": "$vehicle_id", "n": {"$sum": 1}}}]):
+        counts[r["_id"]] = r["n"]
     for it in items:
         it["vehicle"] = veh_meta.get(it["vehicle_id"])
-    return {
-        "items": items,
-        "business": {
-            "id": biz["id"],
-            "name": biz.get("name"),
-            "slug": biz.get("slug"),
-            "type": biz.get("type"),
-            "activated": biz.get("activated"),
-            "logo_url": biz.get("logo_url"),
-            "description": biz.get("description"),
-            "opening_hours": biz.get("opening_hours"),
-            "specializations": biz.get("specializations") or [],
-            "profile_complete": _is_profile_complete(biz),
-        },
-    }
+        it["entries_count"] = counts.get(it["vehicle_id"], 0)
+    business = {k: v for k, v in biz.items() if k not in ("stripe_customer_id", "stripe_subscription_id")}
+    business["profile_complete"] = _is_profile_complete(biz)
+    business["checklist"] = profile_checklist(biz, sum(counts.values()))
+    return {"items": items, "business": business}
 
 
 @router.get("/business/access/vehicle/{vehicle_id}")
@@ -591,11 +698,12 @@ async def respond_access(access_id: str, payload: AccessRespondIn, user=Depends(
 class BusinessServiceEntryIn(BaseModel):
     vehicle_id: str
     date: str
-    type: str
-    service_type: Optional[str] = None
+    type: Optional[str] = None
+    service_type: Optional[str] = Field(default=None, max_length=64)
+    mileage: Optional[int] = Field(default=None, ge=0, le=5_000_000)
     workshop: Optional[str] = None
     cost: float = 0
-    notes: Optional[str] = None
+    notes: Optional[str] = Field(default=None, max_length=2000)
 
 
 @router.post("/business/service-entry")
@@ -625,8 +733,12 @@ async def add_service_entry_as_business(payload: BusinessServiceEntryIn, user=De
     doc.update({
         "id": str(uuid.uuid4()),
         "user_id": vehicle["user_id"],  # ownership stays with vehicle owner
+        "type": payload.type or payload.service_type or "other",
+        "service_type": payload.service_type or payload.type or "other",
         "business_id": biz["id"],
         "business_name": biz.get("name"),
+        "business_slug": biz.get("slug"),
+        "business_verified": True,
         "workshop": payload.workshop or biz.get("name"),
         "notes": sanitize_plain(payload.notes) if payload.notes else None,
         "created_at": datetime.now(timezone.utc).isoformat(),

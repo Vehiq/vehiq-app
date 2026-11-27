@@ -168,6 +168,8 @@ export default function TopBar({ onMenu }) {
                   if (n.type === "reminder") {
                     const subtype = t(`notifications.reminderTypes.${n.reminder_type || "default"}`, { defaultValue: n.reminder_type || t("notifications.reminderTypes.default") });
                     title = t("notifications.reminder", { type: subtype });
+                  } else if (n.type === "workshop_access") {
+                    title = t("notifications.workshopAccess", { name: n.business_name, vehicle: n.vehicle_label });
                   } else if (n.type === "messages") {
                     title = t("notifications.messages", { count: n.count, defaultValue: n.title });
                   }

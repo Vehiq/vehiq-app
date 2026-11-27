@@ -1,0 +1,39 @@
+{
+  "summary": "PACZKA 10 part A frontend test (Playwright, desktop 1920x1080). All 7 requested flows PASS: History tab edit/delete rules (only the owner's own entry 'Hamulce – klocki' shows Edytuj/Usuń; the previous-owner entry 'Wymiana oleju' 2019 and the workshop entry 'Rozrząd' have none; workshop-stamp 'Potwierdzone przez QA Warsztat Stempel' links to /warsztaty/qa-warsztat-p11-99b8). Inline edit form is prefilled (brake_pads, 2026-11-23, 150100, 'Klocki przód'); changing mileage to 150200 shows the toast 'Zapisano zmiany' plus 'edytowano 27.11.2026'. Public page (logged out) in PL shows 'Benzyna PB 95', translated service types, public-service-edited-0 and the stamp; in EN it shows 'Petrol 95', 'Brakes – pads', 'Timing belt', 'Oil change', 'edited 27/11/2026' and 'Confirmed by'. Delete opens the native confirm 'Usunąć wpis? Tej operacji nie da się cofnąć'; the entry is removed and the toast 'Wpis usunięty' appears. AI tab: subtitle 'Z kontekstem Twojego pojazdu' with no Claude/Sonnet; the assistant message renders h1 Diagnoza, strong Klocki and a 2-item ul with no literal # or **; no script/img in the DOM and window.__xss is undefined. CreateListing: listing-promo-consent is unchecked by default with the correct text. Optional flow done: created a TEST_ parts listing with consent, edit page showed it checked, unchecked it, then re-checked it. Admin Marketplace: the 'Zgoda na promocję' tab and column exist; the promo tab shows only the consenting listing with '✓ 2026-11-27', and withdrawn ones show 'wycofana 2026-11-27'.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "admin first_login", "issue": "Admin kontakt@sharago.com has first_login=true and the UI redirects to /gv91-admin/change-password, but navigating directly to /gv91-admin/marketplace after login works fully. The forced password change is only enforced on the frontend, not by the admin API."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "VehicleProfile header (owner view /garage/:id)", "issue": "The overline shows the raw fuel key '2007 • PETROL_95'. VehicleProfile.js:94 uses vehicle.fuel?.toUpperCase() instead of fuelLabel(vehicle.fuel, lang). The Overview spec card in the same view correctly shows 'Benzyna PB 95'.", "selector": "VehicleProfile.js line 94", "priority": "MEDIUM"},
+      {"component": "SwapPage card", "issue": "SwapPage.js:366 renders the raw {v.fuel} key (e.g. petrol_95) without fuelLabel. Same class of bug as the one Paczka 10 fixes. Seen in code review only, not in the UI.", "selector": "SwapPage.js line 366", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "History tab vs public page", "issues": ["Date formats differ: the owner History list shows '23 lis 2026', the public page shows ISO '2026-11-23', and the edited label shows '27.11.2026'. Consider one format."]},
+      {"screen": "Admin Marketplace", "issues": ["The admin panel is in English, but the new tab, column and the 'wycofana' label are Polish (lst.* i18n keys follow the user language)."]},
+      {"screen": "Vehicle overview 'Terminy' / history edit form", "issues": ["Uses the native browser date input (mm/dd/yyyy, US format on a Polish UI) instead of a shadcn calendar. This was already the case before this change."]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Replace vehicle.fuel?.toUpperCase() in VehicleProfile.js:94 with fuelLabel(vehicle.fuel, lang) (it currently shows PETROL_95)",
+    "Use fuelLabel in SwapPage.js:366",
+    "Optional: AITab exportPdf writes raw markdown (#, **) into the PDF; strip the markdown before export",
+    "Optional: enforce admin first_login password change on the backend (admin endpoints are reachable before the change)"
+  ],
+  "critical_code_review_comments": [
+    "HistoryTab.js EVENT_TYPES still holds old pl/en labels ('Hamulce — klocki' with an em dash) that are no longer used for text; only the icon is used. This is dead data: trim it to icons only to avoid confusion.",
+    "AITab uses react-markdown with skipHtml, so it is XSS-safe. Verified.",
+    "After creating a parts/car listing, CreateListing navigates to /garage, not /marketplace/mine or the listing. This looks odd but behaved the same before this change."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (frontend only)", "frontend": "100% of requested flows (7/7)"},
+  "seed_data_creation": "Created TEST_P10 promo klocki listing 118c0260-e5e6-4d12-baf7-e47b8a6f6ee0 and deleted it afterwards (GET now returns 404). Per the brief, edited mileage to 150200 and then deleted the owner's own service entry b816b418-b486-489e-8430-3a603b53756d on vehicle 1040a88c (QA seed). Re-seed it before the next run.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Owner qa_p10_3379fb12@qa.pl / TestPass1234!, vehicle 1040a88c-1857-49f2-a1de-a3ef88313080, public slug audi-rs4-b7-2007-13. A first-use tooltips overlay (first-use-tooltips-overlay) blocks clicks on the vehicle page; click the 'Pomiń wszystkie' text to dismiss it. Language is set via localStorage key 'sharago_lang'. Admin login redirects to change-password, but direct navigation to /gv91-admin/marketplace works. The own 'Hamulce – klocki' entry was deleted during testing."
+}
